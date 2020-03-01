@@ -1,0 +1,35 @@
+From 585bcb4ad668fde635cd92fb22e05f34a1d7e835 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 15 Oct 2019 20:21:40 +0200
+Subject: [PATCH] evl/thread: fix race while switching to inband
+
+Taking IRQs in evl_switch_inband() after T_INBAND was set for current
+but before __evl_schedule() has switched it out is a very bad
+idea.
+
+As the transition is half-baked, the pipeline ends up being very
+confused about what the current stage is and establishes a severely
+broken state for the companion kernel, with current_irq_stage ==
+&oob_stage and running_inband() == true at the same time. What follows
+is a long and painful agony.
+---
+ kernel/evl/thread.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index d8c875686855..8eb696ac40c4 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -711,8 +711,7 @@ void evl_switch_inband(int cause)
+ 	rq = curr->rq;
+ 	evl_set_resched(rq);
+ 	dovetail_leave_oob();
+-	xnlock_clear_irqon(&nklock);
+-	oob_irq_disable();	/* <= REQUIRED. */
++	xnlock_put(&nklock);
+ 	__evl_schedule(rq);
+ 	oob_irq_enable();
+ 	dovetail_resume_inband();
+-- 
+2.16.4
+

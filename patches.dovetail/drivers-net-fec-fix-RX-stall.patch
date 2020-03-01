@@ -1,4 +1,4 @@
-From aa69fd21bf9288b9f6634d47cf88ccb774a4ad27 Mon Sep 17 00:00:00 2001
+From 8d5465dd429e3205c0ce0a046f1bd2c638094c0a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 10 Feb 2015 15:08:45 +0100
 Subject: [PATCH] drivers/net/fec: fix RX stall
@@ -23,10 +23,10 @@ event.
  1 file changed, 48 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/ethernet/freescale/fec_main.c b/drivers/net/ethernet/freescale/fec_main.c
-index c497dcd5bad..64b85755eed 100644
+index ad859a2da3eb..7daed49a2c96 100644
 --- a/drivers/net/ethernet/freescale/fec_main.c
 +++ b/drivers/net/ethernet/freescale/fec_main.c
-@@ -1616,11 +1616,54 @@ fec_enet_interrupt(int irq, void *dev_id)
+@@ -1619,11 +1619,54 @@ fec_enet_interrupt(int irq, void *dev_id)
  	return ret;
  }
  
@@ -83,7 +83,7 @@ index c497dcd5bad..64b85755eed 100644
  	int pkts;
  
  	pkts = fec_enet_rx(ndev, budget);
-@@ -1629,10 +1672,9 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
+@@ -1632,10 +1675,9 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
  
  	if (pkts < budget) {
  		napi_complete_done(napi, pkts);

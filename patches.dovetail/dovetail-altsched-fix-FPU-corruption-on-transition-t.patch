@@ -1,4 +1,4 @@
-From 18c1cbdd494c9cae02eb5730f1a9b2a2979e19d5 Mon Sep 17 00:00:00 2001
+From 7d4b1d0e9841ab65a1d6ee5a85663ade1b37c733 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 22 Jun 2019 15:36:24 +0200
 Subject: [PATCH] dovetail: altsched: fix FPU corruption on transition to oob
@@ -17,10 +17,10 @@ for the task.
  1 file changed, 10 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index ed9cc4728dea..2f0f03e69b42 100644
+index 61190374df2c..0600614c8b94 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7599,8 +7599,17 @@ int dovetail_leave_inband(void)
+@@ -7983,8 +7983,17 @@ int dovetail_leave_inband(void)
  	set_current_state(TASK_INTERRUPTIBLE);
  	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
  	sched_submit_work(p);

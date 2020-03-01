@@ -1,4 +1,4 @@
-From 49edf344eb1734f3b51671f53ff0e69a3962cfa6 Mon Sep 17 00:00:00 2001
+From e600000e2f803483836ae0bb1de51807ff4389a9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 17 Jul 2017 09:35:14 +0200
 Subject: [PATCH] hrtimer: dovetail: announce clock set event
@@ -49,10 +49,10 @@ index 6da6429bdf5e..05ba868cda1e 100644
  {
  	check_inband_stage();
 diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
-index 5ee77f1a8a92..376486815c62 100644
+index 0d4dc241c0fb..9cadeb898bec 100644
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
-@@ -851,6 +851,7 @@ void clock_was_set(void)
+@@ -872,6 +872,7 @@ void clock_was_set(void)
  	on_each_cpu(retrigger_next_event, NULL, 1);
  #endif
  	timerfd_clock_was_set();

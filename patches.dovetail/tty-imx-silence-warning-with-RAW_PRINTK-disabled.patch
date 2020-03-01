@@ -1,0 +1,30 @@
+From 1c07ae8fd16d8cb7ee5fb42a47db985f118a2caf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 7 Oct 2019 11:51:49 +0200
+Subject: [PATCH] tty: imx: silence warning with RAW_PRINTK disabled
+
+---
+ drivers/tty/serial/imx.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/tty/serial/imx.c b/drivers/tty/serial/imx.c
+index 2e97d2f50e2e..c586fc62059d 100644
+--- a/drivers/tty/serial/imx.c
++++ b/drivers/tty/serial/imx.c
+@@ -1972,11 +1972,13 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
+ 	return __imx_uart_console_write(co, s, count, 1);
+ }
+ 
++#ifdef CONFIG_RAW_PRINTK
+ static void
+ imx_uart_console_write_raw(struct console *co, const char *s, unsigned int count)
+ {
+ 	return __imx_uart_console_write(co, s, count, 0);
+ }
++#endif
+ 
+ /*
+  * If the port was already initialised (eg, by a boot loader),
+-- 
+2.16.4
+

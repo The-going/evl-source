@@ -1,4 +1,4 @@
-From e96113d68ea7fe92f4143d8a6bb417e679bc5d4e Mon Sep 17 00:00:00 2001
+From eaf1c68f839617a7cd59fde307fc2a7480a07e25 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 18:37:41 +0200
 Subject: [PATCH] x86: dovetail: route syscalls to the co-kernel
@@ -8,7 +8,7 @@ Subject: [PATCH] x86: dovetail: route syscalls to the co-kernel
  1 file changed, 52 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 3c1b5603c306..3edf33826339 100644
+index 2b1440e65590..41a73cca980f 100644
 --- a/arch/x86/entry/common.c
 +++ b/arch/x86/entry/common.c
 @@ -17,6 +17,7 @@
@@ -41,7 +41,7 @@ index 3c1b5603c306..3edf33826339 100644
  	enable_local_irqs();
  	ti = current_thread_info();
 +
-+	ret = pipeline_syscall(ti, nr & __SYSCALL_MASK, regs);
++	ret = pipeline_syscall(ti, nr, regs);
 +	if (ret > 0) {
 +		disable_local_irqs();
 +		return;
@@ -52,9 +52,9 @@ index 3c1b5603c306..3edf33826339 100644
  	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
  		nr = syscall_trace_enter(regs);
  
-@@ -313,12 +327,38 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
- 		nr = array_index_nospec(nr, NR_syscalls);
- 		regs->ax = sys_call_table[nr](regs);
+@@ -314,12 +328,38 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
+ 		regs->ax = x32_sys_call_table[nr](regs);
+ #endif
  	}
 -
 +done:
@@ -92,7 +92,7 @@ index 3c1b5603c306..3edf33826339 100644
  /*
   * Does a 32-bit syscall.  Called with IRQs on in CONTEXT_KERNEL.  Does
   * all entry and exit work and returns with IRQs off.  This function is
-@@ -329,11 +369,20 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+@@ -330,11 +370,20 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
  {
  	struct thread_info *ti = current_thread_info();
  	unsigned int nr = (unsigned int)regs->orig_ax;
@@ -113,7 +113,7 @@ index 3c1b5603c306..3edf33826339 100644
  	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {
  		/*
  		 * Subtlety here: if ptrace pokes something larger than
-@@ -362,6 +411,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+@@ -363,6 +412,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
  #endif /* CONFIG_IA32_EMULATION */
  	}
  

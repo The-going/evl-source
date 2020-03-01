@@ -1,4 +1,4 @@
-From ebb6840bdb331cf588adfdba88ceebdea8dfcd4c Mon Sep 17 00:00:00 2001
+From 64ab6d257f084380ac41cf8a9a4801360b880610 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 17:08:45 +0200
 Subject: [PATCH] x86: dovetail: add core support
@@ -13,7 +13,7 @@ Subject: [PATCH] x86: dovetail: add core support
  create mode 100644 arch/x86/include/asm/dovetail.h
 
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index adb5d34814d8..610f1e7b7478 100644
+index 1a19d1753b1b..5bdd60d6c334 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
 @@ -28,6 +28,7 @@ config X86_64
@@ -24,7 +24,7 @@ index adb5d34814d8..610f1e7b7478 100644
  	select MODULES_USE_ELF_RELA
  	select NEED_DMA_MAP_STATE
  	select SWIOTLB
-@@ -189,6 +190,7 @@ config X86
+@@ -191,6 +192,7 @@ config X86
  	select HAVE_MOD_ARCH_SPECIFIC
  	select HAVE_MOVE_PMD
  	select HAVE_NMI
@@ -32,7 +32,7 @@ index adb5d34814d8..610f1e7b7478 100644
  	select HAVE_OPROFILE
  	select HAVE_OPTPROBES
  	select HAVE_PCSPKR_PLATFORM
-@@ -853,6 +855,7 @@ config ACRN_GUEST
+@@ -862,6 +864,7 @@ config ACRN_GUEST
  
  endif #HYPERVISOR_GUEST
  

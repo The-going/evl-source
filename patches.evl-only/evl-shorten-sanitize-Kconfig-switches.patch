@@ -1,4 +1,4 @@
-From efee1b05f66263e6d3d21e3055d26a1364b06bc4 Mon Sep 17 00:00:00 2001
+From 6d9d735d36da401a50a7cd355ac1634bd54f807a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -42,10 +42,10 @@ Subject: [PATCH] evl: shorten, sanitize Kconfig switches
  35 files changed, 146 insertions(+), 164 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 0b8776a55f87..e40094ff1ced 100644
+index c7e4bee430ce..5586d6484e03 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -286,7 +286,7 @@ config PGTABLE_LEVELS
+@@ -285,7 +285,7 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -54,7 +54,7 @@ index 0b8776a55f87..e40094ff1ced 100644
  
  menu "System Type"
  
-@@ -673,7 +673,7 @@ config ARCH_MULTI_V6_V7
+@@ -584,7 +584,7 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID
@@ -64,10 +64,10 @@ index 0b8776a55f87..e40094ff1ced 100644
  	       !(CPU_FREQ_DEFAULT_GOV_PERFORMANCE || \
  	        CPU_FREQ_DEFAULT_GOV_POWERSAVE)
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 1d43275c76d0..501549900bfb 100644
+index 52b3e06ea216..b563b393c7c9 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -268,7 +268,7 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
+@@ -271,7 +271,7 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
  endif
  endif
  
@@ -77,19 +77,19 @@ index 1d43275c76d0..501549900bfb 100644
  endif
  
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 6482a8b85f2d..1a233e86ae4b 100644
+index a5ce497a98f0..f46b18cd252e 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -134,7 +134,7 @@ config ARM64
+@@ -133,7 +133,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
 -	select HAVE_ARCH_EVENLESS
 +	select HAVE_ARCH_EVL
  	select HAVE_ARM_SMCCC
+ 	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
- 	select HAVE_C_RECORDMCOUNT
-@@ -1524,7 +1524,7 @@ config STACKPROTECTOR_PER_TASK
+@@ -1553,7 +1553,7 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -99,10 +99,10 @@ index 6482a8b85f2d..1a233e86ae4b 100644
  menu "Boot options"
  
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index feb7f611228d..00e0a86940d1 100644
+index 2811ff9da857..e97d7c47354e 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -100,7 +100,7 @@ endif
+@@ -107,7 +107,7 @@ endif
  
  CHECKFLAGS	+= -D__aarch64__
  
@@ -112,10 +112,10 @@ index feb7f611228d..00e0a86940d1 100644
  endif
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 7de216da5bbe..5abf1fec252c 100644
+index 3f82f6ca82fb..4b6b5edb5720 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
+@@ -156,7 +156,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
  obj-$(CONFIG_RPMSG)		+= rpmsg/
  obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
  
@@ -467,10 +467,10 @@ index 968b5efccd90..6730247e8da3 100644
  source "kernel/evenless/Kconfig"
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index e995f080866a..2f1a1732ce61 100644
+index 6674ba7ee260..7979bc07ac25 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -103,7 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

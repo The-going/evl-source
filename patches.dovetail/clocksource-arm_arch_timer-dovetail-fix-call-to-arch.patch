@@ -1,4 +1,4 @@
-From 5fc5caf0a7d6c70862c3de912aa65251f9951033 Mon Sep 17 00:00:00 2001
+From 7e3bb44ecc34fd7b68089e32297f5185b8949bbe Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Apr 2019 16:51:52 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: dovetail: fix call to
@@ -17,10 +17,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  2 files changed, 8 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 9a65d1c735ae..9f62c384c329 100644
+index 57bc4f7d8323..12d7ff830bd2 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -273,5 +273,8 @@ void arch_clocksource_arch_timer_init(struct clocksource *cs)
+@@ -272,5 +272,8 @@ void arch_clocksource_arch_timer_init(struct clocksource *cs)
  {
  	struct arch_clocksource_data *d = &cs->archdata;
  

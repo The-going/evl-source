@@ -1,4 +1,4 @@
-From a4acc37cc817d51249a185467ac2e086fa211544 Mon Sep 17 00:00:00 2001
+From 2c8249846adc5634de17356ff4f6165bb898c8f8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 15:35:03 +0200
 Subject: [PATCH] mm: dovetail: advertise new mappings
@@ -10,10 +10,10 @@ Subject: [PATCH] mm: dovetail: advertise new mappings
  3 files changed, 8 insertions(+)
 
 diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 9b21d0047710..4a28323c7572 100644
+index 4e7809408073..1d96a633dcc1 100644
 --- a/include/linux/vmalloc.h
 +++ b/include/linux/vmalloc.h
-@@ -226,5 +226,6 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
+@@ -234,5 +234,6 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
  
  int register_vmap_purge_notifier(struct notifier_block *nb);
  int unregister_vmap_purge_notifier(struct notifier_block *nb);
@@ -33,7 +33,7 @@ index 0a2ffadc6d71..831540bdf5ea 100644
  
  	return err;
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 7ba11e12a11f..f45fd01ddef4 100644
+index a3c70e275f4e..4441275f2bf0 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
 @@ -211,6 +211,10 @@ static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,

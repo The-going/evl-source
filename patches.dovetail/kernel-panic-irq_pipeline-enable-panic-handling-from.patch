@@ -1,4 +1,4 @@
-From c205aedcce2e6fde18baab21dec511ce96a112b1 Mon Sep 17 00:00:00 2001
+From 1394192cd8aa894f9ed6868ec501a287cb41af6a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 10 Jan 2019 17:16:42 +0100
 Subject: [PATCH] kernel/panic: irq_pipeline: enable panic handling from oob
@@ -9,10 +9,10 @@ Subject: [PATCH] kernel/panic: irq_pipeline: enable panic handling from oob
  1 file changed, 17 insertions(+), 10 deletions(-)
 
 diff --git a/kernel/panic.c b/kernel/panic.c
-index 4d9f55bf7d38..e9fdb55eb1c0 100644
+index 47e8ebccc22b..62c064e20263 100644
 --- a/kernel/panic.c
 +++ b/kernel/panic.c
-@@ -26,6 +26,7 @@
+@@ -27,6 +27,7 @@
  #include <linux/sysrq.h>
  #include <linux/init.h>
  #include <linux/nmi.h>
@@ -20,7 +20,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  #include <linux/console.h>
  #include <linux/bug.h>
  #include <linux/ratelimit.h>
-@@ -40,7 +41,7 @@ static unsigned long tainted_mask =
+@@ -41,7 +42,7 @@ static unsigned long tainted_mask =
  	IS_ENABLED(CONFIG_GCC_PLUGIN_RANDSTRUCT) ? (1 << TAINT_RANDSTRUCT) : 0;
  static int pause_on_oops;
  static int pause_on_oops_flag;
@@ -29,7 +29,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  bool crash_kexec_post_notifiers;
  int panic_on_warn __read_mostly;
  
-@@ -178,7 +179,9 @@ void panic(const char *fmt, ...)
+@@ -179,7 +180,9 @@ void panic(const char *fmt, ...)
  	 * there is nothing to prevent an interrupt handler (that runs
  	 * after setting panic_cpu) from invoking panic() again.
  	 */
@@ -40,7 +40,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  
  	/*
  	 * It's possible to come here directly from a panic-assertion and
-@@ -248,9 +251,12 @@ void panic(const char *fmt, ...)
+@@ -256,9 +259,12 @@ void panic(const char *fmt, ...)
  
  	/*
  	 * Run any panic handlers, including those that might need to
@@ -55,7 +55,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  
  	/* Call flush even twice. It tries harder with a single online CPU */
  	printk_safe_flush_on_panic();
-@@ -450,7 +456,7 @@ static void do_oops_enter_exit(void)
+@@ -458,7 +464,7 @@ static void do_oops_enter_exit(void)
  	if (!pause_on_oops)
  		return;
  
@@ -64,7 +64,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  	if (pause_on_oops_flag == 0) {
  		/* This CPU may now print the oops message */
  		pause_on_oops_flag = 1;
-@@ -460,21 +466,21 @@ static void do_oops_enter_exit(void)
+@@ -468,21 +474,21 @@ static void do_oops_enter_exit(void)
  			/* This CPU gets to do the counting */
  			spin_counter = pause_on_oops;
  			do {
@@ -91,7 +91,7 @@ index 4d9f55bf7d38..e9fdb55eb1c0 100644
  }
  
  /*
-@@ -504,6 +510,7 @@ void oops_enter(void)
+@@ -512,6 +518,7 @@ void oops_enter(void)
  {
  	tracing_off();
  	/* can't trust the integrity of the kernel anymore: */

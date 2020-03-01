@@ -1,4 +1,4 @@
-From c991a9766c33e2a37b58e2a019549c029df49515 Mon Sep 17 00:00:00 2001
+From 654a2380df8f2b2b9a04a63e763f05ba54b79903 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 May 2017 15:47:44 +0200
 Subject: [PATCH] preempt: irq_pipeline: consider hard irq state in preemptible
@@ -9,7 +9,7 @@ Subject: [PATCH] preempt: irq_pipeline: consider hard irq state in preemptible
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/preempt.h b/include/linux/preempt.h
-index 22a69981d88..35f6f83cc33 100644
+index fcbe263f2496..c688ac6610e4 100644
 --- a/include/linux/preempt.h
 +++ b/include/linux/preempt.h
 @@ -195,7 +195,8 @@ do { \
@@ -20,7 +20,7 @@ index 22a69981d88..35f6f83cc33 100644
 +#define preemptible()	(preempt_count() == 0 && \
 +			 !hard_irqs_disabled() && !irqs_disabled())
  
- #ifdef CONFIG_PREEMPT
+ #ifdef CONFIG_PREEMPTION
  #define preempt_enable() \
 -- 
 2.16.4

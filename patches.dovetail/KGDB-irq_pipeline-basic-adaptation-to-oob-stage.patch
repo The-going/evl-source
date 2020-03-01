@@ -1,4 +1,4 @@
-From 671253df2b303fbbc45b2a07dd816b2435e0eac9 Mon Sep 17 00:00:00 2001
+From b8957d720aa80627ecfc2988e3cbb298a82aae7a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 3 Oct 2018 15:30:27 +0200
 Subject: [PATCH] KGDB: irq_pipeline: basic adaptation to oob stage
@@ -8,7 +8,7 @@ Subject: [PATCH] KGDB: irq_pipeline: basic adaptation to oob stage
  1 file changed, 11 insertions(+), 8 deletions(-)
 
 diff --git a/kernel/debug/debug_core.c b/kernel/debug/debug_core.c
-index 5cc608de688..7e29e1776c5 100644
+index f76d6f77dd5e..0b354ac9d1b9 100644
 --- a/kernel/debug/debug_core.c
 +++ b/kernel/debug/debug_core.c
 @@ -120,8 +120,8 @@ static struct kgdb_bkpt		kgdb_break[KGDB_MAX_BREAKPOINTS] = {
@@ -71,7 +71,7 @@ index 5cc608de688..7e29e1776c5 100644
  
  	return kgdb_info[cpu].ret_state;
  }
-@@ -858,7 +861,7 @@ static void kgdb_console_write(struct console *co, const char *s,
+@@ -855,7 +858,7 @@ static void kgdb_console_write(struct console *co, const char *s,
  	if (!kgdb_connected || atomic_read(&kgdb_active) != -1 || dbg_kdb_mode)
  		return;
  

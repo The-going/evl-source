@@ -1,17 +1,26 @@
-From c0a670f9ada0ab093f3f845846ff2eeef294608b Mon Sep 17 00:00:00 2001
+From 7580d751055ceb4fbd28ff0a837941938f040f5a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 20 May 2019 11:42:41 +0200
 Subject: [PATCH] x86: dovetail: protect TLB flush op against oob preemption
 
 ---
- arch/x86/include/asm/tlbflush.h | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/x86/include/asm/tlbflush.h | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index ff26c7319683..b71418e1a03b 100644
+index 585b18ff6d68..c7e774476dec 100644
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -388,6 +388,8 @@ static inline void invalidate_user_asid(u16 asid)
+@@ -295,7 +295,7 @@ static inline void __cr4_set(unsigned long cr4)
+ /* Set in this cpu's CR4. */
+ static inline void cr4_set_bits_irqsoff(unsigned long mask)
+ {
+-	unsigned long cr4, flags
++	unsigned long cr4, flags;
+ 
+ 	flags = hard_local_irq_save();
+ 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+@@ -410,6 +410,8 @@ static inline void invalidate_user_asid(u16 asid)
   */
  static inline void __native_flush_tlb(void)
  {
@@ -20,7 +29,7 @@ index ff26c7319683..b71418e1a03b 100644
  	/*
  	 * Preemption or interrupts must be disabled to protect the access
  	 * to the per CPU variable and to prevent being preempted between
-@@ -395,10 +397,14 @@ static inline void __native_flush_tlb(void)
+@@ -417,10 +419,14 @@ static inline void __native_flush_tlb(void)
  	 */
  	WARN_ON_ONCE(preemptible());
  

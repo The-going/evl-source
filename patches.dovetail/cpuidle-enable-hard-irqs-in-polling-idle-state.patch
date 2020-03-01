@@ -1,4 +1,4 @@
-From 437103230dd2a5f363f43b2c62bdd6efe230ef8c Mon Sep 17 00:00:00 2001
+From 93e625005108b96579a1dd1811cb8728ba73e028 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 9 May 2019 14:33:30 +0200
 Subject: [PATCH] cpuidle: enable hard irqs in polling idle state
@@ -9,7 +9,7 @@ Subject: [PATCH] cpuidle: enable hard irqs in polling idle state
  2 files changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/cpuidle/cpuidle.c b/drivers/cpuidle/cpuidle.c
-index 3e2319f5b06c..fd7059f84597 100644
+index 416ea72f0e94..90e198b81f38 100644
 --- a/drivers/cpuidle/cpuidle.c
 +++ b/drivers/cpuidle/cpuidle.c
 @@ -210,7 +210,9 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
@@ -24,7 +24,7 @@ index 3e2319f5b06c..fd7059f84597 100644
  	if (!irq_cpuidle_enter(dev, target_state)) {
  		default_idle_call();
 diff --git a/drivers/cpuidle/poll_state.c b/drivers/cpuidle/poll_state.c
-index 02b9315a9e96..e6c9fb84ef55 100644
+index c8fa5f41dfc4..71b6d9d3ca2e 100644
 --- a/drivers/cpuidle/poll_state.c
 +++ b/drivers/cpuidle/poll_state.c
 @@ -17,7 +17,7 @@ static int __cpuidle poll_idle(struct cpuidle_device *dev,
@@ -35,7 +35,7 @@ index 02b9315a9e96..e6c9fb84ef55 100644
 +	local_irq_enable_full();
  	if (!current_set_polling_and_test()) {
  		unsigned int loop_count = 0;
- 		u64 limit = TICK_NSEC;
+ 		u64 limit;
 -- 
 2.16.4
 

@@ -1,4 +1,4 @@
-From 1d4cc0a8b6dfd78937fe0ea462bb4188797b9c8b Mon Sep 17 00:00:00 2001
+From 6208b4926a989909a9a4c25c5fcf7519d9c84db5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 21 May 2019 16:50:42 +0200
 Subject: [PATCH] gpiolib: evl: enable out-of-band GPIO handling
@@ -31,10 +31,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  create mode 100644 include/uapi/evl/devices/gpio.h
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index d9074191edef..2d8ec4bff239 100644
+index bdbc1649eafa..22b1203af5d3 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -27,6 +27,10 @@
+@@ -26,6 +26,10 @@
  #include <linux/kfifo.h>
  #include <linux/poll.h>
  #include <linux/timekeeping.h>
@@ -45,7 +45,7 @@ index d9074191edef..2d8ec4bff239 100644
  #include <uapi/linux/gpio.h>
  
  #include "gpiolib.h"
-@@ -421,6 +425,10 @@ struct linehandle_state {
+@@ -415,6 +419,10 @@ struct linehandle_state {
  	const char *label;
  	struct gpio_desc *descs[GPIOHANDLES_MAX];
  	u32 numdescs;
@@ -56,7 +56,7 @@ index d9074191edef..2d8ec4bff239 100644
  };
  
  #define GPIOHANDLE_REQUEST_VALID_FLAGS \
-@@ -428,7 +436,13 @@ struct linehandle_state {
+@@ -422,7 +430,13 @@ struct linehandle_state {
  	GPIOHANDLE_REQUEST_OUTPUT | \
  	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
  	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
@@ -71,7 +71,7 @@ index d9074191edef..2d8ec4bff239 100644
  
  static long linehandle_ioctl(struct file *filep, unsigned int cmd,
  			     unsigned long arg)
-@@ -492,12 +506,130 @@ static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
+@@ -486,12 +500,130 @@ static long linehandle_ioctl_compat(struct file *filep, unsigned int cmd,
  }
  #endif
  
@@ -202,7 +202,7 @@ index d9074191edef..2d8ec4bff239 100644
  	for (i = 0; i < lh->numdescs; i++)
  		gpiod_free(lh->descs[i]);
  	kfree(lh->label);
-@@ -511,6 +643,9 @@ static const struct file_operations linehandle_fileops = {
+@@ -505,6 +637,9 @@ static const struct file_operations linehandle_fileops = {
  	.owner = THIS_MODULE,
  	.llseek = noop_llseek,
  	.unlocked_ioctl = linehandle_ioctl,
@@ -212,7 +212,7 @@ index d9074191edef..2d8ec4bff239 100644
  #ifdef CONFIG_COMPAT
  	.compat_ioctl = linehandle_ioctl_compat,
  #endif
-@@ -535,6 +670,18 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -529,6 +664,18 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  	if (lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS)
  		return -EINVAL;
  
@@ -231,7 +231,7 @@ index d9074191edef..2d8ec4bff239 100644
  	/*
  	 * Do not allow both INPUT & OUTPUT flags to be set as they are
  	 * contradictory.
-@@ -562,6 +709,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -556,6 +703,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  	if (!lh)
  		return -ENOMEM;
  	lh->gdev = gdev;
@@ -239,7 +239,7 @@ index d9074191edef..2d8ec4bff239 100644
  	get_device(&gdev->dev);
  
  	/* Make sure this is terminated */
-@@ -640,6 +788,15 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -634,6 +782,15 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  		goto out_put_unused_fd;
  	}
  
@@ -255,7 +255,7 @@ index d9074191edef..2d8ec4bff239 100644
  	handlereq.fd = fd;
  	if (copy_to_user(ip, &handlereq, sizeof(handlereq))) {
  		/*
-@@ -693,12 +850,19 @@ struct lineevent_state {
+@@ -687,12 +844,19 @@ struct lineevent_state {
  	struct gpio_device *gdev;
  	const char *label;
  	struct gpio_desc *desc;
@@ -275,7 +275,7 @@ index d9074191edef..2d8ec4bff239 100644
  };
  
  #define GPIOEVENT_REQUEST_VALID_FLAGS \
-@@ -729,6 +893,9 @@ static ssize_t lineevent_read(struct file *filep,
+@@ -723,6 +887,9 @@ static ssize_t lineevent_read(struct file *filep,
  	unsigned int copied;
  	int ret;
  
@@ -285,7 +285,7 @@ index d9074191edef..2d8ec4bff239 100644
  	if (count < sizeof(struct gpioevent_data))
  		return -EINVAL;
  
-@@ -765,11 +932,159 @@ static ssize_t lineevent_read(struct file *filep,
+@@ -759,11 +926,159 @@ static ssize_t lineevent_read(struct file *filep,
  	return copied;
  }
  
@@ -445,7 +445,7 @@ index d9074191edef..2d8ec4bff239 100644
  	free_irq(le->irq, le);
  	gpiod_free(le->desc);
  	kfree(le->label);
-@@ -818,6 +1133,10 @@ static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
+@@ -812,6 +1127,10 @@ static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
  static const struct file_operations lineevent_fileops = {
  	.release = lineevent_release,
  	.read = lineevent_read,
@@ -456,7 +456,7 @@ index d9074191edef..2d8ec4bff239 100644
  	.poll = lineevent_poll,
  	.owner = THIS_MODULE,
  	.llseek = noop_llseek,
-@@ -845,24 +1164,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
+@@ -839,24 +1158,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
  	else
  		ge.timestamp = le->timestamp;
  
@@ -481,8 +481,8 @@ index d9074191edef..2d8ec4bff239 100644
 -	}
  
  	ret = kfifo_put(&le->events, ge);
- 	if (ret != 0)
-@@ -947,6 +1250,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+ 	if (ret)
+@@ -941,6 +1244,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		goto out_free_label;
  	le->desc = desc;
  	le->eflags = eflags;
@@ -490,7 +490,7 @@ index d9074191edef..2d8ec4bff239 100644
  
  	if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
  		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-@@ -967,21 +1271,32 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -961,21 +1265,32 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  	if (eflags & GPIOEVENT_REQUEST_FALLING_EDGE)
  		irqflags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
  			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
@@ -536,7 +536,7 @@ index d9074191edef..2d8ec4bff239 100644
  
  	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
  	if (fd < 0) {
-@@ -998,12 +1313,23 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -992,12 +1307,23 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		goto out_put_unused_fd;
  	}
  

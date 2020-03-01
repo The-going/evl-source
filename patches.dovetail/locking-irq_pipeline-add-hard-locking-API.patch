@@ -1,4 +1,4 @@
-From a9c75e20501c6054b2be3da0f2905e2b41f3810d Mon Sep 17 00:00:00 2001
+From 0cfc2cd22e9a7e57f82f9b981c3379eb3cabdfb1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 16:07:57 +0200
 Subject: [PATCH] locking: irq_pipeline: add hard locking API
@@ -26,10 +26,10 @@ running on the head IRQ stage.
  create mode 100644 include/linux/spinlock_pipeline.h
 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index 0b0d7259276d..1472873ce898 100644
+index b8a835fd611b..f6c5e365b8a8 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
-@@ -312,21 +312,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+@@ -309,21 +309,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
   * or they are too narrow (they suffer from a false class-split):
   */
  #define lockdep_set_class(lock, key) \
@@ -59,7 +59,7 @@ index 0b0d7259276d..1472873ce898 100644
  static inline int lockdep_match_key(struct lockdep_map *lock,
  				    struct lock_class_key *key)
 diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
-index ed7c4d6b8235..c8867b614754 100644
+index 031ce8617df8..ffac75208f1a 100644
 --- a/include/linux/spinlock.h
 +++ b/include/linux/spinlock.h
 @@ -95,21 +95,27 @@

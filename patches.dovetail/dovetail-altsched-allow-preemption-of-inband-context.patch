@@ -1,4 +1,4 @@
-From e33fdb136e415f9e6e25f1c00fd9996828509f02 Mon Sep 17 00:00:00 2001
+From 5e23a709afb897133b5a9bdd2e55bd6524e9f1e2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 14 Jul 2019 22:21:34 +0200
 Subject: [PATCH] dovetail: altsched: allow preemption of inband context switch
@@ -17,8 +17,8 @@ preempted in a middle of a switch can safely resume from this
 location.
 ---
  kernel/dovetail.c   | 10 ++++------
- kernel/sched/core.c | 15 ++++++++++++++-
- 2 files changed, 18 insertions(+), 7 deletions(-)
+ kernel/sched/core.c | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 6 deletions(-)
 
 diff --git a/kernel/dovetail.c b/kernel/dovetail.c
 index 12784a3b0d78..ebc6519f4fd3 100644
@@ -64,16 +64,13 @@ index 12784a3b0d78..ebc6519f4fd3 100644
  }
  
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 261207330aa5..98b75f7a6480 100644
+index 0600614c8b94..1ce34cde28a8 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3247,8 +3247,21 @@ context_switch(struct rq *rq, struct task_struct *prev,
- 		next->active_mm = oldmm;
- 		mmgrab(oldmm);
- 		enter_lazy_tlb(oldmm, next);
--	} else
-+	} else {
- 		switch_mm_irqs_off(oldmm, mm, next);
+@@ -3378,6 +3378,20 @@ context_switch(struct rq *rq, struct task_struct *prev,
+ 		 */
+ 		switch_mm_irqs_off(prev->active_mm, next->mm, next);
+ 
 +		/*
 +		 * If dovetail is enabled, insert a short window of
 +		 * opportunity for preemption by out-of-band IRQs
@@ -82,14 +79,15 @@ index 261207330aa5..98b75f7a6480 100644
 +		 * partially switched in-band contexts.
 +		 */
 +		if (dovetailing()) {
-+			prev->active_mm = mm;
++			struct mm_struct *oldmm = prev->active_mm;
++			prev->active_mm = next->mm;
 +			hard_local_irq_sync();
 +			prev->active_mm = oldmm;
 +		}
-+	}
- 
- 	if (!prev->mm) {
- 		prev->active_mm = NULL;
++
+ 		if (!prev->mm) {                        // from kernel
+ 			/* will mmdrop() in finish_task_switch(). */
+ 			rq->prev_mm = prev->active_mm;
 -- 
 2.16.4
 

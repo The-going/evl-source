@@ -1,0 +1,30 @@
+From 4883bc192459b8224954890cf5340cb915d19629 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 17 Oct 2019 11:19:12 +0200
+Subject: [PATCH] sched: dovetail: send SCHEDULE event for incoming dovetailed
+ task only
+
+There is no point in sending INBAND_SCHEDULE_TASK solely because the
+previous task is dovetailed, the only requirement is to send such
+event before switching in a dovetailed task.
+---
+ include/linux/dovetail.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 35d1fd3f8f57..466858c67192 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -95,8 +95,7 @@ void prepare_inband_switch(struct task_struct *next)
+ {
+ 	struct task_struct *prev = current;
+ 
+-	if (test_ti_local_flags(task_thread_info(next), _TLF_DOVETAIL) ||
+-	    test_ti_local_flags(task_thread_info(prev), _TLF_DOVETAIL)) {
++	if (test_ti_local_flags(task_thread_info(next), _TLF_DOVETAIL)) {
+ 		__this_cpu_write(irq_pipeline.rqlock_owner, prev);
+ 		inband_event_notify(INBAND_TASK_SCHEDULE, next);
+ 	}
+-- 
+2.16.4
+

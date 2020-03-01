@@ -1,4 +1,4 @@
-From 4c145e0fd0b24c372f3e90429e22f9e8bd1d505b Mon Sep 17 00:00:00 2001
+From baa46e57b3c8e1b8f8fb63ed869e1b772e9963e2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 Mar 2017 17:38:16 +0100
 Subject: [PATCH] stop_machine: irq_pipeline: ensure atomic stop-context
@@ -43,7 +43,7 @@ index f9a0c6189852..132752acfa82 100644
  	return ret;
  }
 diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index b4f83f7bdf86..9d372cbc0974 100644
+index c7031a22aa7b..b7234a745353 100644
 --- a/kernel/stop_machine.c
 +++ b/kernel/stop_machine.c
 @@ -235,6 +235,7 @@ static int multi_cpu_stop(void *data)
@@ -54,7 +54,7 @@ index b4f83f7bdf86..9d372cbc0974 100644
  	local_irq_restore(flags);
  	return err;
  }
-@@ -614,6 +615,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
+@@ -616,6 +617,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
  		local_irq_save(flags);
  		hard_irq_disable();
  		ret = (*fn)(data);

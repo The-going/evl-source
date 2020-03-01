@@ -1,4 +1,4 @@
-From 5266ce1b23a88a6f361688873abbd01148d3b06c Mon Sep 17 00:00:00 2001
+From f6762a399d6dd5ebd35a2c0eebaa4d72848f0d5d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -17,7 +17,7 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index f9821a3374e9..cf363c555c7c 100644
+index 62a50bf399d6..03dc1e123d8d 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
 @@ -5622,10 +5622,10 @@ static int ftrace_process_locs(struct module *mod,
@@ -33,7 +33,7 @@ index f9821a3374e9..cf363c555c7c 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6167,9 +6167,9 @@ void __init ftrace_init(void)
+@@ -6163,9 +6163,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +45,7 @@ index f9821a3374e9..cf363c555c7c 100644
  	if (ret)
  		goto failed;
  
-@@ -6304,7 +6304,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6300,7 +6300,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:
@@ -111,7 +111,7 @@ index 66358d66c933..3af2d6661a54 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 9f38357ea540..44da7242e2de 100644
+index db6d45be6e23..e3ae9a230614 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -923,9 +923,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
@@ -298,7 +298,7 @@ index 7316cfc95e27..780a529f3984 100644
  	__trace_function(tr, ip, parent_ip, flags, pc);
  
 diff --git a/kernel/trace/trace_sched_wakeup.c b/kernel/trace/trace_sched_wakeup.c
-index 743b2b520d34..7ec0ea95898c 100644
+index 5e43b9664eca..c399d762383a 100644
 --- a/kernel/trace/trace_sched_wakeup.c
 +++ b/kernel/trace/trace_sched_wakeup.c
 @@ -486,7 +486,9 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
@@ -312,10 +312,10 @@ index 743b2b520d34..7ec0ea95898c 100644
  
  out_unlock:
 diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
-index 5d16f73898db..5477e8204967 100644
+index ec9a34a97129..1162e9603f72 100644
 --- a/kernel/trace/trace_stack.c
 +++ b/kernel/trace/trace_stack.c
-@@ -72,8 +72,9 @@ static void check_stack(unsigned long ip, unsigned long *stack)
+@@ -170,8 +170,9 @@ static void check_stack(unsigned long ip, unsigned long *stack)
  	if (!object_is_on_stack(stack))
  		return;
  

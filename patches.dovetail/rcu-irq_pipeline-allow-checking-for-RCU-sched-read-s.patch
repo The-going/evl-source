@@ -1,4 +1,4 @@
-From 6737355e40fd8dbc4a0de23fee315544fc92f99e Mon Sep 17 00:00:00 2001
+From 8117dcd14bd8c7bf973107de263cd87ddb98abc1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 May 2017 15:31:22 +0200
 Subject: [PATCH] rcu: irq_pipeline: allow checking for RCU-sched read-side
@@ -14,7 +14,7 @@ sure rcu_read_lock_sched_held() returns the right information.
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-index b25d20822e75..7a9ecc9b25b7 100644
+index 75a2eded7aa2..b9026168286a 100644
 --- a/include/linux/rcupdate.h
 +++ b/include/linux/rcupdate.h
 @@ -24,6 +24,7 @@
@@ -25,29 +25,29 @@ index b25d20822e75..7a9ecc9b25b7 100644
  #include <linux/preempt.h>
  #include <linux/bottom_half.h>
  #include <linux/lockdep.h>
-@@ -239,7 +240,7 @@ static inline int rcu_read_lock_bh_held(void)
+@@ -240,7 +241,7 @@ static inline int rcu_read_lock_bh_held(void)
  
  static inline int rcu_read_lock_sched_held(void)
  {
 -	return !preemptible();
 +	return !running_inband() || !preemptible();
  }
- #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
  
+ static inline int rcu_read_lock_any_held(void)
 diff --git a/kernel/rcu/update.c b/kernel/rcu/update.c
-index c3bf44ba42e5..e18792a48ad9 100644
+index 1861103662db..74e09509a7ff 100644
 --- a/kernel/rcu/update.c
 +++ b/kernel/rcu/update.c
-@@ -95,6 +95,9 @@ int rcu_read_lock_sched_held(void)
+@@ -117,6 +117,9 @@ int rcu_read_lock_sched_held(void)
  {
- 	int lockdep_opinion = 0;
+ 	bool ret;
  
 +	if (irqs_pipelined() &&
 +	    (hard_irqs_disabled() || !running_inband()))
-+		return 1;
- 	if (!debug_lockdep_rcu_enabled())
- 		return 1;
- 	if (!rcu_is_watching())
++		return true;
+ 	if (rcu_read_lock_held_common(&ret))
+ 		return ret;
+ 	return lock_is_held(&rcu_sched_lock_map) || !preemptible();
 -- 
 2.16.4
 

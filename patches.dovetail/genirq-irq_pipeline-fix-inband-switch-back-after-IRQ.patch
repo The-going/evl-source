@@ -1,0 +1,43 @@
+From e56dd99ab9514902c33c32d8163c950d0c575bb6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 15 Oct 2019 19:12:11 +0200
+Subject: [PATCH] genirq: irq_pipeline: fix inband switch back after IRQ
+
+The previous IRQ pipeline data pointer is a per-CPU information, so we
+have to re-evaluate it after the IRQ handler has returned, since a CPU
+migration might have happened.
+---
+ kernel/irq/pipeline.c | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index df99859d82b6..8d616330df31 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -1031,8 +1031,6 @@ struct irq_stage_data *switch_stage_on_irq(void)
+ static __always_inline
+ void restore_stage_on_irq(struct irq_stage_data *prevd)
+ {
+-	struct irq_stage_data *nextd;
+-
+ 	/*
+ 	 * CPU migration and/or stage switching over
+ 	 * irq_exit_pipeline() are allowed.  Our exit logic is as
+@@ -1045,11 +1043,9 @@ void restore_stage_on_irq(struct irq_stage_data *prevd)
+ 	 *    oob        inband    nop
+ 	 *    inband     inband    nop
+ 	 */
+-	if (prevd->stage == &inband_stage) {
+-		nextd = this_oob_staged();
+-		if (current_irq_staged == nextd)
+-			switch_inband(prevd);
+-	}
++	if (prevd->stage == &inband_stage &&
++		current_irq_staged == this_oob_staged())
++		switch_inband(this_inband_staged());
+ }
+ 
+ /**
+-- 
+2.16.4
+

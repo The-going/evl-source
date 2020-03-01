@@ -1,4 +1,4 @@
-From 09c58b8f09702a9864f84462855b8a3789e28ab7 Mon Sep 17 00:00:00 2001
+From 162d304d772f1db0fb8a129f9658a02f27a2cce3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 3 Feb 2019 18:52:19 +0100
 Subject: [PATCH] pinctrl: msm: irq_pipeline: enable pipelined interrupt
@@ -9,7 +9,7 @@ Subject: [PATCH] pinctrl: msm: irq_pipeline: enable pipelined interrupt
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/pinctrl/qcom/pinctrl-msm.c b/drivers/pinctrl/qcom/pinctrl-msm.c
-index 7f35c196bb3e..0b7fc5538646 100644
+index 763da0be10d6..d451ec844bb5 100644
 --- a/drivers/pinctrl/qcom/pinctrl-msm.c
 +++ b/drivers/pinctrl/qcom/pinctrl-msm.c
 @@ -57,7 +57,7 @@ struct msm_pinctrl {
@@ -21,14 +21,14 @@ index 7f35c196bb3e..0b7fc5538646 100644
  
  	DECLARE_BITMAP(dual_edge_irqs, MAX_NR_GPIO);
  	DECLARE_BITMAP(enabled_irqs, MAX_NR_GPIO);
-@@ -1026,6 +1026,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
+@@ -1027,6 +1027,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
  	pctrl->irq_chip.irq_set_wake = msm_gpio_irq_set_wake;
  	pctrl->irq_chip.irq_request_resources = msm_gpio_irq_reqres;
  	pctrl->irq_chip.irq_release_resources = msm_gpio_irq_relres;
 +	pctrl->irq_chip.flags = IRQCHIP_PIPELINE_SAFE;
  
- 	ret = gpiochip_add_data(&pctrl->chip, pctrl);
- 	if (ret) {
+ 	girq = &chip->irq;
+ 	girq->chip = &pctrl->irq_chip;
 -- 
 2.16.4
 

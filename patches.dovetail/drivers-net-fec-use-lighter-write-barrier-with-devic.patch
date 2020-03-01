@@ -1,4 +1,4 @@
-From 6f2373e2beb53d4d2abba399903423f000dbb465 Mon Sep 17 00:00:00 2001
+From 2203a5cb8fa644ec7448fa535613ca753b847f9c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 4 Aug 2019 19:05:33 +0200
 Subject: [PATCH] drivers/net/fec: use lighter write-barrier with device
@@ -8,10 +8,10 @@ Subject: [PATCH] drivers/net/fec: use lighter write-barrier with device
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/net/ethernet/freescale/fec_main.c b/drivers/net/ethernet/freescale/fec_main.c
-index 8a577865313..b9419d21285 100644
+index 630e1ea1841d..6c96ee594758 100644
 --- a/drivers/net/ethernet/freescale/fec_main.c
 +++ b/drivers/net/ethernet/freescale/fec_main.c
-@@ -1623,6 +1623,7 @@ static int unmask_events(struct net_device *ndev, unsigned int events)
+@@ -1626,6 +1626,7 @@ static int unmask_events(struct net_device *ndev, unsigned int events)
  	int n, queue_id;
  
  	writel(events, fep->hwp + FEC_IMASK);

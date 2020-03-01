@@ -266,3 +266,9 @@
 	patches.evl-only/include-evl-devices.h-read-in-poll.h.patch
 	patches.evl-only/evl-proxy-update-file-position-if-needed.patch
 	patches.evl-only/evl-uapi-fix-license-bits.patch
+	patches.evl-only/evl-thread-pull-inband-sched-ABI-details-from-uapi.patch
+	patches.evl-only/evl-thread-fix-race-while-switching-to-inband.patch
+	patches.evl-only/evl-monitor-fix-event-un-tracking-from-gates.patch
+	patches.evl-only/evl-thread-detect-preposterous-absolute-timeout-in-s.patch
+	patches.evl-only/evl-factory-assert-refcount-sanity.patch
+	patches.evl-only/evl-mutex-refcount-mutex-owners-the-kernel-side-know.patch

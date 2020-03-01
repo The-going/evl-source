@@ -1,4 +1,4 @@
-From 7d8b2034079aa0ec8e17f0613eba4488832d3d00 Mon Sep 17 00:00:00 2001
+From 8395334f8729ec266692c4c103226bf54ff86298 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 9 May 2019 10:54:49 +0200
 Subject: [PATCH] dovetail: altsched: account for per-cpu preempt count
@@ -63,10 +63,10 @@ index 34ed15c2a88c..fd8af6ce28d3 100644
     register file previously saved by the kernel scheduler in
     :c:func:`switch_to` at step 1.
 diff --git a/arch/Kconfig b/arch/Kconfig
-index a7b57dd42c26..d070c1d4053e 100644
+index 5f8a5d84dbbe..1a4733f30cd4 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -198,6 +198,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
+@@ -201,6 +201,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
  config HAVE_NMI
  	bool
  
@@ -148,10 +148,10 @@ index 61556b95cb70..fe952794b4d4 100644
  
  	if (inband)
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index c99b636864f9..c9b223c3269d 100644
+index 13feed64294c..b8b914395391 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7626,12 +7626,27 @@ void dovetail_resume_inband(void)
+@@ -8010,12 +8010,27 @@ void dovetail_resume_inband(void)
  }
  EXPORT_SYMBOL_GPL(dovetail_resume_inband);
  
@@ -181,7 +181,7 @@ index c99b636864f9..c9b223c3269d 100644
  	next = in->task;
  	prev = out->task;
  	prev_mm = out->active_mm;
-@@ -7665,6 +7680,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8049,6 +8064,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
  		hard_irqs_disabled();
  
  	arch_dovetail_context_resume();

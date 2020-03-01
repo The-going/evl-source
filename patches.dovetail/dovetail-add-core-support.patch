@@ -1,4 +1,4 @@
-From 6132fae33d6e94ee88c9feb561d92f9860b1fbf4 Mon Sep 17 00:00:00 2001
+From 076ee6adcca36e21fe7c0ec5470b759419c339b6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:04:43 +0200
 Subject: [PATCH] dovetail: add core support
@@ -573,7 +573,7 @@ index 000000000000..a2f6e7b54bfb
 +
 +#endif /* _LINUX_DOVETAIL_H */
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6a7a1083b6fb..0f3d7b40c406 100644
+index 2222fa795284..7a7dc0d26060 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
 @@ -14,6 +14,7 @@
@@ -584,7 +584,7 @@ index 6a7a1083b6fb..0f3d7b40c406 100644
  
  #include <asm/mmu.h>
  
-@@ -509,6 +510,9 @@ struct mm_struct {
+@@ -517,6 +518,9 @@ struct mm_struct {
  		struct uprobes_state uprobes_state;
  #ifdef CONFIG_HUGETLB_PAGE
  		atomic_long_t hugetlb_usage;
@@ -593,7 +593,7 @@ index 6a7a1083b6fb..0f3d7b40c406 100644
 +		struct oob_mm_state oob_state;
  #endif
  		struct work_struct async_put_work;
- 
+ 	} __randomize_layout;
 diff --git a/kernel/Kconfig.dovetail b/kernel/Kconfig.dovetail
 new file mode 100644
 index 000000000000..adc6922d64e1
@@ -615,10 +615,10 @@ index 000000000000..adc6922d64e1
 +	  running a secondary kernel side-by-side with Linux (aka
 +	  "dual kernel" configuration).
 diff --git a/kernel/Makefile b/kernel/Makefile
-index ef0d95a190b4..511dade31ce2 100644
+index daad787fb795..3743adee6652 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -98,6 +98,7 @@ obj-$(CONFIG_TRACE_CLOCK) += trace/
+@@ -100,6 +100,7 @@ obj-$(CONFIG_TRACE_CLOCK) += trace/
  obj-$(CONFIG_RING_BUFFER) += trace/
  obj-$(CONFIG_TRACEPOINTS) += trace/
  obj-$(CONFIG_IRQ_WORK) += irq_work.o
@@ -897,7 +897,7 @@ index 415585a6d1b7..74bc3b092e60 100644
  out:
  	set_irq_regs(old_regs);
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index f879a9dbc77e..7d2f7c7c1422 100644
+index 34f7319fb334..f6022a4e3b03 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -53,6 +53,7 @@
@@ -909,10 +909,10 @@ index f879a9dbc77e..7d2f7c7c1422 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index a3bc7cbf70f1..1f1c045d2461 100644
+index 1a71df2fdcfe..890776c0d0c3 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -853,6 +853,16 @@ config IRQ_PIPELINE_TORTURE_TEST
+@@ -836,6 +836,16 @@ config IRQ_PIPELINE_TORTURE_TEST
  	  Say Y here if you want the IRQ pipeline torture tests to run
  	  when the kernel starts. Say N if you are unsure.
  

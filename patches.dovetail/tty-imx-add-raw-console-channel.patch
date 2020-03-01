@@ -1,4 +1,4 @@
-From 8afa16e57cec584cdca204202f66d26f03423d0a Mon Sep 17 00:00:00 2001
+From aff28dd3bacbe2805ea3e045d6e4ec1e4009f3b2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 22 Aug 2019 10:36:23 +0200
 Subject: [PATCH] tty: imx: add raw console channel
@@ -8,10 +8,10 @@ Subject: [PATCH] tty: imx: add raw console channel
  1 file changed, 41 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/tty/serial/imx.c b/drivers/tty/serial/imx.c
-index 57d6e6ba556e..35e2faad4052 100644
+index 87c58f9f6390..2e97d2f50e2e 100644
 --- a/drivers/tty/serial/imx.c
 +++ b/drivers/tty/serial/imx.c
-@@ -1896,30 +1896,33 @@ static void imx_uart_console_putchar(struct uart_port *port, int ch)
+@@ -1904,30 +1904,33 @@ static void imx_uart_console_putchar(struct uart_port *port, int ch)
   * Interrupts are disabled on entering
   */
  static void
@@ -60,7 +60,7 @@ index 57d6e6ba556e..35e2faad4052 100644
  
  	/*
  	 *	First, save UCR1/2/3 and then disable interrupts
-@@ -1949,8 +1952,22 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
+@@ -1957,8 +1960,22 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
  	if (locked)
  		spin_unlock_irqrestore(&sport->port.lock, flags);
  
@@ -85,7 +85,7 @@ index 57d6e6ba556e..35e2faad4052 100644
  }
  
  /*
-@@ -2060,6 +2077,10 @@ imx_uart_console_setup(struct console *co, char *options)
+@@ -2068,6 +2085,10 @@ imx_uart_console_setup(struct console *co, char *options)
  	retval = clk_prepare(sport->clk_per);
  	if (retval)
  		clk_unprepare(sport->clk_ipg);
@@ -96,7 +96,7 @@ index 57d6e6ba556e..35e2faad4052 100644
  
  error_console:
  	return retval;
-@@ -2069,6 +2090,9 @@ static struct uart_driver imx_uart_uart_driver;
+@@ -2077,6 +2098,9 @@ static struct uart_driver imx_uart_uart_driver;
  static struct console imx_uart_console = {
  	.name		= DEV_NAME,
  	.write		= imx_uart_console_write,

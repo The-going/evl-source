@@ -1,4 +1,4 @@
-From 9846ed567a8955e1d212c0c717b04c4583eda51c Mon Sep 17 00:00:00 2001
+From 906f75cd81b7fe2aa02246322eaa5153228c8afc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 10 Jun 2019 12:12:22 +0200
 Subject: [PATCH] x86: irq_pipeline: handle IRQ cleanup events properly
@@ -26,10 +26,10 @@ that happens.
  2 files changed, 26 insertions(+), 22 deletions(-)
 
 diff --git a/arch/x86/kernel/apic/vector.c b/arch/x86/kernel/apic/vector.c
-index e50add55c57d..928e2bfc2338 100644
+index c8ab1608177b..2af0ebd4222b 100644
 --- a/arch/x86/kernel/apic/vector.c
 +++ b/arch/x86/kernel/apic/vector.c
-@@ -716,6 +716,10 @@ static struct irq_desc *__setup_vector_irq(int vector)
+@@ -727,6 +727,10 @@ static struct irq_desc *__setup_vector_irq(int vector)
  {
  	int isairq = vector - ISA_IRQ_VECTOR(0);
  
@@ -41,7 +41,7 @@ index e50add55c57d..928e2bfc2338 100644
  	if (isairq < 0 || isairq >= nr_legacy_irqs())
  		return VECTOR_UNUSED;
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 1b28bd4bd1f5..61d4bc661782 100644
+index 391e76bc2e33..eefe68f8a357 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -221,38 +221,38 @@ static void create_x86_apic_domain(void)

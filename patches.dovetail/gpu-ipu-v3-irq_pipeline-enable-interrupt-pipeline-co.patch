@@ -1,4 +1,4 @@
-From dfe59375dc9864056bf15383731a90fa9efd93ea Mon Sep 17 00:00:00 2001
+From 1446c20512217a98b5dbf6ef09f4897bdfdb3e0c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 Feb 2017 09:26:50 +0100
 Subject: [PATCH] gpu: ipu-v3: irq_pipeline: enable interrupt pipeline control
@@ -8,10 +8,10 @@ Subject: [PATCH] gpu: ipu-v3: irq_pipeline: enable interrupt pipeline control
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/gpu/ipu-v3/ipu-common.c b/drivers/gpu/ipu-v3/ipu-common.c
-index 6386e2fe2ff7..24b82d9e8897 100644
+index ee2a025e54cf..6bb61afcf07a 100644
 --- a/drivers/gpu/ipu-v3/ipu-common.c
 +++ b/drivers/gpu/ipu-v3/ipu-common.c
-@@ -1299,6 +1299,7 @@ static int ipu_irq_init(struct ipu_soc *ipu)
+@@ -1303,6 +1303,7 @@ static int ipu_irq_init(struct ipu_soc *ipu)
  		ct->chip.irq_ack = irq_gc_ack_set_bit;
  		ct->chip.irq_mask = irq_gc_mask_clr_bit;
  		ct->chip.irq_unmask = irq_gc_mask_set_bit;

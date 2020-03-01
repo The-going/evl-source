@@ -1,4 +1,4 @@
-From 541137a865d141ea4f437991aba87be7099978c5 Mon Sep 17 00:00:00 2001
+From def97d9e290957fb907149426133446c2717e08a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 25 Jul 2019 21:00:39 +0200
 Subject: [PATCH] ARM: dovetail: add dependency on CPU_HAS_ASID
@@ -8,10 +8,10 @@ Subject: [PATCH] ARM: dovetail: add dependency on CPU_HAS_ASID
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index c61697e387dd..1bc4b0103d49 100644
+index e3df595db734..e85af7e2fd91 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -670,7 +670,7 @@ config ARCH_MULTI_V6_V7
+@@ -581,7 +581,7 @@ config ARCH_MULTI_V6_V7
  	bool
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE

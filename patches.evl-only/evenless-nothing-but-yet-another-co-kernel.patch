@@ -1,4 +1,4 @@
-From 78336dbb6e7934346edf66eeb4dd8f58d234e659 Mon Sep 17 00:00:00 2001
+From ebfe5faf9ca4eb6b774b13ef3bc8ebb88cc4cd5f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 23 Apr 2017 11:48:58 +0200
 Subject: [PATCH] evenless: nothing but yet another co-kernel
@@ -194,10 +194,10 @@ Subject: [PATCH] evenless: nothing but yet another co-kernel
  create mode 100644 kernel/evenless/xbuf.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 1bc4b0103d49..0b8776a55f87 100644
+index e85af7e2fd91..c7e4bee430ce 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -286,6 +286,8 @@ config PGTABLE_LEVELS
+@@ -285,6 +285,8 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -206,7 +206,7 @@ index 1bc4b0103d49..0b8776a55f87 100644
  menu "System Type"
  
  config MMU
-@@ -671,6 +673,10 @@ config ARCH_MULTI_V6_V7
+@@ -582,6 +584,10 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID
@@ -218,10 +218,10 @@ index 1bc4b0103d49..0b8776a55f87 100644
  config ARCH_MULTI_CPU_AUTO
  	def_bool !(ARCH_MULTI_V4 || ARCH_MULTI_V4T || ARCH_MULTI_V6_V7)
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index c3624ca6c0bc..1d43275c76d0 100644
+index db857d07114f..52b3e06ea216 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -268,6 +268,10 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
+@@ -271,6 +271,10 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
  endif
  endif
  
@@ -231,7 +231,7 @@ index c3624ca6c0bc..1d43275c76d0 100644
 +
  export	TEXT_OFFSET GZFLAGS MMUEXT
  
- # Do we have FASTFPE?
+ core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
 diff --git a/arch/arm/include/asm/evenless/fptest.h b/arch/arm/include/asm/evenless/fptest.h
 new file mode 100644
 index 000000000000..b1fb66f07195
@@ -416,18 +416,18 @@ index 000000000000..c1d7f37642fd
 +
 +#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 8aa8cb2e6a33..6482a8b85f2d 100644
+index 5fdb7086af71..a5ce497a98f0 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -134,6 +134,7 @@ config ARM64
+@@ -133,6 +133,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
 +	select HAVE_ARCH_EVENLESS
  	select HAVE_ARM_SMCCC
+ 	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
- 	select HAVE_C_RECORDMCOUNT
-@@ -1523,6 +1524,8 @@ config STACKPROTECTOR_PER_TASK
+@@ -1552,6 +1553,8 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -437,10 +437,10 @@ index 8aa8cb2e6a33..6482a8b85f2d 100644
  
  config ARM64_ACPI_PARKING_PROTOCOL
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 61de992bbea3..feb7f611228d 100644
+index 84a3d502c5a5..2811ff9da857 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -100,6 +100,10 @@ endif
+@@ -107,6 +107,10 @@ endif
  
  CHECKFLAGS	+= -D__aarch64__
  
@@ -449,7 +449,7 @@ index 61de992bbea3..feb7f611228d 100644
 +endif
 +
  ifeq ($(CONFIG_ARM64_MODULE_PLTS),y)
- KBUILD_LDFLAGS_MODULE	+= -T $(srctree)/arch/arm64/kernel/module.lds
+ KBUILD_LDS_MODULE	+= $(srctree)/arch/arm64/kernel/module.lds
  endif
 diff --git a/arch/arm64/include/asm/evenless/fptest.h b/arch/arm64/include/asm/evenless/fptest.h
 new file mode 100644
@@ -678,7 +678,7 @@ index 000000000000..bc79392559e2
 +
 +#endif /* !_EVENLESS_ARM64_ASM_UAPI_SYSCALL_H */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 61cf4ea2c229..616792f36ebc 100644
+index 8befa53f43be..55d68293bd99 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -30,6 +30,8 @@ source "drivers/block/Kconfig"
@@ -687,14 +687,14 @@ index 61cf4ea2c229..616792f36ebc 100644
  
 +source "drivers/evenless/Kconfig"
 +
- # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
- 
  source "drivers/misc/Kconfig"
+ 
+ source "drivers/ide/Kconfig"
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 6d37564e783c..7de216da5bbe 100644
+index aaef17cc6512..3f82f6ca82fb 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -157,6 +157,8 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
+@@ -156,6 +156,8 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
  obj-$(CONFIG_RPMSG)		+= rpmsg/
  obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
  
@@ -7656,10 +7656,10 @@ index 000000000000..968b5efccd90
 +config WARN_CPUFREQ_GOVERNOR
 +       def_bool n
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 511dade31ce2..e995f080866a 100644
+index 3743adee6652..6674ba7ee260 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -101,6 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -103,6 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

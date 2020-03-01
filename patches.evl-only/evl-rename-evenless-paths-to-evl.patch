@@ -1,4 +1,4 @@
-From 497adb843d59b8049e09623bcb4d1a6ed47309b3 Mon Sep 17 00:00:00 2001
+From 3b844b2de619266ae6e97b74fc1797b75ad2eefc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -196,10 +196,10 @@ Subject: [PATCH] evl: rename evenless/ paths to evl/
  rename kernel/{evenless => evl}/xbuf.c (98%)
 
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 501549900bfb..c09eeb57efcc 100644
+index b563b393c7c9..a68789988823 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -269,7 +269,7 @@ endif
+@@ -272,7 +272,7 @@ endif
  endif
  
  ifeq ($(CONFIG_EVL),y)
@@ -321,10 +321,10 @@ index df9f454d7b7e..d9771dda64f2 100644
 -#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 +#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 00e0a86940d1..d7675b2e0953 100644
+index e97d7c47354e..eebed1483739 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -101,7 +101,7 @@ endif
+@@ -108,7 +108,7 @@ endif
  CHECKFLAGS	+= -D__aarch64__
  
  ifeq ($(CONFIG_EVL),y)
@@ -484,7 +484,7 @@ index 000000000000..212ff2528aac
 +
 +#endif /* !_EVL_ARM64_ASM_UAPI_SYSCALL_H */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 616792f36ebc..b61d8b8c8c5b 100644
+index 55d68293bd99..21faa643e7d2 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -30,7 +30,7 @@ source "drivers/block/Kconfig"
@@ -494,13 +494,13 @@ index 616792f36ebc..b61d8b8c8c5b 100644
 -source "drivers/evenless/Kconfig"
 +source "drivers/evl/Kconfig"
  
- # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
+ source "drivers/misc/Kconfig"
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 5abf1fec252c..f4e366aa8f42 100644
+index 4b6b5edb5720..64ccf511ccce 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
+@@ -156,7 +156,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
  obj-$(CONFIG_RPMSG)		+= rpmsg/
  obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
  
@@ -1933,10 +1933,10 @@ index 6730247e8da3..9d8256629839 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 2f1a1732ce61..0b2f19262cd2 100644
+index 7979bc07ac25..caac3b755a2d 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -103,7 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

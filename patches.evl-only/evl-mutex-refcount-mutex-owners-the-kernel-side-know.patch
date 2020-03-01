@@ -1,0 +1,504 @@
+From 5dc1d47a47d5d891719a00432bc775e8c121525b Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 21 Oct 2019 12:57:18 +0200
+Subject: [PATCH] evl/mutex: refcount mutex owners the kernel-side knows about
+
+Since we keep a live pointer to the current mutex owner we may know
+about for every locked mutex, we have to refcount the referenced
+threads to prevent use-after-free bugs whenever a thread exits while
+holding one or more mutexes.
+
+This also fixes a refcounting issue with elements preventing proper
+deletion of the device, as observed with the monitor-steal test.
+---
+ include/evl/mutex.h  |   7 ++-
+ include/evl/thread.h |  16 +++--
+ kernel/evl/factory.c |   9 ++-
+ kernel/evl/mutex.c   | 167 +++++++++++++++++++++++++++++++++++++++------------
+ kernel/evl/thread.c  |  13 ++--
+ 5 files changed, 157 insertions(+), 55 deletions(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 8d89f7dd82a1..14438f6ec429 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -33,7 +33,8 @@ struct evl_mutex {
+ 	u32 *ceiling_ref;
+ 	struct evl_wait_channel wchan;
+ 	struct list_head wait_list;
+-	struct list_head next;	/* thread->boosters */
++	struct list_head next_booster; /* thread->boosters */
++	struct list_head next_tracker;   /* thread->trackers */
+ };
+ 
+ #define evl_for_each_mutex_waiter(__pos, __mutex)			\
+@@ -76,6 +77,8 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
+ 
+ void evl_reorder_mutex_wait(struct evl_thread *thread);
+ 
++void evl_drop_tracking_mutexes(struct evl_thread *thread);
++
+ struct evl_kmutex {
+ 	struct evl_mutex mutex;
+ 	atomic_t fastlock;
+@@ -96,7 +99,7 @@ struct evl_kmutex {
+ 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+ 			},						\
+ 		},							\
+-			.fastlock = ATOMIC_INIT(0),			\
++		.fastlock = ATOMIC_INIT(0),				\
+ 	}
+ 
+ #define DEFINE_EVL_KMUTEX(__name)					\
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 5ad467cd72bd..dbb5ce165995 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -16,6 +16,7 @@
+ #include <linux/atomic.h>
+ #include <linux/spinlock.h>
+ #include <evl/list.h>
++#include <evl/lock.h>
+ #include <evl/stat.h>
+ #include <evl/timer.h>
+ #include <evl/sched/param.h>
+@@ -84,9 +85,14 @@ struct evl_thread {
+ 	struct list_head wait_next;	/* in wchan's wait_list */
+ 	struct list_head next;		/* evl_thread_list */
+ 
++	/* List of mutexes tracking this thread. */
++	struct list_head trackers;
++	hard_spinlock_t tracking_lock;
++
+ 	/*
+-	 * List of mutexes owned by this thread causing a priority
+-	 * boost due to one of the following reasons:
++	 * List of mutexes owned by this thread which specifically
++	 * cause a priority boost due to one of the following
++	 * reasons:
+ 	 *
+ 	 * - they are currently claimed by other thread(s) when
+ 	 * enforcing the priority inheritance protocol (EVL_MUTEX_PI).
+@@ -146,10 +152,10 @@ struct evl_kthread {
+ };
+ 
+ #define for_each_evl_booster(__pos, __thread)			\
+-	list_for_each_entry(__pos, &(__thread)->boosters, next)
++	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
+ 
+-#define for_each_evl_booster_safe(__pos, __tmp, __thread)		\
+-	list_for_each_entry_safe(__pos, __tmp, &(__thread)->boosters, next)
++#define for_each_evl_tracker_safe(__pos, __tmp, __thread)	\
++	list_for_each_entry_safe(__pos, __tmp, &(__thread)->trackers, next_tracker)
+ 
+ static inline void evl_sync_uwindow(struct evl_thread *curr)
+ {
+diff --git a/kernel/evl/factory.c b/kernel/evl/factory.c
+index d54715e68706..3a4d99f496f5 100644
+--- a/kernel/evl/factory.c
++++ b/kernel/evl/factory.c
+@@ -222,14 +222,17 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
+ 	 */
+ 	raw_spin_lock_irqsave(&e->ref_lock, flags);
+ 
+-	EVL_WARN_ON(CORE, e->refs == 0);
++	if (EVL_WARN_ON(CORE, e->refs == 0))
++		goto out;
+ 
+ 	if (--e->refs == 0) {
+ 		e->zombie = true;
+ 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+ 		put_element(e);
+-	} else
+-		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
++		return;
++	}
++out:
++	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+ }
+ 
+ int evl_release_element(struct inode *inode, struct file *filp)
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 354302b966b0..386083326ac6 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -109,7 +109,7 @@ static void adjust_boost(struct evl_thread *owner, struct evl_thread *target)
+ 	 * immediately when a contention is detected. Check the head
+ 	 * of the booster list instead.
+ 	 */
+-	mutex = list_first_entry(&owner->boosters, struct evl_mutex, next);
++	mutex = list_first_entry(&owner->boosters, struct evl_mutex, next_booster);
+ 	if (mutex->wprio == owner->wprio)
+ 		return;
+ 
+@@ -134,7 +134,7 @@ static void ceil_owner_priority(struct evl_mutex *mutex)
+ 	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
+ 				get_ceiling_value(mutex));
+ 	mutex->wprio = wprio;
+-	list_add_priff(mutex, &owner->boosters, wprio, next);
++	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+ 	raise_boost_flag(owner);
+ 	mutex->flags |= EVL_MUTEX_CEILING;
+ 
+@@ -157,13 +157,54 @@ static void ceil_owner_priority(struct evl_mutex *mutex)
+ 		adjust_boost(owner, NULL);
+ }
+ 
+-static inline
+-void track_owner(struct evl_mutex *mutex,
+-		struct evl_thread *owner)
++static inline void untrack_owner(struct evl_mutex *mutex)
++{
++	struct evl_thread *prev = mutex->owner;
++	unsigned long flags;
++
++	requires_ugly_lock();
++
++	if (prev) {
++		raw_spin_lock_irqsave(&prev->tracking_lock, flags);
++		list_del(&mutex->next_tracker);
++		raw_spin_unlock_irqrestore(&prev->tracking_lock, flags);
++		evl_put_element(&prev->element);
++		mutex->owner = NULL;
++	}
++}
++
++static void track_owner(struct evl_mutex *mutex,
++			struct evl_thread *owner)
+ {
++	struct evl_thread *prev = mutex->owner;
++	unsigned long flags;
++
++	requires_ugly_lock();
++
++	EVL_WARN_ON_ONCE(CORE, prev == owner);
++
++	raw_spin_lock_irqsave(&owner->tracking_lock, flags);
++	if (prev) {
++		list_del(&mutex->next_tracker);
++		smp_wmb();
++		evl_put_element(&prev->element);
++	}
++	list_add(&mutex->next_tracker, &owner->trackers);
++	raw_spin_unlock_irqrestore(&owner->tracking_lock, flags);
+ 	mutex->owner = owner;
+ }
+ 
++static inline void ref_and_track_owner(struct evl_mutex *mutex,
++				struct evl_thread *owner)
++{
++	requires_ugly_lock();
++
++	if (mutex->owner != owner) {
++		evl_get_element(&owner->element);
++		track_owner(mutex, owner);
++	}
++}
++
+ static inline int fast_mutex_is_claimed(fundle_t handle)
+ {
+ 	return (handle & EVL_MUTEX_FLCLAIM) != 0;
+@@ -188,7 +229,7 @@ void set_current_owner_locked(struct evl_mutex *mutex,
+ 	 * for PP mutexes. We may only get there if owner is current,
+ 	 * or blocked.
+ 	 */
+-	track_owner(mutex, owner);
++	ref_and_track_owner(mutex, owner);
+ 	if (mutex->flags & EVL_MUTEX_PP)
+ 		ceil_owner_priority(mutex);
+ }
+@@ -199,12 +240,9 @@ void set_current_owner(struct evl_mutex *mutex,
+ {
+ 	unsigned long flags;
+ 
+-	track_owner(mutex, owner);
+-	if (mutex->flags & EVL_MUTEX_PP) {
+-		xnlock_get_irqsave(&nklock, flags);
+-		ceil_owner_priority(mutex);
+-		xnlock_put_irqrestore(&nklock, flags);
+-	}
++	xnlock_get_irqsave(&nklock, flags);
++	set_current_owner_locked(mutex, owner);
++	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+ static inline
+@@ -224,7 +262,7 @@ fundle_t get_owner_handle(fundle_t ownerh, struct evl_mutex *mutex)
+ 
+ static void drop_booster(struct evl_mutex *mutex, struct evl_thread *owner)
+ {
+-	list_del(&mutex->next);	/* owner->boosters */
++	list_del(&mutex->next_booster);	/* owner->boosters */
+ 
+ 	if (list_empty(&owner->boosters)) {
+ 		owner->state &= ~T_BOOST;
+@@ -350,7 +388,12 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
+ 
+ void evl_destroy_mutex(struct evl_mutex *mutex)
+ {
++	unsigned long flags;
++
+ 	trace_evl_mutex_destroy(mutex);
++	xnlock_get_irqsave(&nklock, flags);
++	untrack_owner(mutex);
++	xnlock_put_irqrestore(&nklock, flags);
+ 	evl_flush_mutex(mutex, T_RMID);
+ }
+ EXPORT_SYMBOL_GPL(evl_destroy_mutex);
+@@ -438,6 +481,7 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	 * to signal an error.
+ 	 */
+ 	if (owner == NULL) {
++		untrack_owner(mutex);
+ 		xnlock_put_irqrestore(&nklock, flags);
+ 		return T_RMID;
+ 	}
+@@ -458,7 +502,15 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	 * can safely make is that *owner is valid but not current on
+ 	 * this CPU.
+ 	 */
+-	track_owner(mutex, owner);
++	if (mutex->owner != owner)
++		track_owner(mutex, owner);
++	else
++		/*
++		 * evl_get_element_by_fundle() got us an extraneous
++		 * reference on @owner which an earlier call to
++		 * track_owner() already obtained, drop the former.
++		 */
++		evl_put_element(&owner->element);
+ 
+ 	if (unlikely(curr->state & T_WOLI))
+ 		detect_inband_owner(mutex, curr);
+@@ -478,12 +530,12 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 			raise_boost_flag(owner);
+ 
+ 			if (mutex->flags & EVL_MUTEX_CLAIMED)
+-				list_del(&mutex->next); /* owner->boosters */
++				list_del(&mutex->next_booster); /* owner->boosters */
+ 			else
+ 				mutex->flags |= EVL_MUTEX_CLAIMED;
+ 
+ 			mutex->wprio = curr->wprio;
+-			list_add_priff(mutex, &owner->boosters, wprio, next);
++			list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+ 			/*
+ 			 * curr->wprio > owner->wprio implies that
+ 			 * mutex must be leading the booster list
+@@ -509,15 +561,13 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	if (curr->info & T_ROBBED) {
+ 		/*
+ 		 * Somebody stole us the ownership while we were ready
+-		 * to run, waiting for the CPU: we need to wait again
+-		 * for the resource.
++		 * to run, waiting for the CPU: we should resume
++		 * waiting for the resource, unless we know for sure
++		 * it's too late.
+ 		 */
+-		if (timeout_mode != EVL_REL || timeout_infinite(timeout)) {
+-			xnlock_put_irqrestore(&nklock, flags);
+-			goto redo;
+-		}
+-		timeout = evl_get_stopped_timer_delta(&curr->rtimer);
+-		if (timeout) { /* Otherwise, it's too late. */
++		if (timeout_mode != EVL_REL ||
++			timeout_infinite(timeout) ||
++			evl_get_stopped_timer_delta(&curr->rtimer) != 0) {
+ 			xnlock_put_irqrestore(&nklock, flags);
+ 			goto redo;
+ 		}
+@@ -535,8 +585,6 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ out:
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
+-	evl_put_element(&owner->element);
+-
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(evl_lock_mutex_timeout);
+@@ -556,7 +604,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	 * to check again under lock in a different way.
+ 	 */
+ 	if (list_empty(&mutex->wait_list)) {
+-		mutex->owner = NULL;
++		untrack_owner(mutex);
+ 		atomic_set(lockp, EVL_NO_HANDLE);
+ 		return;
+ 	}
+@@ -602,8 +650,6 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 
+ 	lockp = mutex->fastlock;
+ 	currh = fundle_of(curr);
+-	if (evl_get_index(atomic_read(lockp)) != currh)
+-		return;
+ 
+ 	/*
+ 	 * FLCEIL may only be raised by the owner, or when the owner
+@@ -622,22 +668,64 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 		clear_pp_boost(mutex, curr);
+ 
+ 	h = atomic_cmpxchg(lockp, currh, EVL_NO_HANDLE);
+-	if ((h & ~EVL_MUTEX_FLCEIL) != currh)
++	if ((h & ~EVL_MUTEX_FLCEIL) != currh) {
+ 		/* FLCLAIM set, mutex is contended. */
+ 		transfer_ownership(mutex, curr);
+-	else if (h != currh)	/* FLCEIL set, FLCLAIM clear. */
+-		atomic_set(lockp, EVL_NO_HANDLE);
++	} else {
++		if (h != currh)	/* FLCEIL set, FLCLAIM clear. */
++			atomic_set(lockp, EVL_NO_HANDLE);
++		untrack_owner(mutex);
++	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+ void evl_unlock_mutex(struct evl_mutex *mutex)
+ {
++	struct evl_thread *curr = evl_current();
++	fundle_t currh = fundle_of(curr), h;
++
++	h = evl_get_index(atomic_read(mutex->fastlock));
++	if (EVL_WARN_ON_ONCE(CORE, h != currh))
++		return;
++
+ 	__evl_unlock_mutex(mutex);
+ 	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_unlock_mutex);
+ 
++void evl_drop_tracking_mutexes(struct evl_thread *thread)
++{
++	struct evl_mutex *mutex;
++	unsigned long flags;
++	fundle_t h;
++
++	raw_spin_lock_irqsave(&thread->tracking_lock, flags);
++
++	/* Release all mutexes tracking @thread. */
++	while (!list_empty(&thread->trackers)) {
++		/*
++		 * Either __evl_unlock_mutex() or untrack_owner() will
++		 * unlink @mutex from @thread's tracker list.
++		 */
++		mutex = list_first_entry(&thread->trackers,
++					struct evl_mutex, next_tracker);
++		raw_spin_unlock_irqrestore(&thread->tracking_lock, flags);
++		h = evl_get_index(atomic_read(mutex->fastlock));
++		if (h == fundle_of(thread)) {
++			__evl_unlock_mutex(mutex);
++		} else {
++			xnlock_get_irqsave(&nklock, flags);
++			if (mutex->owner == thread)
++				untrack_owner(mutex);
++			xnlock_put_irqrestore(&nklock, flags);
++		}
++		raw_spin_lock_irqsave(&thread->tracking_lock, flags);
++	}
++
++	raw_spin_unlock_irqrestore(&thread->tracking_lock, flags);
++}
++
+ static inline struct evl_mutex *
+ wchan_to_mutex(struct evl_wait_channel *wchan)
+ {
+@@ -681,8 +769,8 @@ void evl_abort_mutex_wait(struct evl_thread *thread,
+ 	target = list_first_entry(&mutex->wait_list,
+ 				struct evl_thread, wait_next);
+ 	mutex->wprio = target->wprio;
+-	list_del(&mutex->next);	/* owner->boosters */
+-	list_add_priff(mutex, &owner->boosters, wprio, next);
++	list_del(&mutex->next_booster);	/* owner->boosters */
++	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+ 	adjust_boost(owner, target);
+ }
+ 
+@@ -708,21 +796,21 @@ void evl_reorder_mutex_wait(struct evl_thread *thread)
+ 	owner = mutex->owner;
+ 	mutex->wprio = thread->wprio;
+ 	if (mutex->flags & EVL_MUTEX_CLAIMED)
+-		list_del(&mutex->next);
++		list_del(&mutex->next_booster);
+ 	else {
+ 		mutex->flags |= EVL_MUTEX_CLAIMED;
+ 		raise_boost_flag(owner);
+ 	}
+ 
+-	list_add_priff(mutex, &owner->boosters, wprio, next);
++	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+ 	adjust_boost(owner, thread);
+ }
+ 
+ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
+ {
+ 	struct evl_thread *curr = evl_current();
++	atomic_t *lockp = mutex->fastlock;
+ 	fundle_t oldh, h;
+-	atomic_t *lockp;
+ 
+ 	/*
+ 	 * For PP locks, userland does, in that order:
+@@ -755,17 +843,16 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
+ 	 * locking happened. We get out of this trap by testing the
+ 	 * EVL_MUTEX_CEILING flag.
+ 	 */
+-	if (!evl_is_mutex_owner(mutex->fastlock, fundle_of(curr)) ||
++	if (!evl_is_mutex_owner(lockp, fundle_of(curr)) ||
+ 		(mutex->flags & EVL_MUTEX_CEILING))
+ 		return;
+ 
+-	track_owner(mutex, curr);
++	ref_and_track_owner(mutex, curr);
+ 	ceil_owner_priority(mutex);
+ 	/*
+ 	 * Raise FLCEIL, which indicates a kernel entry will be
+ 	 * required for releasing this resource.
+ 	 */
+-	lockp = mutex->fastlock;
+ 	do {
+ 		h = atomic_read(lockp);
+ 		oldh = atomic_cmpxchg(lockp, h, mutex_fast_ceil(h));
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index acde088e96dc..8d69b5dbeb15 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -189,6 +189,8 @@ int evl_init_thread(struct evl_thread *thread,
+ 
+ 	INIT_LIST_HEAD(&thread->next);
+ 	INIT_LIST_HEAD(&thread->boosters);
++	INIT_LIST_HEAD(&thread->trackers);
++	raw_spin_lock_init(&thread->tracking_lock);
+ 	init_completion(&thread->exited);
+ 
+ 	gravity = flags & T_USER ? EVL_TIMER_UGRAVITY : EVL_TIMER_KGRAVITY;
+@@ -242,10 +244,15 @@ static void uninit_thread(struct evl_thread *thread)
+ 
+ static void do_cleanup_current(struct evl_thread *curr)
+ {
+-	struct evl_mutex *mutex, *tmp;
+ 	struct cred *newcap;
+ 	unsigned long flags;
+ 
++	/*
++	 * Drop trackers first since this may alter the rq state for
++	 * current.
++	 */
++	evl_drop_tracking_mutexes(curr);
++
+ 	evl_unindex_element(&curr->element);
+ 
+ 	if (curr->state & T_USER) {
+@@ -280,10 +287,6 @@ static void do_cleanup_current(struct evl_thread *curr)
+ 	 */
+ 	curr->state |= T_ZOMBIE;
+ 
+-	/* Release all contended mutexes owned by current. */
+-	for_each_evl_booster_safe(mutex, tmp, curr)
+-		__evl_unlock_mutex(mutex);
+-
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
+ 	uninit_thread(curr);
+-- 
+2.16.4
+

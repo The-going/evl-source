@@ -1,0 +1,60 @@
+From 8d2672e5d5131e56e7c2140dd573cfc616eeacf6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 21 Oct 2019 11:31:20 +0200
+Subject: [PATCH] evl/factory: assert refcount sanity
+
+---
+ kernel/evl/factory.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/factory.c b/kernel/evl/factory.c
+index ed35023fae22..d54715e68706 100644
+--- a/kernel/evl/factory.c
++++ b/kernel/evl/factory.c
+@@ -85,6 +85,7 @@ void evl_get_element(struct evl_element *e)
+ 	unsigned long flags;
+ 
+ 	raw_spin_lock_irqsave(&e->ref_lock, flags);
++	EVL_WARN_ON(CORE, e->refs == 0);
+ 	e->refs++;
+ 	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+ }
+@@ -102,10 +103,12 @@ int evl_open_element(struct inode *inode, struct file *filp)
+ 
+ 	raw_spin_lock_irqsave(&e->ref_lock, flags);
+ 
+-	if (e->zombie)
++	if (e->zombie) {
+ 		ret = -ESTALE;
+-	else
++	} else {
++		EVL_WARN_ON(CORE, e->refs == 0);
+ 		e->refs++;
++	}
+ 
+ 	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+ 
+@@ -219,6 +222,8 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
+ 	 */
+ 	raw_spin_lock_irqsave(&e->ref_lock, flags);
+ 
++	EVL_WARN_ON(CORE, e->refs == 0);
++
+ 	if (--e->refs == 0) {
+ 		e->zombie = true;
+ 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+@@ -553,8 +558,10 @@ __evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
+ 			raw_spin_lock(&e->ref_lock);
+ 			if (unlikely(e->zombie))
+ 				e = NULL;
+-			else
++			else {
++				EVL_WARN_ON(CORE, e->refs == 0);
+ 				e->refs++;
++			}
+ 			raw_spin_unlock(&e->ref_lock);
+ 			raw_spin_unlock_irqrestore(&map->lock, flags);
+ 			return e;
+-- 
+2.16.4
+

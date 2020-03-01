@@ -1,4 +1,4 @@
-From 98fb09c1ce9c07bb233661bb44b92c07d8b7b387 Mon Sep 17 00:00:00 2001
+From 5f8994410f092353d18b75b52f428608c7c01c3f Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Sat, 23 Jul 2016 14:36:14 +0200
 Subject: [PATCH] ARM: VDSO: use mmio clocksources
@@ -68,7 +68,7 @@ index 7910abf89b1c..7f40de454add 100644
  
  union vdso_data_store {
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index aa95ca02614e..7482ed9f414f 100644
+index c900d0d5f56d..e9b1eee2ad56 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
 @@ -24,8 +24,6 @@
@@ -203,7 +203,7 @@ index aa95ca02614e..7482ed9f414f 100644
  static int __init vdso_init(void)
  {
  	unsigned int text_pages;
-@@ -221,9 +103,7 @@ static int __init vdso_init(void)
+@@ -220,9 +102,7 @@ static int __init vdso_init(void)
  	vdso_total_pages = 2; /* for the data/vvar and vpriv pages */
  	vdso_total_pages += text_pages;
  
@@ -214,7 +214,7 @@ index aa95ca02614e..7482ed9f414f 100644
  
  	return 0;
  }
-@@ -246,6 +126,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+@@ -245,6 +125,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
  	if (IS_ERR(vma))
  		return PTR_ERR(vma);
  
@@ -224,7 +224,7 @@ index aa95ca02614e..7482ed9f414f 100644
  	return vma->vm_start != addr ? -EINVAL : 0;
  }
  
-@@ -298,15 +181,9 @@ static void vdso_write_end(struct vdso_data *vdata)
+@@ -297,15 +180,9 @@ static void vdso_write_end(struct vdso_data *vdata)
  	++vdso_data->seq_count;
  }
  
@@ -242,7 +242,7 @@ index aa95ca02614e..7482ed9f414f 100644
  }
  
  /**
-@@ -330,24 +207,36 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
+@@ -329,24 +206,36 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
  void update_vsyscall(struct timekeeper *tk)
  {
  	struct timespec64 *wtm = &tk->wall_to_monotonic;
@@ -287,7 +287,7 @@ index aa95ca02614e..7482ed9f414f 100644
  		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
  		vdso_data->xtime_clock_sec	= tk->xtime_sec;
  		vdso_data->xtime_clock_snsec	= tk->tkr_mono.xtime_nsec;
-@@ -367,3 +256,17 @@ void update_vsyscall_tz(void)
+@@ -366,3 +255,17 @@ void update_vsyscall_tz(void)
  	vdso_data->tz_dsttime		= sys_tz.tz_dsttime;
  	flush_dcache_page(virt_to_page(vdso_data));
  }
@@ -306,7 +306,7 @@ index aa95ca02614e..7482ed9f414f 100644
 +	d->clock_type = ARM_CLOCK_ARCH_TIMER;
 +}
 diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-index c1222c0e9fd3..03e062f757d9 100644
+index 0ab3a86b1f52..7676a7db9230 100644
 --- a/arch/arm/mm/Kconfig
 +++ b/arch/arm/mm/Kconfig
 @@ -894,7 +894,7 @@ config KUSER_HELPERS
@@ -835,7 +835,7 @@ index d1fdbb12760a..61f0fbc09eb6 100644
  	if (tv) {
  		tv->tv_sec = ts.tv_sec;
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 5e9317dc3d39..747a04ca03fe 100644
+index f35a53ce8988..7858de166956 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
 @@ -31,6 +31,11 @@ config CLKBLD_I8253

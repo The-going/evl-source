@@ -250,3 +250,13 @@
 	patches.dovetail/ARM-irq_pipeline-convert-to-handle_irq_pipelined.patch
 	patches.dovetail/arm64-irq_pipeline-convert-to-handle_irq_pipelined.patch
 	patches.dovetail/x86-irq_pipeline-convert-to-handle_irq_pipelined.patch
+	patches.dovetail/tty-imx-silence-warning-with-RAW_PRINTK-disabled.patch
+	patches.dovetail/genirq-irq_pipeline-prevent-infinite-recursion-in-ch.patch
+	patches.dovetail/genirq-irq_pipeline-fix-inband-switch-back-after-IRQ.patch
+	patches.dovetail/sched-dovetail-detect-inband-oob-transition-epilogue.patch
+	patches.dovetail/genirq-irq_pipeline-drop-irq_pipeline_data.__curr.patch
+	patches.dovetail/genirq-irq_pipeline-disable-inband-checks-after-LOCK.patch
+	patches.dovetail/sched-dovetail-send-SCHEDULE-event-for-incoming-dove.patch
+	patches.dovetail/x86-dovetail-fix-IRQ-state-inconsistencies-in-trap-h.patch
+	patches.dovetail/locking-irq_pipeline-fix-hard-spin-trylock.patch
+	patches.dovetail/locking-irq_pipeline-fix-mutable-spin-trylock.patch

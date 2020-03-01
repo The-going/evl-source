@@ -1,4 +1,4 @@
-From bc4256b32d1253a9874fcd2b685cc516b1aa0958 Mon Sep 17 00:00:00 2001
+From 4aaa9980af5722cd40ce222bb3eded9b0dcab64b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 17:00:29 +0200
 Subject: [PATCH] locking: irq_pipeline: fix allnoconfig build issue
@@ -8,10 +8,10 @@ Subject: [PATCH] locking: irq_pipeline: fix allnoconfig build issue
  1 file changed, 1 deletion(-)
 
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index b395882c0c4f..b3c9452bdbfc 100644
+index 4098b553d33a..79e57977a001 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1171,7 +1171,6 @@ config LOCK_STAT
+@@ -1154,7 +1154,6 @@ config LOCK_STAT
  	select DEBUG_MUTEXES
  	select DEBUG_RT_MUTEXES if RT_MUTEXES
  	select DEBUG_LOCK_ALLOC

@@ -1,0 +1,108 @@
+From a6fac88dc316d07383217c93ea2ba18d6cb9a872 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 16 Oct 2019 10:35:18 +0200
+Subject: [PATCH] genirq: irq_pipeline: drop irq_pipeline_data.__curr
+
+Now that running_inband(), running_oob() yield consistent values at
+the scheduler exchange point when transitioning between inband <-> oob
+stages, we don't need to track the active stage index in
+irq_pipeline_data.__curr anymore.
+---
+ include/linux/irqstage.h | 17 +++++------------
+ kernel/irq/pipeline.c    |  3 ---
+ 2 files changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
+index 9de909025428..830a7cb8e8ac 100644
+--- a/include/linux/irqstage.h
++++ b/include/linux/irqstage.h
+@@ -48,7 +48,6 @@ struct irq_stage_data {
+ /* Per-CPU pipeline descriptor. */
+ struct irq_pipeline_data {
+ 	struct irq_stage_data stages[2];
+-	int __curr;
+ 	struct pt_regs tick_regs;
+ #ifdef CONFIG_DOVETAIL
+ 	struct task_struct *task_inflight;
+@@ -117,8 +116,7 @@ static inline struct irq_stage_data *this_oob_staged(void)
+ 
+ static inline struct irq_stage_data *__current_irq_staged(void)
+ {
+-	int index = raw_cpu_read(irq_pipeline.__curr);
+-	return &raw_cpu_ptr(irq_pipeline.stages)[index];
++	return &raw_cpu_ptr(irq_pipeline.stages)[stage_level()];
+ }
+ 
+ /**
+@@ -128,20 +126,15 @@ static inline struct irq_stage_data *__current_irq_staged(void)
+ #define current_irq_staged __current_irq_staged()
+ 
+ static inline
+-void __set_current_irq_staged(struct irq_stage_data *pd)
++void check_staged_locality(struct irq_stage_data *pd)
+ {
+-	struct irq_pipeline_data *p = raw_cpu_ptr(&irq_pipeline);
+ #ifdef CONFIG_DEBUG_IRQ_PIPELINE
+ 	/*
+ 	 * Setting our context with another processor's is a really
+ 	 * bad idea, our caller definitely went loopy.
+ 	 */
+-	if (WARN_ON_ONCE(raw_smp_processor_id() != pd->cpu)) {
+-		p->__curr = pd - &per_cpu(irq_pipeline.stages, pd->cpu)[0];
+-		return;
+-	}
++	WARN_ON_ONCE(raw_smp_processor_id() != pd->cpu);
+ #endif
+-	p->__curr = pd - &raw_cpu_ptr(irq_pipeline.stages)[0];
+ }
+ 
+ /**
+@@ -155,7 +148,7 @@ void __set_current_irq_staged(struct irq_stage_data *pd)
+ static inline
+ void switch_oob(struct irq_stage_data *pd)
+ {
+-	__set_current_irq_staged(pd);
++	check_staged_locality(pd);
+ 	if (!(preempt_count() & STAGE_MASK))
+ 		preempt_count_add(STAGE_OFFSET);
+ }
+@@ -163,7 +156,7 @@ void switch_oob(struct irq_stage_data *pd)
+ static inline
+ void switch_inband(struct irq_stage_data *pd)
+ {
+-	__set_current_irq_staged(pd);
++	check_staged_locality(pd);
+ 	if (preempt_count() & STAGE_MASK)
+ 		preempt_count_sub(STAGE_OFFSET);
+ }
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 8d616330df31..878a91a677e9 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -78,7 +78,6 @@ DEFINE_PER_CPU(struct irq_pipeline_data, irq_pipeline) = {
+ 			.status = (1 << STAGE_STALL_BIT),
+ 		},
+ 	},
+-	.__curr = 0,
+ };
+ 
+ #else /* !CONFIG_SMP */
+@@ -102,7 +101,6 @@ DEFINE_PER_CPU(struct irq_pipeline_data, irq_pipeline) = {
+ 			},
+ 		},
+ 	},
+-	.__curr = 0,
+ };
+ 
+ #endif /* !CONFIG_SMP */
+@@ -1577,7 +1575,6 @@ static inline void fixup_percpu_data(void)
+ 
+ 	for_each_possible_cpu(cpu) {
+ 		p = &per_cpu(irq_pipeline, cpu);
+-		p->__curr = 0;
+ 		p->stages[0].stage = &inband_stage;
+ 		p->stages[0].log.map = &per_cpu(irq_map_array, cpu)[0];
+ 		p->stages[1].log.map = &per_cpu(irq_map_array, cpu)[1];
+-- 
+2.16.4
+

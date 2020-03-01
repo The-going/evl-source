@@ -1,0 +1,69 @@
+From 37155504d7942eb3b5af9b1f27e05e2d3e0cb079 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 14 Oct 2019 20:55:39 +0200
+Subject: [PATCH] genirq: irq_pipeline: prevent infinite recursion in
+ check_inband_stage()
+
+Turn on irq_pipeline_oopsing early enough in check_inband_stage() so
+that any error caught by this call in the middle of a transition from
+out-of-band to inband contexts (i.e. via dovetail_resume_inband())
+does not trigger an infinite recursion due to invoking printk() for
+reporting the issue.
+
+e.g.
+
+dovetail_resume_inband()
+    ...
+    finish_task_switch()
+         ...
+->       inband_irq_enable()
+|	       check_inband_stage() /* inband call over oob! */
+|	           printk() <-+
+|_____________________________|
+---
+ kernel/irq/pipeline.c | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index a3994ae4ac2d..df99859d82b6 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -1534,25 +1534,24 @@ notrace void check_inband_stage(void)
+ 		return;
+ 	}
+ 
++	/*
++	 * This will disable all further pipeline debug checks, since
++	 * a wrecked interrupt state is likely to trigger many of
++	 * them, ending up in a terrible mess. IOW, the current
++	 * situation must be fixed prior to investigating any
++	 * subsequent issue that might still exist.
++	 */
++	irq_pipeline_oopsing = true;
++
+ 	hard_smp_local_irq_restore(flags);
+ 
+ 	if (this_stage != &inband_stage)
+ 		pr_err("IRQ pipeline: some code running in oob context '%s'\n"
+ 		       "              called an in-band only routine\n",
+ 		       this_stage->name);
+-	else {
++	else
+ 		pr_err("IRQ pipeline: oob stage found stalled while modifying in-band\n"
+ 		       "              interrupt state and/or running sleeping code\n");
+-		/*
+-		 * This will disable all further pipeline debug
+-		 * checks, since a wrecked interrupt state is likely
+-		 * to trigger many of them, ending up in a terrible
+-		 * mess. IOW, the current situation must be fixed
+-		 * prior to investigating any subsequent issue that
+-		 * might still exist.
+-		 */
+-		irq_pipeline_oopsing = true;
+-	}
+ 
+ 	dump_stack();
+ }
+-- 
+2.16.4
+

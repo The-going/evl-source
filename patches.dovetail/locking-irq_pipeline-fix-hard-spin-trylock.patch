@@ -1,0 +1,25 @@
+From 9d76185c09d2845d8cbe36e00552a35cc571d107 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 23 Oct 2019 20:20:26 +0200
+Subject: [PATCH] locking: irq_pipeline: fix hard spin trylock
+
+---
+ include/linux/spinlock_pipeline.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/spinlock_pipeline.h b/include/linux/spinlock_pipeline.h
+index dcbc501d7476..a22b98724a52 100644
+--- a/include/linux/spinlock_pipeline.h
++++ b/include/linux/spinlock_pipeline.h
+@@ -118,7 +118,7 @@ static inline
+ int hard_spin_trylock(struct raw_spinlock *rlock)
+ {
+ 	if (do_raw_spin_trylock(rlock)) {
+-		hard_lock_acquire(rlock, 1, _THIS_IP_);
++		hard_trylock_acquire(rlock, 1, _THIS_IP_);
+ 		return 1;
+ 	}
+ 	return 0;
+-- 
+2.16.4
+

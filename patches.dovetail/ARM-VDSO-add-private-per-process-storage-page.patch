@@ -1,4 +1,4 @@
-From a071ad6363ac5ace090c43728fd61a1193de31da Mon Sep 17 00:00:00 2001
+From ec59187901d726eff7f02336b2506a9a418255ef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 22 Jul 2018 16:45:45 +0200
 Subject: [PATCH] ARM: VDSO: add private per-process storage page
@@ -29,7 +29,7 @@ index 0821fdd77831..177d6f51bc5a 100644
    BLANK();
  #ifdef CONFIG_ARM_MPU
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 8872acf9ff99..aa95ca02614e 100644
+index 9bf16c93ee6a..c900d0d5f56d 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
 @@ -30,7 +30,10 @@ static struct page **vdso_text_pagelist;
@@ -55,7 +55,7 @@ index 8872acf9ff99..aa95ca02614e 100644
  
  	if (vdso_size != new_size)
  		return -EINVAL;
-@@ -215,7 +218,7 @@ static int __init vdso_init(void)
+@@ -214,7 +217,7 @@ static int __init vdso_init(void)
  
  	vdso_text_mapping.pages = vdso_text_pagelist;
  
@@ -64,7 +64,7 @@ index 8872acf9ff99..aa95ca02614e 100644
  	vdso_total_pages += text_pages;
  
  	cntvct_ok = cntvct_functional();
-@@ -226,6 +229,13 @@ static int __init vdso_init(void)
+@@ -225,6 +228,13 @@ static int __init vdso_init(void)
  }
  arch_initcall(vdso_init);
  
@@ -78,7 +78,7 @@ index 8872acf9ff99..aa95ca02614e 100644
  static int install_vvar(struct mm_struct *mm, unsigned long addr)
  {
  	struct vm_area_struct *vma;
-@@ -233,8 +243,10 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+@@ -232,8 +242,10 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
  	vma = _install_special_mapping(mm, addr, PAGE_SIZE,
  				       VM_READ | VM_MAYREAD,
  				       &vdso_data_mapping);
@@ -90,7 +90,7 @@ index 8872acf9ff99..aa95ca02614e 100644
  }
  
  /* assumes mmap_sem is write-locked */
-@@ -248,18 +260,29 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
+@@ -247,18 +259,29 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
  	if (vdso_text_pagelist == NULL)
  		return;
  

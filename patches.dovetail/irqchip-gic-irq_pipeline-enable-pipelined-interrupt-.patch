@@ -1,4 +1,4 @@
-From 69da75dfeb9c60416c7af0025587c4ebf08448b9 Mon Sep 17 00:00:00 2001
+From ec6c4cdd0bfff4b71ce4d4e477d78fe77e0fb252 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 20 Feb 2017 19:18:09 +0100
 Subject: [PATCH] irqchip/gic: irq_pipeline: enable pipelined interrupt control
@@ -8,7 +8,7 @@ Subject: [PATCH] irqchip/gic: irq_pipeline: enable pipelined interrupt control
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
-index e45f45e68720..e8e89c9e81bb 100644
+index 30ab623343d3..c6a2377069c7 100644
 --- a/drivers/irqchip/irq-gic.c
 +++ b/drivers/irqchip/irq-gic.c
 @@ -90,7 +90,7 @@ struct gic_chip_data {
@@ -20,7 +20,7 @@ index e45f45e68720..e8e89c9e81bb 100644
  
  #define gic_lock_irqsave(f)		\
  	raw_spin_lock_irqsave(&cpu_map_lock, (f))
-@@ -421,7 +421,8 @@ static const struct irq_chip gic_chip = {
+@@ -429,7 +429,8 @@ static const struct irq_chip gic_chip = {
  	.irq_set_irqchip_state	= gic_irq_set_irqchip_state,
  	.flags			= IRQCHIP_SET_TYPE_MASKED |
  				  IRQCHIP_SKIP_SET_WAKE |

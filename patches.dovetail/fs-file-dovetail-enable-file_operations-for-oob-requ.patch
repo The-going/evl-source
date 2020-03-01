@@ -1,4 +1,4 @@
-From 566c249de98eeb451f781211430e4702cf6ab2d2 Mon Sep 17 00:00:00 2001
+From d61e69b11ac8c748f706c8996ea050ae865e2d38 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 13 Jan 2019 10:36:09 +0100
 Subject: [PATCH] fs/file: dovetail: enable file_operations for oob request
@@ -125,7 +125,7 @@ index b9a48597e904..d924f4358c08 100644
  
  static inline bool dovetailing(void)
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 997a530ff4e9..06696840623d 100644
+index e0d909d35763..d95ce9460f92 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
 @@ -54,6 +54,7 @@ struct kiocb;
@@ -136,7 +136,7 @@ index 997a530ff4e9..06696840623d 100644
  struct kstatfs;
  struct vm_area_struct;
  struct vfsmount;
-@@ -949,6 +950,7 @@ struct file {
+@@ -962,6 +963,7 @@ struct file {
  #endif
  	/* needed for tty driver, and maybe others */
  	void			*private_data;
@@ -144,7 +144,7 @@ index 997a530ff4e9..06696840623d 100644
  
  #ifdef CONFIG_EPOLL
  	/* Used by fs/eventpoll.c to link all the hooks to this file */
-@@ -1799,6 +1801,10 @@ struct file_operations {
+@@ -1824,6 +1826,10 @@ struct file_operations {
  	__poll_t (*poll) (struct file *, struct poll_table_struct *);
  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);

@@ -1,4 +1,4 @@
-From f53d854cfe1dfd3e033a3aab7224a01eb428b690 Mon Sep 17 00:00:00 2001
+From c1ba19401bd89ef644cdf974d2050eb889d9db50 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 20 Jul 2016 15:06:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
@@ -16,7 +16,7 @@ Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
  include/linux/irqstage.h           |  412 ++++++++++
  include/linux/preempt.h            |   15 +
  include/trace/events/irq.h         |   42 ++
- init/Makefile                      |    2 +-
+ init/Makefile                      |    3 +-
  init/main.c                        |    7 +-
  kernel/irq/Kconfig                 |   14 +
  kernel/irq/Makefile                |    1 +
@@ -37,7 +37,7 @@ Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
  lib/Kconfig.debug                  |   10 +
  lib/dump_stack.c                   |    5 +
  scripts/mkcompile_h                |    4 +-
- 33 files changed, 3315 insertions(+), 78 deletions(-)
+ 33 files changed, 3316 insertions(+), 78 deletions(-)
  create mode 100644 Documentation/irq_pipeline.rst
  create mode 100644 include/asm-generic/irq_pipeline.h
  create mode 100644 include/linux/irq_pipeline.h
@@ -744,7 +744,7 @@ index 000000000000..4f84c28e31f7
 +.. [#f2] Yaghmour, Karim; "ADEOS - Adaptive Domain Environment for Operating Systems"
 +    https://www.opersys.com/ftp/pub/Adeos/adeos.pdf
 diff --git a/drivers/cpuidle/cpuidle.c b/drivers/cpuidle/cpuidle.c
-index 0f4b7c45df3e..3e2319f5b06c 100644
+index 0895b988fa92..416ea72f0e94 100644
 --- a/drivers/cpuidle/cpuidle.c
 +++ b/drivers/cpuidle/cpuidle.c
 @@ -17,6 +17,7 @@
@@ -937,7 +937,7 @@ index da0af631ded5..ec5757babe95 100644
 +
  #endif /* LINUX_HARDIRQ_H */
 diff --git a/include/linux/interrupt.h b/include/linux/interrupt.h
-index 5b8328a99b2a..aa31bca45dcd 100644
+index 89fc59dab57d..070dd60e3e4d 100644
 --- a/include/linux/interrupt.h
 +++ b/include/linux/interrupt.h
 @@ -61,6 +61,12 @@
@@ -961,7 +961,7 @@ index 5b8328a99b2a..aa31bca45dcd 100644
  
  #define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND | IRQF_NO_THREAD)
  
-@@ -494,9 +501,29 @@ extern bool force_irqthreads;
+@@ -499,9 +506,29 @@ extern bool force_irqthreads;
   * to ensure that after a local_irq_disable(), interrupts have
   * really been disabled in hardware. Such architectures need to
   * implement the following hook.
@@ -1664,7 +1664,7 @@ index 000000000000..2fafac82e348
 +
 +#endif	/* !_LINUX_IRQSTAGE_H */
 diff --git a/include/linux/preempt.h b/include/linux/preempt.h
-index dd92b1a93919..22a69981d882 100644
+index bbb68dba37cc..fcbe263f2496 100644
 --- a/include/linux/preempt.h
 +++ b/include/linux/preempt.h
 @@ -27,17 +27,23 @@
@@ -1787,17 +1787,18 @@ index eeceafaaea4c..e76f462f5f54 100644
  
  	TP_PROTO(unsigned int vec_nr),
 diff --git a/init/Makefile b/init/Makefile
-index a3e5ce2bcf08..b10ecead0edf 100644
+index 6246a06364d0..1d060bc15c98 100644
 --- a/init/Makefile
 +++ b/init/Makefile
-@@ -34,4 +34,4 @@ silent_chk_compile.h = :
- include/generated/compile.h: FORCE
+@@ -35,4 +35,5 @@ include/generated/compile.h: FORCE
  	@$($(quiet)chk_compile.h)
- 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@ \
--	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" "$(CC) $(KBUILD_CFLAGS)"
-+	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" "$(CONFIG_IRQ_PIPELINE)" "$(CC) $(KBUILD_CFLAGS)"
+ 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkcompile_h $@	\
+ 	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)"	\
+-	"$(CONFIG_PREEMPT_RT)" "$(CC) $(KBUILD_CFLAGS)"
++	"$(CONFIG_PREEMPT_RT)" "$(CONFIG_IRQ_PIPELINE)" \
++	"$(CC) $(KBUILD_CFLAGS)"
 diff --git a/init/main.c b/init/main.c
-index 96f8d5af52d6..d82c7ec5a018 100644
+index 91f6ebb30ef0..3f338902d01f 100644
 --- a/init/main.c
 +++ b/init/main.c
 @@ -49,6 +49,7 @@
@@ -2493,7 +2494,7 @@ index 9be995fc3c5a..2936457d8693 100644
   * handle_domain_nmi - Invoke the handler for a HW irq belonging to a domain
   * @domain:	The domain where to perform the lookup
 diff --git a/kernel/irq/manage.c b/kernel/irq/manage.c
-index e8f7f179bf77..56844d77bb5a 100644
+index 1753486b440c..707b006e3655 100644
 --- a/kernel/irq/manage.c
 +++ b/kernel/irq/manage.c
 @@ -10,6 +10,7 @@
@@ -2568,7 +2569,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  			canrequest = 1;
  	}
  	irq_put_desc_unlock(desc, flags);
-@@ -1301,6 +1350,21 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
+@@ -1300,6 +1349,21 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
  
  	new->irq = irq;
  
@@ -2590,7 +2591,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  	/*
  	 * If the trigger type is not specified by the caller,
  	 * then use the default for this interrupt.
-@@ -1314,10 +1378,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
+@@ -1313,10 +1377,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
  	 */
  	nested = irq_settings_is_nested_thread(desc);
  	if (nested) {
@@ -2602,7 +2603,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  		/*
  		 * Replace the primary handler which was provided from
  		 * the driver for non nested interrupt handling by the
-@@ -1401,7 +1463,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
+@@ -1400,7 +1462,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
  		 * the same type (level, edge, polarity). So both flag
  		 * fields must have IRQF_SHARED set and the bits which
  		 * set the trigger type must match. Also all must
@@ -2611,7 +2612,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  		 * Interrupt lines used for NMIs cannot be shared.
  		 */
  		unsigned int oldtype;
-@@ -1426,7 +1488,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
+@@ -1425,7 +1487,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
  
  		if (!((old->flags & new->flags) & IRQF_SHARED) ||
  		    (oldtype != (new->flags & IRQF_TRIGGER_MASK)) ||
@@ -2620,7 +2621,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  			goto mismatch;
  
  		/* All handlers must agree on per-cpuness */
-@@ -1546,6 +1608,9 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
+@@ -1545,6 +1607,9 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
  		if (new->flags & IRQF_ONESHOT)
  			desc->istate |= IRQS_ONESHOT;
  
@@ -2630,7 +2631,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  		/* Exclude IRQ from balancing if requested */
  		if (new->flags & IRQF_NOBALANCING) {
  			irq_settings_set_no_balancing(desc);
-@@ -1727,6 +1792,8 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
+@@ -1726,6 +1791,8 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
  		irq_settings_clr_disable_unlazy(desc);
  		/* Only shutdown. Deactivate after synchronize_hardirq() */
  		irq_shutdown(desc);
@@ -2639,7 +2640,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  	}
  
  #ifdef CONFIG_SMP
-@@ -1763,14 +1830,15 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
+@@ -1762,14 +1829,15 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
  
  #ifdef CONFIG_DEBUG_SHIRQ
  	/*
@@ -2659,7 +2660,7 @@ index e8f7f179bf77..56844d77bb5a 100644
  		local_irq_save(flags);
  		action->handler(irq, dev_id);
  		local_irq_restore(flags);
-@@ -2407,7 +2475,7 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
+@@ -2406,7 +2474,7 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
   *	__request_percpu_irq - allocate a percpu interrupt line
   *	@irq: Interrupt line to allocate
   *	@handler: Function to be called when the IRQ occurs.
@@ -2668,7 +2669,7 @@ index e8f7f179bf77..56844d77bb5a 100644
   *	@devname: An ascii name for the claiming device
   *	@dev_id: A percpu cookie passed back to the handler function
   *
-@@ -2436,7 +2504,7 @@ int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
+@@ -2435,7 +2503,7 @@ int __request_percpu_irq(unsigned int irq, irq_handler_t handler,
  	    !irq_settings_is_per_cpu_devid(desc))
  		return -EINVAL;
  
@@ -4238,7 +4239,7 @@ index e43795cd2ccf..adc2fd0ed47b 100644
 +	desc->status_use_accessors &= ~_IRQ_CHAINED;
 +}
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 86f8865cf043..24b66d19c196 100644
+index 35995dfb4072..473ab5ecac09 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -48,6 +48,7 @@
@@ -4250,7 +4251,7 @@ index 86f8865cf043..24b66d19c196 100644
  #include <linux/uaccess.h>
  #include <asm/sections.h>
 diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-index 80940939b733..108ef3ede207 100644
+index 8dad5aa600ea..14af576bdaef 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
 @@ -77,22 +77,29 @@ void __weak arch_cpu_idle_dead(void) { }
@@ -4311,7 +4312,7 @@ index 80940939b733..108ef3ede207 100644
  		arch_cpu_idle_exit();
  	}
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 802b1f3405f2..f879a9dbc77e 100644
+index 0db2c1b3361e..34f7319fb334 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -52,6 +52,7 @@
@@ -4323,10 +4324,10 @@ index 802b1f3405f2..f879a9dbc77e 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 5960e2980a8a..6f58db25dc4b 100644
+index 93d97f9b0157..592b32055cb6 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -831,6 +831,16 @@ config DEBUG_SHIRQ
+@@ -814,6 +814,16 @@ config DEBUG_SHIRQ
  	  Drivers ought to be able to handle interrupts coming in at those
  	  points; some don't and need to be caught.
  
@@ -4360,23 +4361,23 @@ index 5cff72f18c4a..6ebef0ca7672 100644
  }
  
 diff --git a/scripts/mkcompile_h b/scripts/mkcompile_h
-index 2339f86126cb..1194aed725bf 100755
+index d1d757c6edf4..9103227ae82d 100755
 --- a/scripts/mkcompile_h
 +++ b/scripts/mkcompile_h
-@@ -5,7 +5,8 @@ TARGET=$1
- ARCH=$2
+@@ -6,7 +6,8 @@ ARCH=$2
  SMP=$3
  PREEMPT=$4
--CC=$5
-+IRQPIPE=$5
-+CC=$6
+ PREEMPT_RT=$5
+-CC=$6
++IRQPIPE=$6
++CC=$7
  
  vecho() { [ "${quiet}" = "silent_" ] || echo "$@" ; }
  
-@@ -53,6 +54,7 @@ UTS_VERSION="#$VERSION"
- CONFIG_FLAGS=""
+@@ -55,6 +56,7 @@ CONFIG_FLAGS=""
  if [ -n "$SMP" ] ; then CONFIG_FLAGS="SMP"; fi
  if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
+ if [ -n "$PREEMPT_RT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_RT"; fi
 +if [ -n "$IRQPIPE" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS IRQPIPE"; fi
  UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS $TIMESTAMP"
  

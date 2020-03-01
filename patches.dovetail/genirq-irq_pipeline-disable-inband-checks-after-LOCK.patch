@@ -1,0 +1,62 @@
+From 8d8d3186f76e52224b92a34da44fbe01f097a824 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 13 Oct 2019 17:54:03 +0200
+Subject: [PATCH] genirq: irq_pipeline: disable inband checks after LOCKDEP
+ error
+
+LOCKDEP may detect issues with hard spinlocks, in which case the oob
+stage is likely stalled when those bugs are detected. If a suspicious
+lock was taken from the inband stage, dump_stack() and friends should
+be allowed to report the issue unspoiled by confusing reports from
+check_inband_stage() (e.g. as a result of calling local_irq_save(),
+local_irq_restore() while the oob stage is stalled).
+
+Disable check_inband_stage() if LOCKDEP has disabled its own bug
+detection upon error.
+---
+ kernel/irq/pipeline.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 878a91a677e9..4dcff9c50adc 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -11,6 +11,7 @@
+ #include <linux/irq_pipeline.h>
+ #include <linux/irq_work.h>
+ #include <linux/jhash.h>
++#include <linux/debug_locks.h>
+ #include <dovetail/irq.h>
+ #include <trace/events/irq.h>
+ #include "internals.h"
+@@ -1509,6 +1510,18 @@ void irq_local_work_raise(void)
+ 
+ #ifdef CONFIG_DEBUG_IRQ_PIPELINE
+ 
++#ifdef CONFIG_LOCKDEP
++static inline bool lockdep_on_error(void)
++{
++	return !debug_locks;
++}
++#else
++static inline bool lockdep_on_error(void)
++{
++	return false;
++}
++#endif
++
+ notrace void check_inband_stage(void)
+ {
+ 	struct irq_stage *this_stage;
+@@ -1523,7 +1536,7 @@ notrace void check_inband_stage(void)
+ 		return;
+ 	}
+ 
+-	if (in_nmi() || irq_pipeline_oopsing) {
++	if (in_nmi() || irq_pipeline_oopsing || lockdep_on_error()) {
+ 		hard_smp_local_irq_restore(flags);
+ 		return;
+ 	}
+-- 
+2.16.4
+

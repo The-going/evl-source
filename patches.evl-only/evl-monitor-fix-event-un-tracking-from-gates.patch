@@ -1,0 +1,35 @@
+From 01742b09b9963b0266cb2a82cfb1f92af522b71e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 15 Oct 2019 12:18:06 +0200
+Subject: [PATCH] evl/monitor: fix event un-tracking from gates
+
+---
+ kernel/evl/monitor.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 6b00d7588c73..8b2fb5baa2d3 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -118,10 +118,15 @@ void __evl_commit_monitor_ceiling(void)  /* nklock held, irqs off, OOB */
+ /* nklock held, irqs off (testing the wait_queue). */
+ static void untrack_event(struct evl_monitor *event)
+ {
+-	list_del(&event->next);
+-	event->gate = NULL;
+-	if (!evl_wait_active(&event->wait_queue))
++	/*
++	 * If no more waiter is pending on this event, have the gate
++	 * stop tracking it.
++	 */
++	if (!evl_wait_active(&event->wait_queue)) {
++		list_del(&event->next);
++		event->gate = NULL;
+ 		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
++	}
+ }
+ 
+ /* nklock held, irqs off */
+-- 
+2.16.4
+

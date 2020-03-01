@@ -1,4 +1,4 @@
-From f014ea335421f9b8e35f327e8e8de78386e4fb39 Mon Sep 17 00:00:00 2001
+From 2fbcf243f73016257fae64ad59f35c78be49f0c4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 1 Jun 2019 16:45:32 +0200
 Subject: [PATCH] clocksource: mmio: rename user_mmio_clksrc as mmio_ucs
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource: mmio: rename user_mmio_clksrc as mmio_ucs
  2 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 9f62c384c329..d0cfdd8b27f7 100644
+index 12d7ff830bd2..749e3f60c22d 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -229,7 +229,7 @@ void update_vsyscall(struct timekeeper *tk)
+@@ -228,7 +228,7 @@ void update_vsyscall(struct timekeeper *tk)
  		if (cd->clock_type >= ARM_CLOCK_USER_MMIO_BASE)
  			snprintf(vdso_data->mmio_dev_name,
  				sizeof(vdso_data->mmio_dev_name),
