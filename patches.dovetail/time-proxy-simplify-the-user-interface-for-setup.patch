@@ -1,0 +1,392 @@
+From e7efd97508c91565d4dfaf7361db23c1ec3d047e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 3 May 2019 09:24:21 +0200
+Subject: [PATCH] time: proxy: simplify the user interface for setup
+
+There is no reason to ask the user for allocating the proxy device, we
+just need it to finalize the prep work before the proxy gets
+registered in the clock framework.
+
+Turn get_percpu_device() into setup_proxy(), which also allows us to
+pre-init the proxy descriptor with the real device settings before
+calling the user setup handler instead of running post-init code
+afterwards. This definitely makes the picture much clearer on the
+user's end about which proxy settings will be used eventually.
+---
+ include/linux/clockchips.h  |  3 +-
+ include/linux/tick.h        |  3 +-
+ kernel/irq/irqptorture.c    | 18 +--------
+ kernel/time/clockevents.c   | 26 ++++--------
+ kernel/time/tick-internal.h |  6 +--
+ kernel/time/tick-proxy.c    | 98 ++++++++++++++++++++++++---------------------
+ 6 files changed, 67 insertions(+), 87 deletions(-)
+
+diff --git a/include/linux/clockchips.h b/include/linux/clockchips.h
+index 3ea6ccd30859..dd980dca81e7 100644
+--- a/include/linux/clockchips.h
++++ b/include/linux/clockchips.h
+@@ -245,8 +245,9 @@ static inline void tick_setup_hrtimer_broadcast(void) { }
+ struct clock_proxy_device {
+ 	struct clock_event_device proxy_device;
+ 	struct clock_event_device *real_device;
+-	void (*handle_inband_event)(struct clock_event_device *dev);
+ 	void (*handle_oob_event)(struct clock_event_device *dev);
++	void (*__setup_handler)(struct clock_proxy_device *dev);
++	void (*__original_handler)(struct clock_event_device *dev);
+ };
+ 
+ void tick_notify_proxy(void);
+diff --git a/include/linux/tick.h b/include/linux/tick.h
+index d9a7d3217d2a..524b2250b7b9 100644
+--- a/include/linux/tick.h
++++ b/include/linux/tick.h
+@@ -22,8 +22,7 @@ extern void tick_handover_do_timer(void);
+ extern void tick_cleanup_dead_cpu(int cpu);
+ 
+ #ifdef CONFIG_IRQ_PIPELINE
+-int tick_install_proxy(struct clock_proxy_device *(*get_percpu_device)
+-		(struct clock_event_device *real_dev),
++int tick_install_proxy(void (*setup_proxy)(struct clock_proxy_device *dev),
+ 		const struct cpumask *cpumask);
+ void tick_uninstall_proxy(const struct cpumask *cpumask);
+ void tick_notify_proxy(void);
+diff --git a/kernel/irq/irqptorture.c b/kernel/irq/irqptorture.c
+index 6171cb26c2b4..4ba0f28b9211 100644
+--- a/kernel/irq/irqptorture.c
++++ b/kernel/irq/irqptorture.c
+@@ -20,8 +20,6 @@
+ #include <linux/slab.h>
+ #include "settings.h"
+ 
+-static DEFINE_PER_CPU(struct clock_proxy_device, torture_tick_device);
+-
+ static void torture_event_handler(struct clock_event_device *dev)
+ {
+ 	/*
+@@ -32,26 +30,14 @@ static void torture_event_handler(struct clock_event_device *dev)
+ 	tick_notify_proxy();
+ }
+ 
+-static struct clock_proxy_device *
+-get_percpu_device(struct clock_event_device *real_dev)
++static void setup_proxy(struct clock_proxy_device *dev)
+ {
+-	struct clock_proxy_device *dev = raw_cpu_ptr(&torture_tick_device);
+-
+-	/*
+-	 * This test module is only activated once, so this is ok to
+-	 * assume that torture_tick_device is zeroed since init. In
+-	 * case of multiple activations, we'd need to zero @dev
+-	 * manually to make sure not to inherit callbacks and
+-	 * settings from a previous run.
+-	 */
+ 	dev->handle_oob_event = torture_event_handler;
+-
+-	return dev;
+ }
+ 
+ static int start_tick_takeover_test(void)
+ {
+-	return tick_install_proxy(get_percpu_device, cpu_online_mask);
++	return tick_install_proxy(setup_proxy, cpu_online_mask);
+ }
+ 
+ static void stop_tick_takeover_test(void)
+diff --git a/kernel/time/clockevents.c b/kernel/time/clockevents.c
+index 3b9af41e1eec..3e50dfc58b19 100644
+--- a/kernel/time/clockevents.c
++++ b/kernel/time/clockevents.c
+@@ -444,36 +444,23 @@ EXPORT_SYMBOL_GPL(clockevents_unbind_device);
+  * clockevents_register_proxy - register a proxy device on the current CPU
+  * @dev:	proxy to register
+  */
+-struct clock_proxy_device *clockevents_register_proxy(struct clock_proxy_device *
+-			get_percpu_device(struct clock_event_device *real_dev))
++int clockevents_register_proxy(struct clock_proxy_device *dev)
+ {
+ 	struct clock_event_device *proxy_dev, *real_dev;
+-	struct clock_proxy_device *dev;
+ 	unsigned long flags;
+ 	u32 freq;
++	int ret;
+ 
+ 	raw_spin_lock_irqsave(&clockevents_lock, flags);
+ 
+-	real_dev = raw_cpu_ptr(&tick_cpu_device)->evtdev;
+-	if ((real_dev->features &
+-			(CLOCK_EVT_FEAT_PIPELINE|CLOCK_EVT_FEAT_ONESHOT))
+-		!= (CLOCK_EVT_FEAT_PIPELINE|CLOCK_EVT_FEAT_ONESHOT)) {
+-		raw_spin_unlock_irqrestore(&clockevents_lock, flags);
+-		WARN(1, "cannot use clockevent device %s in proxy mode!",
+-			real_dev->name);
+-		return ERR_PTR(-ENODEV);
+-	}
+-
+-	dev = get_percpu_device(real_dev);
+-	if (IS_ERR(dev)) {
++	ret = tick_setup_proxy(dev);
++	if (ret)  {
+ 		raw_spin_unlock_irqrestore(&clockevents_lock, flags);
+-		return dev;
++		return ret;
+ 	}
+ 
+-	dev->real_device = real_dev;
+ 	proxy_dev = &dev->proxy_device;
+ 	clockevent_set_state(proxy_dev, CLOCK_EVT_STATE_DETACHED);
+-	tick_setup_proxy(dev);
+ 
+ 	list_add(&proxy_dev->list, &clockevent_devices);
+ 	tick_check_new_device(proxy_dev);
+@@ -481,11 +468,12 @@ struct clock_proxy_device *clockevents_register_proxy(struct clock_proxy_device
+ 
+ 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
+ 
++	real_dev = dev->real_device;
+ 	freq = (1000000000ULL * real_dev->mult) >> real_dev->shift;
+ 	printk(KERN_INFO "CPU%d: proxy tick device registered (%u.%02uMHz)\n",
+ 		 smp_processor_id(), freq / 1000000, (freq / 10000) % 100);
+ 
+-	return dev;
++	return ret;
+ }
+ 
+ void clockevents_unregister_proxy(struct clock_proxy_device *dev)
+diff --git a/kernel/time/tick-internal.h b/kernel/time/tick-internal.h
+index 140e62f10a1a..7b2b958e5eec 100644
+--- a/kernel/time/tick-internal.h
++++ b/kernel/time/tick-internal.h
+@@ -56,11 +56,9 @@ extern int clockevents_program_event(struct clock_event_device *dev,
+ extern void clockevents_handle_noop(struct clock_event_device *dev);
+ extern int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
+ #ifdef CONFIG_IRQ_PIPELINE
+-void tick_setup_proxy(struct clock_proxy_device *dev);
+-extern struct clock_proxy_device *
+-clockevents_register_proxy(struct clock_proxy_device *
+-			get_percpu_device(struct clock_event_device *real_dev));
++int clockevents_register_proxy(struct clock_proxy_device *dev);
+ extern void clockevents_unregister_proxy(struct clock_proxy_device *dev);
++int tick_setup_proxy(struct clock_proxy_device *dev);
+ #endif
+ extern ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
+ 
+diff --git a/kernel/time/tick-proxy.c b/kernel/time/tick-proxy.c
+index f7fdb45bf49e..877fcdc0bf95 100644
+--- a/kernel/time/tick-proxy.c
++++ b/kernel/time/tick-proxy.c
+@@ -22,7 +22,7 @@ static unsigned int proxy_tick_irq;
+ 
+ static DEFINE_MUTEX(proxy_mutex);
+ 
+-static DEFINE_PER_CPU(struct clock_proxy_device *, proxy_tick_device);
++static DEFINE_PER_CPU(struct clock_proxy_device, proxy_tick_device);
+ 
+ static inline struct clock_event_device *
+ get_real_tick_device(struct clock_event_device *proxy_dev)
+@@ -32,7 +32,7 @@ get_real_tick_device(struct clock_event_device *proxy_dev)
+ 
+ static void proxy_event_handler(struct clock_event_device *real_dev)
+ {
+-	struct clock_proxy_device *dev = __this_cpu_read(proxy_tick_device);
++	struct clock_proxy_device *dev = raw_cpu_ptr(&proxy_tick_device);
+ 	struct clock_event_device *proxy_dev = &dev->proxy_device;
+ 
+ 	proxy_dev->event_handler(proxy_dev);
+@@ -186,29 +186,35 @@ static irqreturn_t proxy_irq_handler(int sirq, void *dev_id)
+ 
+ #define interpose_proxy_handler(__proxy, __real, __h)		\
+ 	do {							\
+-		if ((__proxy)->__h == NULL) {			\
+-			if ((__real)->__h)			\
+-				(__proxy)->__h = proxy_ ## __h;	\
+-		}						\
++		if ((__real)->__h)				\
++			(__proxy)->__h = proxy_ ## __h;		\
+ 	} while (0)
+ 
+ /*
+  * Setup a proxy which is about to override the tick device on the
+- * current CPU. Called with clockevents_lock held so that the tick
+- * device does not change under our feet.
++ * current CPU. Called with clockevents_lock held and irqs off so that
++ * the tick device does not change under our feet.
+  */
+-void tick_setup_proxy(struct clock_proxy_device *dev)
++int tick_setup_proxy(struct clock_proxy_device *dev)
+ {
+ 	struct clock_event_device *proxy_dev, *real_dev;
+ 
+-	/*
+-	 * The assumption is that clockevents_register_proxy() cannot
+-	 * fail afterwards, so this is ok to advertise the new proxy
+-	 * in proxy_tick_device.
+-	 */
+-	__this_cpu_write(proxy_tick_device, dev);
+-	real_dev = dev->real_device;
+-	dev->handle_inband_event = real_dev->event_handler;
++	real_dev = raw_cpu_ptr(&tick_cpu_device)->evtdev;
++	if ((real_dev->features &
++			(CLOCK_EVT_FEAT_PIPELINE|CLOCK_EVT_FEAT_ONESHOT))
++		!= (CLOCK_EVT_FEAT_PIPELINE|CLOCK_EVT_FEAT_ONESHOT)) {
++		WARN(1, "cannot use clockevent device %s in proxy mode!",
++			real_dev->name);
++		return -ENODEV;
++	}
++
++ 	/*
++ 	 * The assumption is that neither us nor clockevents_register_proxy()
++	 * can fail afterwards, so this is ok to advertise the new proxy as
++	 * built by setting dev->real_device early.
++ 	 */
++	dev->real_device = real_dev;
++	dev->__original_handler = real_dev->event_handler;
+ 
+ 	/*
+ 	 * Inherit the feature bits since the proxy device has the
+@@ -216,22 +222,20 @@ void tick_setup_proxy(struct clock_proxy_device *dev)
+ 	 * (including CLOCK_EVT_FEAT_C3STOP if present).
+ 	 */
+ 	proxy_dev = &dev->proxy_device;
+-	proxy_dev->features |= real_dev->features |
++	memset(proxy_dev, 0, sizeof(*proxy_dev));
++	proxy_dev->features = real_dev->features |
+ 		CLOCK_EVT_FEAT_PERCPU | CLOCK_EVT_FEAT_PROXY;
+ 	proxy_dev->name = "proxy";
+ 	proxy_dev->irq = real_dev->irq;
++	proxy_dev->bound_on = -1;
+ 	proxy_dev->cpumask = cpumask_of(smp_processor_id());
+ 	proxy_dev->rating = real_dev->rating + 1;
+ 	proxy_dev->mult = real_dev->mult;
+ 	proxy_dev->shift = real_dev->shift;
+-
+-	if (!(proxy_dev->features & CLOCK_EVT_FEAT_KTIME)) {
+-		proxy_dev->max_delta_ticks = real_dev->max_delta_ticks;
+-		proxy_dev->min_delta_ticks = real_dev->min_delta_ticks;
+-		proxy_dev->max_delta_ns = real_dev->max_delta_ns;
+-		proxy_dev->min_delta_ns = real_dev->min_delta_ns;
+-	}
+-
++	proxy_dev->max_delta_ticks = real_dev->max_delta_ticks;
++	proxy_dev->min_delta_ticks = real_dev->min_delta_ticks;
++	proxy_dev->max_delta_ns = real_dev->max_delta_ns;
++	proxy_dev->min_delta_ns = real_dev->min_delta_ns;
+ 	/*
+ 	 * Interpose default handlers which are safe wrt preemption by
+ 	 * the out-of-band stage.
+@@ -245,11 +249,15 @@ void tick_setup_proxy(struct clock_proxy_device *dev)
+ 	interpose_proxy_handler(proxy_dev, real_dev, tick_resume);
+ 	interpose_proxy_handler(proxy_dev, real_dev, set_next_event);
+ 	interpose_proxy_handler(proxy_dev, real_dev, set_next_ktime);
++
++	dev->__setup_handler(dev);
++
++	return 0;
+ }
+ 
+ static int enable_oob_timer(void *arg) /* hard_irqs_disabled() */
+ {
+-	struct clock_proxy_device *dev = __this_cpu_read(proxy_tick_device);
++	struct clock_proxy_device *dev = raw_cpu_ptr(&proxy_tick_device);
+ 	struct clock_event_device *real_dev;
+ 
+ 	/*
+@@ -274,27 +282,27 @@ static int enable_oob_timer(void *arg) /* hard_irqs_disabled() */
+ }
+ 
+ struct proxy_install_arg {
+-	struct clock_proxy_device *(*get_percpu_device)
+-	(struct clock_event_device *real_dev);
++	void (*setup_proxy)(struct clock_proxy_device *dev);
+ 	int result;
+ };
+ 
+ static void register_proxy_device(void *arg) /* irqs_disabled() */
+ {
++	struct clock_proxy_device *dev = raw_cpu_ptr(&proxy_tick_device);
+ 	struct proxy_install_arg *req = arg;
+-	struct clock_proxy_device *dev;
++	int ret;
+ 
+-	dev = clockevents_register_proxy(req->get_percpu_device);
+-	if (IS_ERR(dev)) {
++	dev->__setup_handler = req->setup_proxy;
++	ret = clockevents_register_proxy(dev);
++	if (ret) {
+ 		if (!req->result)
+-			req->result = PTR_ERR(dev);
++			req->result = ret;
+ 	} else {
+ 		dev->real_device->event_handler = proxy_event_handler;
+ 	}
+ }
+ 
+-int tick_install_proxy(struct clock_proxy_device *
+-		(*get_percpu_device)(struct clock_event_device *real_dev),
++int tick_install_proxy(void (*setup_proxy)(struct clock_proxy_device *dev),
+ 		const struct cpumask *cpumask)
+ {
+ 	struct proxy_install_arg arg;
+@@ -343,7 +351,7 @@ int tick_install_proxy(struct clock_proxy_device *
+ 	 *        original_timer_handler() [in-band stage]
+ 	 *            clockevents_handle_event(real_dev)
+ 	 *               proxy_event_handler(real_dev)
+-	 *                  handle_inband_event(proxy_dev)
++	 *                  inband_event_handler(proxy_dev)
+ 	 *
+ 	 * Eventually, we substitute the original (in-band) clock
+ 	 * event handler with the out-of-band handler for the real
+@@ -360,7 +368,7 @@ int tick_install_proxy(struct clock_proxy_device *
+ 	 *                real_dev->set_next_event(real_dev)
+ 	 *        ...
+ 	 *        <tick event>
+-	 *        handle_inband_event() [out-of-band stage]
++	 *        inband_event_handler() [out-of-band stage]
+ 	 *            clockevents_handle_event(real_dev)
+ 	 *                handle_oob_event(proxy_dev)
+ 	 *                    ...(inband tick emulation)...
+@@ -368,9 +376,9 @@ int tick_install_proxy(struct clock_proxy_device *
+ 	 *        ...
+ 	 *        proxy_irq_handler(proxy_dev) [in-band stage]
+ 	 *            clockevents_handle_event(proxy_dev)
+-	 *                handle_inband_event(proxy_dev)
++	 *                inband_event_handler(proxy_dev)
+ 	 */
+-	arg.get_percpu_device = get_percpu_device;
++	arg.setup_proxy = setup_proxy;
+ 	arg.result = 0;
+ 	on_each_cpu_mask(cpumask, register_proxy_device, &arg, true);
+ 	if (arg.result) {
+@@ -392,12 +400,12 @@ EXPORT_SYMBOL_GPL(tick_install_proxy);
+ 
+ static int disable_oob_timer(void *arg) /* hard_irqs_disabled() */
+ {
++	struct clock_proxy_device *dev = raw_cpu_ptr(&proxy_tick_device);
+ 	struct clock_event_device *real_dev;
+-	struct clock_proxy_device *dev;
+ 
+-	dev = __this_cpu_read(proxy_tick_device);
++	dev = raw_cpu_ptr(&proxy_tick_device);
+ 	real_dev = dev->real_device;
+-	real_dev->event_handler = dev->handle_inband_event;
++	real_dev->event_handler = dev->__original_handler;
+ 	real_dev->features &= ~CLOCK_EVT_FEAT_OOB;
+ 	barrier();
+ 
+@@ -409,11 +417,11 @@ static int disable_oob_timer(void *arg) /* hard_irqs_disabled() */
+ 
+ static void unregister_proxy_device(void *arg) /* irqs_disabled() */
+ {
+-	struct clock_proxy_device *dev = __this_cpu_read(proxy_tick_device);
++	struct clock_proxy_device *dev = raw_cpu_ptr(&proxy_tick_device);
+ 
+-	if (dev) {
++	if (dev->real_device) {
+ 		clockevents_unregister_proxy(dev);
+-		__this_cpu_write(proxy_tick_device, NULL);
++		dev->real_device = NULL;
+ 	}
+ }
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,25 @@
+From 106d1f7219d14be5d1e06ece108b82eb7341a554 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 5 May 2019 17:58:41 +0200
+Subject: [PATCH] evl/sched: quota: limit max. prio to EVL_CORE_MAX_PRIO
+
+---
+ include/evl/sched/quota.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/evl/sched/quota.h b/include/evl/sched/quota.h
+index 94e16f0c6356..32c273015856 100644
+--- a/include/evl/sched/quota.h
++++ b/include/evl/sched/quota.h
+@@ -15,7 +15,7 @@
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+ #define EVL_QUOTA_MIN_PRIO	1
+-#define EVL_QUOTA_MAX_PRIO	255
++#define EVL_QUOTA_MAX_PRIO	EVL_CORE_MAX_PRIO
+ #define EVL_QUOTA_NR_PRIO	\
+ 	(EVL_QUOTA_MAX_PRIO - EVL_QUOTA_MIN_PRIO + 1)
+ 
+-- 
+2.16.4
+

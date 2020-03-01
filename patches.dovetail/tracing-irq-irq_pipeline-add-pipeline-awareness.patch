@@ -1,4 +1,4 @@
-From 3aeaaf832bc3d68a0f7c3525ba2f311dbd9ef4f7 Mon Sep 17 00:00:00 2001
+From e0ac94eac689e080c91a749148571820bb17a857 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
@@ -12,10 +12,10 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 6c24755655c7..ebca7df8bd49 100644
+index ca1ee656d6d8..4636d06bd185 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -2313,12 +2313,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+@@ -2316,12 +2316,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
  	entry->flags =
  #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
  		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |

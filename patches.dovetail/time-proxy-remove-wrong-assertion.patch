@@ -1,0 +1,33 @@
+From e356f40022419c506c799e538a0b0e1ed582c8be Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 3 May 2019 10:22:45 +0200
+Subject: [PATCH] time: proxy: remove wrong assertion
+
+---
+ kernel/time/tick-proxy.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/time/tick-proxy.c b/kernel/time/tick-proxy.c
+index 877fcdc0bf95..ee7799a38d98 100644
+--- a/kernel/time/tick-proxy.c
++++ b/kernel/time/tick-proxy.c
+@@ -443,14 +443,12 @@ EXPORT_SYMBOL_GPL(tick_uninstall_proxy);
+ 
+ void tick_notify_proxy(void)
+ {
+-	if (WARN_ON_ONCE(irq_pipeline_debug() && running_inband()))
+-		return;
+-
+ 	/*
+ 	 * Schedule a tick on the proxy device to occur from the
+ 	 * in-band stage, which will trigger proxy_irq_handler() at
+ 	 * some point (i.e. when the in-band stage is back in control
+-	 * and not stalled).
++	 * and not stalled). Note that we might be called from the
++	 * in-band stage in some cases (see proxy_irq_handler()).
+ 	 */
+ 	irq_post_inband(proxy_tick_irq);
+ }
+-- 
+2.16.4
+

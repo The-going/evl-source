@@ -128,3 +128,7 @@
 	patches.dovetail/locking-irq_pipeline-make-debug-optional-for-mutable.patch
 	patches.dovetail/serial-8250-add-raw-console-channel.patch
 	patches.dovetail/time-proxy-rework-registration-unregistration-interf.patch
+	patches.dovetail/time-proxy-tell-get_percpu_device-about-the-proxied-.patch
+	patches.dovetail/time-proxy-simplify-the-user-interface-for-setup.patch
+	patches.dovetail/time-proxy-remove-wrong-assertion.patch
+	patches.dovetail/stop_machine-irq_pipeline-ensure-no-in-band-IRQ-is-d.patch

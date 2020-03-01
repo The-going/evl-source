@@ -1,0 +1,25 @@
+From 27f8a01986bc2305cad1bbb6cb07c5826ef6bd34 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 4 May 2019 11:42:04 +0200
+Subject: [PATCH] evl/timer: fix comment
+
+---
+ kernel/evl/timer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index 70cf1b827506..6fba4243a517 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -299,7 +299,7 @@ void __evl_set_timer_rq(struct evl_timer *timer,
+ 
+ 	/*
+ 	 * Figure out which CPU is best suited for managing this
+-	 * timer, preferably picking xnsched_cpu(sched) if the ticking
++	 * timer, preferably picking evl_rq_cpu(rq) if the ticking
+ 	 * device moving the timer clock beats on that CPU. Otherwise,
+ 	 * pick the first CPU from the clock affinity mask if set. If
+ 	 * not, the timer is backed by a global device with no
+-- 
+2.16.4
+

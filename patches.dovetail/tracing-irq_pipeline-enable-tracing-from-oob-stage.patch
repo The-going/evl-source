@@ -1,4 +1,4 @@
-From 900306c126672096a34958e63e602263f0940e45 Mon Sep 17 00:00:00 2001
+From b2b1ac538a297c96a82241a99d3efc55637542bb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -63,7 +63,7 @@ index b920358dd8f7..099507d02bfe 100644
  }
  
 diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 41b6f96e5366..db34ce97c280 100644
+index 4ee8d8aa3d0f..4859d62e8a73 100644
 --- a/kernel/trace/ring_buffer.c
 +++ b/kernel/trace/ring_buffer.c
 @@ -2699,8 +2699,8 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
@@ -111,10 +111,10 @@ index 41b6f96e5366..db34ce97c280 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index ebca7df8bd49..c25483dc6dce 100644
+index 4636d06bd185..ed0e2819e17f 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -919,9 +919,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
+@@ -922,9 +922,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
  		return;
  	}
  
@@ -126,7 +126,7 @@ index ebca7df8bd49..c25483dc6dce 100644
  }
  
  void tracing_snapshot_instance(struct trace_array *tr)
-@@ -1533,7 +1533,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
+@@ -1536,7 +1536,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
  	if (tr->stop_count)
  		return;
  
@@ -135,7 +135,7 @@ index ebca7df8bd49..c25483dc6dce 100644
  
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
-@@ -1577,7 +1577,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
+@@ -1580,7 +1580,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
  	if (tr->stop_count)
  		return;
  
@@ -144,7 +144,7 @@ index ebca7df8bd49..c25483dc6dce 100644
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
  		WARN_ON_ONCE(tr->current_trace != &nop_trace);
-@@ -6700,13 +6700,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+@@ -6703,13 +6703,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
  			if (ret < 0)
  				break;
  		}

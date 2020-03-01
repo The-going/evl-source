@@ -1,0 +1,54 @@
+From 164959aee147bce204c0ca0aba1be63667f3a896 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 6 May 2019 10:15:01 +0200
+Subject: [PATCH] evl/sched: enable SCHED_TP when built in
+
+---
+ kernel/evl/sched/core.c | 3 +++
+ kernel/evl/sched/rt.c   | 2 +-
+ kernel/evl/sched/tp.c   | 2 +-
+ 3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index f19ad6dfd65b..451c84c23d7d 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -59,6 +59,9 @@ static void register_classes(void)
+ 	register_one_class(&evl_sched_weak);
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	register_one_class(&evl_sched_quota);
++#endif
++#ifdef CONFIG_EVL_SCHED_TP
++	register_one_class(&evl_sched_tp);
+ #endif
+ 	register_one_class(&evl_sched_rt);
+ }
+diff --git a/kernel/evl/sched/rt.c b/kernel/evl/sched/rt.c
+index bcac2792369b..ff83e77f6bbc 100644
+--- a/kernel/evl/sched/rt.c
++++ b/kernel/evl/sched/rt.c
+@@ -128,7 +128,7 @@ struct evl_sched_class evl_sched_rt = {
+ 	.sched_ceilprio		=	evl_rt_ceilprio,
+ 	.sched_getparam		=	evl_rt_getparam,
+ 	.sched_show		=	evl_rt_show,
+-	.weight			=	EVL_CLASS_WEIGHT(3),
++	.weight			=	EVL_CLASS_WEIGHT(4),
+ 	.policy			=	SCHED_FIFO,
+ 	.name			=	"rt"
+ };
+diff --git a/kernel/evl/sched/tp.c b/kernel/evl/sched/tp.c
+index c84943416f6f..54cc4900155a 100644
+--- a/kernel/evl/sched/tp.c
++++ b/kernel/evl/sched/tp.c
+@@ -429,7 +429,7 @@ struct evl_sched_class evl_sched_tp = {
+ 	.sched_forget		=	tp_forget,
+ 	.sched_show		=	tp_show,
+ 	.sched_control		=	tp_control,
+-	.weight			=	EVL_CLASS_WEIGHT(2),
++	.weight			=	EVL_CLASS_WEIGHT(3),
+ 	.policy			=	SCHED_TP,
+ 	.name			=	"tp"
+ };
+-- 
+2.16.4
+

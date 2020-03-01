@@ -139,3 +139,9 @@
 	patches.evl-only/evl-timer-nop-timer-base-locking-in-uniprocessor-cas.patch
 	patches.evl-only/evl-thread-fix-handling-of-self-directed-ioctls.patch
 	patches.evl-only/uapi-evl-rename-sigshadow-to-sigevl.patch
+	patches.evl-only/evl-tick-convert-to-new-tick_install_proxy-interface.patch
+	patches.evl-only/evl-sched-quota-privatize-find_quota_group.patch
+	patches.evl-only/evl-timer-fix-comment.patch
+	patches.evl-only/evl-sched-quota-limit-max.-prio-to-EVL_CORE_MAX_PRIO.patch
+	patches.evl-only/evl-sched-add-temporal-partitioning-policy.patch
+	patches.evl-only/evl-sched-enable-SCHED_TP-when-built-in.patch
