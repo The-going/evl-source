@@ -1,0 +1,442 @@
+From 7cdfabf70c5538c1b38b36daa5032ad2df9160d4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 22 Dec 2019 17:32:22 +0100
+Subject: [PATCH] lib/vdso: export MMIO clocksources to applications
+
+Make any MMIO-accessed clocksource which can be mapped to user-space
+(clocksource_user_mmio) visible to applications via the generic vDSO.
+
+As a result, any registered user-mappable clocksource can be accessed
+via the vDSO for syscall-less clock readouts, in addition to the
+architected timer (if any).
+
+This code is basically the generalization of a work by Gilles
+Chanteperdrix who originally implemented the feature for the ARM
+architecture.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ drivers/clocksource/arm_arch_timer.c |   8 ++
+ drivers/clocksource/mmio.c           |   4 +
+ include/linux/clocksource.h          |  11 ++
+ include/vdso/datapage.h              |  26 ++++-
+ kernel/time/vsyscall.c               |  23 ++++
+ lib/vdso/Kconfig                     |   7 ++
+ lib/vdso/gettimeofday.c              | 214 ++++++++++++++++++++++++++++++++++-
+ 7 files changed, 290 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
+index 9a5464c625b4..89503b3ee199 100644
+--- a/drivers/clocksource/arm_arch_timer.c
++++ b/drivers/clocksource/arm_arch_timer.c
+@@ -21,6 +21,7 @@
+ #include <linux/of_address.h>
+ #include <linux/io.h>
+ #include <linux/slab.h>
++#include <linux/dovetail.h>
+ #include <linux/sched/clock.h>
+ #include <linux/sched_clock.h>
+ #include <linux/acpi.h>
+@@ -840,6 +841,9 @@ static void arch_counter_set_user_access(void)
+ 	else
+ 		cntkctl |= ARCH_TIMER_USR_VCT_ACCESS_EN;
+ 
++	if (IS_ENABLED(CONFIG_GENERIC_CLOCKSOURCE_VDSO))
++		cntkctl |= ARCH_TIMER_USR_PT_ACCESS_EN;
++
+ 	arch_timer_set_cntkctl(cntkctl);
+ }
+ 
+@@ -980,6 +984,10 @@ static void __init arch_counter_register(unsigned type)
+ 
+ 		arch_timer_read_counter = rd;
+ 		clocksource_counter.archdata.vdso_direct = vdso_default;
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++		if (vdso_default)
++			clocksource_counter.vdso_type = CLOCKSOURCE_VDSO_ARCHITECTED;
++#endif
+ 	} else {
+ 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
+ 	}
+diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
+index f7f3b05905bb..b86162a23386 100644
+--- a/drivers/clocksource/mmio.c
++++ b/drivers/clocksource/mmio.c
+@@ -463,6 +463,10 @@ int __init clocksource_user_mmio_init(struct clocksource_user_mmio *ucs,
+ 		goto fail;
+ 	}
+ 
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++	ucs->mmio.clksrc.vdso_type = CLOCKSOURCE_VDSO_MMIO + ucs->id;
++#endif
++
+ 	if (user_mmio_class) {
+ 		err = ucs_create_cdev(user_mmio_class, ucs);
+ 		if (err < 0) {
+diff --git a/include/linux/clocksource.h b/include/linux/clocksource.h
+index 971ce7a3bde1..7e3406a97b7e 100644
+--- a/include/linux/clocksource.h
++++ b/include/linux/clocksource.h
+@@ -30,6 +30,14 @@ struct module;
+ #include <asm/clocksource.h>
+ #endif
+ 
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++enum clocksource_vdso_type {
++	CLOCKSOURCE_VDSO_NONE = 0,
++	CLOCKSOURCE_VDSO_ARCHITECTED,
++	CLOCKSOURCE_VDSO_MMIO,	/* <= Must be last. */
++};
++#endif
++
+ /**
+  * struct clocksource - hardware abstraction for a free running counter
+  *	Provides mostly state-free accessors to the underlying hardware.
+@@ -108,6 +116,9 @@ struct clocksource {
+ 	struct list_head wd_list;
+ 	u64 cs_last;
+ 	u64 wd_last;
++#endif
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++  	enum clocksource_vdso_type vdso_type;
+ #endif
+ 	struct module *owner;
+ };
+diff --git a/include/vdso/datapage.h b/include/vdso/datapage.h
+index 2e302c0f41f7..abebe4b155dd 100644
+--- a/include/vdso/datapage.h
++++ b/include/vdso/datapage.h
+@@ -70,9 +70,33 @@ struct vdso_data {
+ 	s32			tz_minuteswest;
+ 	s32			tz_dsttime;
+ 	u32			hrtimer_res;
+-	u32			__unused;
++
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++	u32			cs_type_seq;
++	char			cs_mmdev[16];
++#endif
++};
++
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++
++#include <linux/clocksource.h>
++
++struct clksrc_info;
++
++typedef u64 vdso_read_cycles_t(const struct clksrc_info *info);
++
++struct clksrc_info {
++	vdso_read_cycles_t *read_cycles;
++	struct clksrc_user_mmio_info mmio;
+ };
+ 
++struct vdso_priv {
++	u32 current_cs_type_seq;
++	struct clksrc_info clksrc_info[CLOCKSOURCE_VDSO_MMIO + CLKSRC_USER_MMIO_MAX];
++};
++
++#endif	/* !CONFIG_GENERIC_CLOCKSOURCE_VDSO */
++
+ /*
+  * We use the hidden visibility to prevent the compiler from generating a GOT
+  * relocation. Not only is going through a GOT useless (the entry couldn't and
+diff --git a/kernel/time/vsyscall.c b/kernel/time/vsyscall.c
+index 5ee0f7709410..f0d0edb4c7fd 100644
+--- a/kernel/time/vsyscall.c
++++ b/kernel/time/vsyscall.c
+@@ -78,6 +78,27 @@ static inline void update_vdso_data(struct vdso_data *vdata,
+ 	WRITE_ONCE(vdata[CS_HRES_COARSE].hrtimer_res, hrtimer_resolution);
+ }
+ 
++static void update_generic_mmio(struct vdso_data *vdata, struct timekeeper *tk)
++{
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++	const struct clocksource *cs = tk->tkr_mono.clock;
++	u16 seq;
++
++	if (cs->vdso_type == (vdata->cs_type_seq >> 16))
++		return;
++
++	seq = vdata->cs_type_seq;
++	if (++seq == 0)
++		seq = 1;
++
++	vdata->cs_type_seq = cs->vdso_type << 16 | seq;
++
++	if (cs->vdso_type >= CLOCKSOURCE_VDSO_MMIO)
++		snprintf(vdata->cs_mmdev, sizeof(vdata->cs_mmdev),
++			"/dev/ucs/%u", cs->vdso_type - CLOCKSOURCE_VDSO_MMIO);
++#endif
++}
++
+ void update_vsyscall(struct timekeeper *tk)
+ {
+ 	struct vdso_data *vdata = __arch_get_k_vdso_data();
+@@ -95,6 +116,8 @@ void update_vsyscall(struct timekeeper *tk)
+ 	/* copy vsyscall data */
+ 	vdso_write_begin(vdata);
+ 
++	update_generic_mmio(vdata, tk);
++
+ 	vdata[CS_HRES_COARSE].clock_mode	= __arch_get_clock_mode(tk);
+ 	vdata[CS_RAW].clock_mode		= __arch_get_clock_mode(tk);
+ 
+diff --git a/lib/vdso/Kconfig b/lib/vdso/Kconfig
+index 9fe698ff62ec..ec60c0b8a325 100644
+--- a/lib/vdso/Kconfig
++++ b/lib/vdso/Kconfig
+@@ -24,4 +24,11 @@ config GENERIC_COMPAT_VDSO
+ 	help
+ 	  This config option enables the compat VDSO layer.
+ 
++config GENERIC_CLOCKSOURCE_VDSO
++        select CLKSRC_MMIO
++	bool
++	help
++	   Enables access to clocksources via the vDSO based on
++	   generic MMIO operations.
++
+ endif
+diff --git a/lib/vdso/gettimeofday.c b/lib/vdso/gettimeofday.c
+index 9ecfd3b547ba..a5f8ec3b1659 100644
+--- a/lib/vdso/gettimeofday.c
++++ b/lib/vdso/gettimeofday.c
+@@ -14,6 +14,8 @@
+  * The generic vDSO implementation requires that gettimeofday.h
+  * provides:
+  * - __arch_get_vdso_data(): to get the vdso datapage.
++ * - __arch_get_vdso_priv(): if CONFIG_GENERIC_CLOCKSOURCE_VDSO is enabled,
++ *   to get the vdso private/per-process data page.
+  * - __arch_get_hw_counter(): to get the hw counter based on the
+  *   clock_mode.
+  * - gettimeofday_fallback(): fallback for gettimeofday.
+@@ -26,6 +28,215 @@
+ #include <asm/vdso/gettimeofday.h>
+ #endif /* ENABLE_COMPAT_VDSO */
+ 
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++
++#include <linux/fcntl.h>
++#include <linux/io.h>
++#include <linux/ioctl.h>
++#include <uapi/linux/clocksource.h>
++
++static notrace u64 readl_mmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return readl_relaxed(info->reg_lower);
++}
++
++static notrace u64 readl_mmio_down(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return ~(u64)readl_relaxed(info->reg_lower) & info->mask_lower;
++}
++
++static notrace u64 readw_mmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return readw_relaxed(info->reg_lower);
++}
++
++static notrace u64 readw_mmio_down(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return ~(u64)readl_relaxed(info->reg_lower) & info->mask_lower;
++}
++
++static notrace u64 readl_dmmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	void __iomem *reg_lower, *reg_upper;
++	u32 upper, old_upper, lower;
++
++	reg_lower = info->reg_lower;
++	reg_upper = info->reg_upper;
++
++	upper = readl_relaxed(reg_upper);
++	do {
++		old_upper = upper;
++		lower = readl_relaxed(reg_lower);
++		upper = readl_relaxed(reg_upper);
++	} while (upper != old_upper);
++
++	return (((u64)upper) << info->bits_lower) | lower;
++}
++
++static notrace u64 readw_dmmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	void __iomem *reg_lower, *reg_upper;
++	u16 upper, old_upper, lower;
++
++	reg_lower = info->reg_lower;
++	reg_upper = info->reg_upper;
++
++	upper = readw_relaxed(reg_upper);
++	do {
++		old_upper = upper;
++		lower = readw_relaxed(reg_lower);
++		upper = readw_relaxed(reg_upper);
++	} while (upper != old_upper);
++
++	return (((u64)upper) << info->bits_lower) | lower;
++}
++
++static notrace __cold vdso_read_cycles_t *get_mmio_read_cycles(unsigned int type)
++{
++	switch (type) {
++	case CLKSRC_MMIO_L_UP:
++		return &readl_mmio_up;
++	case CLKSRC_MMIO_L_DOWN:
++		return &readl_mmio_down;
++	case CLKSRC_MMIO_W_UP:
++		return &readw_mmio_up;
++	case CLKSRC_MMIO_W_DOWN:
++		return &readw_mmio_down;
++	case CLKSRC_DMMIO_L_UP:
++		return &readl_dmmio_up;
++	case CLKSRC_DMMIO_W_UP:
++		return &readw_dmmio_up;
++	default:
++		return NULL;
++	}
++}
++
++static __always_inline u16 to_cs_type(u32 cs_type_seq)
++{
++	return cs_type_seq >> 16;
++}
++
++static __always_inline u16 to_seq(u32 cs_type_seq)
++{
++	return cs_type_seq;
++}
++
++static __always_inline u32 to_cs_type_seq(u16 type, u16 seq)
++{
++	return (u32)type << 16U | seq;
++}
++
++static notrace noinline __cold
++void map_clocksource(const struct vdso_data *vd, struct vdso_priv *vp,
++		     u32 seq, u32 new_cs_type_seq)
++{
++	vdso_read_cycles_t *read_cycles = NULL;
++	u32 new_cs_seq, new_cs_type;
++	struct clksrc_info *info;
++	int fd, ret;
++
++	new_cs_seq = to_seq(new_cs_type_seq);
++	new_cs_type = to_cs_type(new_cs_type_seq);
++	info = &vp->clksrc_info[new_cs_type];
++
++	if (new_cs_type < CLOCKSOURCE_VDSO_MMIO)
++		goto done;
++
++	fd = clock_open_device(vd->cs_mmdev, O_RDONLY);
++	if (fd < 0)
++		goto fallback_to_syscall;
++
++	if (vdso_read_retry(vd, seq)) {
++		vdso_read_begin(vd);
++		if (to_seq(vd->cs_type_seq) != new_cs_seq) {
++			/*
++			 * cs_mmdev no longer corresponds to
++			 * vd->cs_type_seq.
++			 */
++			clock_close_device(fd);
++			return;
++		}
++	}
++
++	ret = clock_ioctl_device(fd, CLKSRC_USER_MMIO_MAP, (long)&info->mmio);
++	clock_close_device(fd);
++	if (ret < 0)
++		goto fallback_to_syscall;
++
++	read_cycles = get_mmio_read_cycles(info->mmio.type);
++	if (read_cycles == NULL) /* Mmhf, misconfigured. */
++		goto fallback_to_syscall;
++done:
++	info->read_cycles = read_cycles;
++	smp_wmb();
++	new_cs_type_seq = to_cs_type_seq(new_cs_type, new_cs_seq);
++	WRITE_ONCE(vp->current_cs_type_seq, new_cs_type_seq);
++
++	return;
++
++fallback_to_syscall:
++	new_cs_type = CLOCKSOURCE_VDSO_NONE;
++	info = &vp->clksrc_info[new_cs_type];
++	goto done;
++}
++
++static inline notrace
++u64 get_hw_counter(const struct vdso_data *vd, u32 *r_seq)
++{
++	const struct clksrc_info *info;
++	struct vdso_priv *vp;
++	u32 seq, cs_type_seq;
++	unsigned int cs;
++	u64 cycles;
++
++	vp = __arch_get_vdso_priv();
++
++	for (;;) {
++		seq = vdso_read_begin(vd);
++		cs_type_seq = READ_ONCE(vp->current_cs_type_seq);
++		if (likely(to_seq(cs_type_seq) == to_seq(vd->cs_type_seq)))
++			break;
++
++		map_clocksource(vd, vp, seq, vd->cs_type_seq);
++	}
++
++	switch (to_cs_type(cs_type_seq)) {
++	case CLOCKSOURCE_VDSO_NONE:
++		cycles = (u64)-1; /* Use fallback. */
++		break;
++	case CLOCKSOURCE_VDSO_ARCHITECTED:
++		cycles = __arch_get_hw_counter(vd->clock_mode);
++		break;
++	default:
++		cs = to_cs_type(READ_ONCE(cs_type_seq));
++		info = &vp->clksrc_info[cs];
++		cycles = info->read_cycles(info);
++		break;
++	}
++
++	*r_seq = seq;
++
++	return cycles;
++}
++
++#else
++
++static inline notrace
++u64 get_hw_counter(const struct vdso_data *vd, u32 *r_seq)
++{
++	*r_seq = vdso_read_begin(vd);
++
++	return __arch_get_hw_counter(vd->clock_mode);
++}
++
++#endif /* CONFIG_GENERIC_CLOCKSOURCE_VDSO */
++
+ #ifndef vdso_calc_delta
+ /*
+  * Default implementation which works for all sane clocksources. That
+@@ -46,8 +257,7 @@ static int do_hres(const struct vdso_data *vd, clockid_t clk,
+ 	u32 seq;
+ 
+ 	do {
+-		seq = vdso_read_begin(vd);
+-		cycles = __arch_get_hw_counter(vd->clock_mode);
++		cycles = get_hw_counter(vd, &seq);
+ 		ns = vdso_ts->nsec;
+ 		last = vd->cycle_last;
+ 		if (unlikely((s64)cycles < 0))
+-- 
+2.16.4
+

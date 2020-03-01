@@ -1,23 +1,25 @@
-From 29011953c5db6a4fc17a4736c402800951e860d7 Mon Sep 17 00:00:00 2001
-From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
-Date: Thu, 21 Jul 2016 01:09:11 +0200
-Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
+From fae073cf155e00cc93573dcbadeae9ee9f6077dc Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 22 Dec 2019 18:23:43 +0100
+Subject: [PATCH] clocksource/timer-imx-gpt: export to applications via generic
+ vDSO
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/Kconfig         | 2 +-
  drivers/clocksource/timer-imx-gpt.c | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 747a04ca03fe..14c5dd3ef35b 100644
+index 5fdd76cb1768..a1ad85090dbe 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -617,7 +617,7 @@ config H8300_TPU
+@@ -613,7 +613,7 @@ config H8300_TPU
  config CLKSRC_IMX_GPT
  	bool "Clocksource using i.MX GPT" if COMPILE_TEST
  	depends on (ARM || ARM64) && CLKDEV_LOOKUP
 -	select CLKSRC_MMIO
-+	select CLKSRC_VDSO_MAPPED
++	select GENERIC_CLOCKSOURCE_VDSO
  
  config CLKSRC_IMX_TPM
  	bool "Clocksource using i.MX TPM" if COMPILE_TEST

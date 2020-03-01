@@ -1,14 +1,15 @@
-From 4ee01dcfc9ab6df158734483e12ab671d8dd92dd Mon Sep 17 00:00:00 2001
+From 3ffd3f99b973eab04904081e9ce0bd52d1580bd9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 14:54:38 +0200
 Subject: [PATCH] percpu: irq_pipeline: keep migration-safe when pipelining
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/percpu.h | 24 ++++++++++++------------
  1 file changed, 12 insertions(+), 12 deletions(-)
 
 diff --git a/include/asm-generic/percpu.h b/include/asm-generic/percpu.h
-index c2de013b2cf..e8800e5b968 100644
+index c2de013b2cf4..e8800e5b968e 100644
 --- a/include/asm-generic/percpu.h
 +++ b/include/asm-generic/percpu.h
 @@ -125,9 +125,9 @@ do {									\

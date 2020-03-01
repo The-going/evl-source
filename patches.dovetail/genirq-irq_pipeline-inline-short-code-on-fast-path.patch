@@ -1,8 +1,9 @@
-From 354f5a675ec605b1d3a0b9006cea3b9fad27659a Mon Sep 17 00:00:00 2001
+From 0c2fe7069e91d58ab1f9c4f46717f5dc0ec96a4d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Apr 2019 12:18:42 +0200
 Subject: [PATCH] genirq: irq_pipeline: inline short code on fast path
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

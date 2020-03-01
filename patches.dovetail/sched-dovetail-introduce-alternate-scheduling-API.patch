@@ -1,4 +1,4 @@
-From f56e11aff191ba6657682f61ddc2ac6c9c72262b Mon Sep 17 00:00:00 2001
+From b47504e65679fc6d803e52017195f5b5cca56ac2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:32:33 +0200
 Subject: [PATCH] sched: dovetail: introduce alternate scheduling API
@@ -11,6 +11,8 @@ Tasks controlled by the co-kernel have higher priority than tasks
 controlled by the regular in-band scheduler.
 
 Such tasks may migrate between execution stages.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  fs/exec.c                |   3 ++
  include/linux/dovetail.h |  94 +++++++++++++++++++++++++++++++++
@@ -23,10 +25,10 @@ Such tasks may migrate between execution stages.
  8 files changed, 363 insertions(+), 5 deletions(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 555e93c7dec8..42fe0016f110 100644
+index 74d88dab98dd..ef750fe11a7e 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1011,6 +1011,7 @@ static int exec_mmap(struct mm_struct *mm)
+@@ -1010,6 +1010,7 @@ static int exec_mmap(struct mm_struct *mm)
  {
  	struct task_struct *tsk;
  	struct mm_struct *old_mm, *active_mm;
@@ -34,7 +36,7 @@ index 555e93c7dec8..42fe0016f110 100644
  
  	/* Notify parent that we're no longer interested in the old VM */
  	tsk = current;
-@@ -1035,8 +1036,10 @@ static int exec_mmap(struct mm_struct *mm)
+@@ -1034,8 +1035,10 @@ static int exec_mmap(struct mm_struct *mm)
  	active_mm = tsk->active_mm;
  	membarrier_exec_mmap(mm);
  	tsk->mm = mm;
@@ -193,7 +195,7 @@ index 2fafac82e348..31dceafcd98a 100644
  
  DECLARE_PER_CPU(struct irq_pipeline_data, irq_pipeline);
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5061dd71fbf3..61decade042c 100644
+index 9551fb86860c..6a8dfa6e725b 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
 @@ -19,6 +19,7 @@
@@ -205,7 +207,7 @@ index 5061dd71fbf3..61decade042c 100644
  #include <linux/resource.h>
  #include <linux/page_ext.h>
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 67a1d86981a9..915c0a0895fe 100644
+index 467d26046416..0f795b70fd0a 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
 @@ -23,6 +23,7 @@
@@ -369,10 +371,10 @@ index 05bc5c0d7357..6da6429bdf5e 100644
  {
  	check_inband_stage();
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 99de4e8c4f5a..1167002d9257 100644
+index 80677d56712d..f1097e886a6b 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2531,7 +2531,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+@@ -2532,7 +2532,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
  		 *  - we're serialized against set_special_state() by virtue of
  		 *    it disabling IRQs (this allows not taking ->pi_lock).
  		 */
@@ -381,7 +383,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  			goto out;
  
  		success = 1;
-@@ -2550,7 +2550,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+@@ -2551,7 +2551,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
  	 */
  	raw_spin_lock_irqsave(&p->pi_lock, flags);
  	smp_mb__after_spinlock();
@@ -390,7 +392,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  		goto unlock;
  
  	trace_sched_waking(p);
-@@ -3158,6 +3158,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
+@@ -3159,6 +3159,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  	rseq_preempt(prev);
  	fire_sched_out_preempt_notifiers(prev, next);
  	prepare_task(next);
@@ -398,7 +400,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  	prepare_arch_switch(next);
  }
  
-@@ -3314,8 +3315,15 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+@@ -3315,8 +3316,15 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  	 * finish_task_switch() will drop rq->lock() and lower preempt_count
  	 * and the preempt_enable() will end up enabling preemption (on
  	 * PREEMPT_COUNT kernels).
@@ -414,7 +416,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  	rq = finish_task_switch(prev);
  	balance_callback(rq);
  	preempt_enable();
-@@ -3384,6 +3392,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -3385,6 +3393,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	switch_to(prev, next, prev);
  	barrier();
  
@@ -430,7 +432,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  	return finish_task_switch(prev);
  }
  
-@@ -3997,7 +4014,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -4000,7 +4017,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
   *
   * WARNING: must be called with preemption disabled!
   */
@@ -439,7 +441,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  {
  	struct task_struct *prev, *next;
  	unsigned long *switch_count;
-@@ -4078,12 +4095,17 @@ static void __sched notrace __schedule(bool preempt)
+@@ -4081,12 +4098,17 @@ static void __sched notrace __schedule(bool preempt)
  
  		/* Also unlocks the rq: */
  		rq = context_switch(rq, prev, next, &rf);
@@ -457,7 +459,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  }
  
  void __noreturn do_task_dead(void)
-@@ -4144,7 +4166,8 @@ asmlinkage __visible void __sched schedule(void)
+@@ -4154,7 +4176,8 @@ asmlinkage __visible void __sched schedule(void)
  	sched_submit_work(tsk);
  	do {
  		preempt_disable();
@@ -467,7 +469,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  		sched_preempt_enable_no_resched();
  	} while (need_resched());
  	sched_update_worker(tsk);
-@@ -4225,7 +4248,8 @@ static void __sched notrace preempt_schedule_common(void)
+@@ -4235,7 +4258,8 @@ static void __sched notrace preempt_schedule_common(void)
  		 */
  		preempt_disable_notrace();
  		preempt_latency_start(1);
@@ -477,7 +479,7 @@ index 99de4e8c4f5a..1167002d9257 100644
  		preempt_latency_stop(1);
  		preempt_enable_no_resched_notrace();
  
-@@ -7938,6 +7962,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+@@ -7948,6 +7972,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
  
  #endif	/* CONFIG_CGROUP_SCHED */
  

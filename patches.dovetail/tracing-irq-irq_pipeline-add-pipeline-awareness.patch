@@ -1,8 +1,9 @@
-From cfa40228b811cadb37f5f9b135e05f55183f8b28 Mon Sep 17 00:00:00 2001
+From 5335788d3a9c8dc4747fde8005bd610f2b77350e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/trace/trace.c            |  4 +++-
  kernel/trace/trace.h            |  7 ++++++-
@@ -12,10 +13,10 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 6a0ee9178365..714518187048 100644
+index ddb7e7f5fe8d..865e42133781 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -2340,12 +2340,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned short type,
+@@ -2430,12 +2430,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned short type,
  	entry->flags =
  #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
  		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -32,10 +33,10 @@ index 6a0ee9178365..714518187048 100644
  		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
  }
 diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
-index d685c61085c0..95da79982574 100644
+index 63bf60f79398..1b3795102ecb 100644
 --- a/kernel/trace/trace.h
 +++ b/kernel/trace/trace.h
-@@ -121,11 +121,14 @@ struct kretprobe_trace_entry_head {
+@@ -124,11 +124,14 @@ struct kretprobe_trace_entry_head {
  /*
   * trace_flag_type is an enumeration that holds different
   * states when a trace occurs. These are:
@@ -51,7 +52,7 @@ index d685c61085c0..95da79982574 100644
   */
  enum trace_flag_type {
  	TRACE_FLAG_IRQS_OFF		= 0x01,
-@@ -135,6 +138,8 @@ enum trace_flag_type {
+@@ -138,6 +141,8 @@ enum trace_flag_type {
  	TRACE_FLAG_SOFTIRQ		= 0x10,
  	TRACE_FLAG_PREEMPT_RESCHED	= 0x20,
  	TRACE_FLAG_NMI			= 0x40,
@@ -92,10 +93,10 @@ index a745b0cee5d3..7316cfc95e27 100644
  	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
  	data->critical_start = 0;
 diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index d54ce252b05a..53083906653a 100644
+index d9b4b7c22db4..b440537725f2 100644
 --- a/kernel/trace/trace_output.c
 +++ b/kernel/trace/trace_output.c
-@@ -430,14 +430,19 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+@@ -445,14 +445,19 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
  	int hardirq;
  	int softirq;
  	int nmi;
@@ -116,7 +117,7 @@ index d54ce252b05a..53083906653a 100644
  		'.';
  
  	switch (entry->flags & (TRACE_FLAG_NEED_RESCHED |
-@@ -457,6 +462,8 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+@@ -472,6 +477,8 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
  	}
  
  	hardsoft_irq =
@@ -125,7 +126,7 @@ index d54ce252b05a..53083906653a 100644
  		(nmi && hardirq)     ? 'Z' :
  		nmi                  ? 'z' :
  		(hardirq && softirq) ? 'H' :
-@@ -467,7 +474,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+@@ -482,7 +489,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
  	trace_seq_printf(s, "%c%c%c",
  			 irqs_off, need_resched, hardsoft_irq);
  

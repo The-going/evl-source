@@ -1,29 +1,30 @@
-From 9294c2f9e8c238463daaa5ad00724b32d16bc0e1 Mon Sep 17 00:00:00 2001
+From c468ebac96c153ab357c3be101a6693a9a9c1dec Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:53:56 +0200
 Subject: [PATCH] context_tracking: irq_pipeline: do not track over the oob
  stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/context_tracking.h | 2 +-
  kernel/context_tracking.c        | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/context_tracking.h b/include/linux/context_tracking.h
-index d05609ad329d..2bec38de9647 100644
+index 64ec82851aa3..703e31b0e3aa 100644
 --- a/include/linux/context_tracking.h
 +++ b/include/linux/context_tracking.h
 @@ -108,7 +108,7 @@ static inline void guest_enter_irqoff(void)
  	else
  		current->flags |= PF_VCPU;
  
--	if (context_tracking_is_enabled())
-+	if (running_inband() && context_tracking_is_enabled())
+-	if (context_tracking_enabled())
++	if (running_inband() && context_tracking_enabled())
  		__context_tracking_enter(CONTEXT_GUEST);
  
  	/* KVM does not hold any references to rcu protected data when it
 diff --git a/kernel/context_tracking.c b/kernel/context_tracking.c
-index be01a4d627c9..554742481e07 100644
+index 0296b4bda8f1..b3472daa3d89 100644
 --- a/kernel/context_tracking.c
 +++ b/kernel/context_tracking.c
 @@ -114,7 +114,7 @@ void context_tracking_enter(enum ctx_state state)

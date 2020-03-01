@@ -1,14 +1,15 @@
-From e24ee9b3df0ef37e1b4f0d29d91821f90776d745 Mon Sep 17 00:00:00 2001
+From 51bc0b0b306fc5121b723721b19fdae65f41b364 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 22 Jul 2019 18:57:37 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix IRQ kstat accounting
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 37 +++++++++++++++++++------------------
  1 file changed, 19 insertions(+), 18 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index deb29b4e7e3..72a8c6f84e5 100644
+index deb29b4e7e3e..72a8c6f84e51 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -208,7 +208,7 @@ void handle_synthetic_irq(struct irq_desc *desc)

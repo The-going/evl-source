@@ -1,9 +1,10 @@
-From 571d3e92b251bc4168fa9eee7a0b66963d385d08 Mon Sep 17 00:00:00 2001
+From 93e70c0122149a56d33910d8ea961e8adc7a6d39 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 26 Apr 2019 10:14:01 +0200
 Subject: [PATCH] locking: irq_pipeline: fix is_locked predicate for mutable
  lock
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_types.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,9 +1,10 @@
-From b8979e8351bdf4663f0d09d84d62298c7c2c524c Mon Sep 17 00:00:00 2001
+From 3d29d9b6048c8b873c752f5cda1a71b8f11fe2bf Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 27 Apr 2019 11:56:04 +0200
 Subject: [PATCH] genirq: irq_pipeline: remove side-effect in
  irqs_split_flags()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/irq_pipeline.h | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)

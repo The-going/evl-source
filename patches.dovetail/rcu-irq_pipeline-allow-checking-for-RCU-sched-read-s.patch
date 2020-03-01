@@ -1,4 +1,4 @@
-From 8117dcd14bd8c7bf973107de263cd87ddb98abc1 Mon Sep 17 00:00:00 2001
+From 1db3756876b69b83bf4e78dc6ae4d8835fee0003 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 May 2017 15:31:22 +0200
 Subject: [PATCH] rcu: irq_pipeline: allow checking for RCU-sched read-side
@@ -8,13 +8,15 @@ Tracepoints check whether the traced code is within RCU-sched read
 critical section. By definition, any code running over the head stage
 can be considered to be in such a section on the current CPU, make
 sure rcu_read_lock_sched_held() returns the right information.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/rcupdate.h | 3 ++-
  kernel/rcu/update.c      | 3 +++
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-index 75a2eded7aa2..b9026168286a 100644
+index 0b7506330c87..5652a61632da 100644
 --- a/include/linux/rcupdate.h
 +++ b/include/linux/rcupdate.h
 @@ -24,6 +24,7 @@

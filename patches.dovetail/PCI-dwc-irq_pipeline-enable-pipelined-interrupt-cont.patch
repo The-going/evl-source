@@ -1,17 +1,18 @@
-From 3b5f50d635c594ad21d19506acd4044ff960426b Mon Sep 17 00:00:00 2001
+From 844da83329b4577003a3de447302a026ca5704c0 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 25 Apr 2019 14:50:32 +0200
 Subject: [PATCH] PCI: dwc: irq_pipeline: enable pipelined interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/pci/controller/dwc/pcie-designware-host.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/pci/controller/dwc/pcie-designware-host.c b/drivers/pci/controller/dwc/pcie-designware-host.c
-index 25087d3c9a82..5a11556c4c5b 100644
+index 395feb8ca051..d15445fa251d 100644
 --- a/drivers/pci/controller/dwc/pcie-designware-host.c
 +++ b/drivers/pci/controller/dwc/pcie-designware-host.c
-@@ -66,6 +66,7 @@ static struct irq_chip dw_pcie_msi_irq_chip = {
+@@ -67,6 +67,7 @@ static struct irq_chip dw_pcie_msi_irq_chip = {
  	.irq_ack = dw_msi_ack_irq,
  	.irq_mask = dw_msi_mask_irq,
  	.irq_unmask = dw_msi_unmask_irq,

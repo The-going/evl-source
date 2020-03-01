@@ -1,8 +1,9 @@
-From 561d079f33c61f1022d94b929009e08bdd591c72 Mon Sep 17 00:00:00 2001
+From d02e6a7a6f24f005f378d328a70f8e3b647f9fb8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 09:57:59 +0200
 Subject: [PATCH] arm64: dovetail: enable context switching from the oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/efi.h         |  6 ++++++
  arch/arm64/include/asm/mmu_context.h | 22 ++++++++++++++++++++--
@@ -11,7 +12,7 @@ Subject: [PATCH] arm64: dovetail: enable context switching from the oob stage
  4 files changed, 32 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/efi.h b/arch/arm64/include/asm/efi.h
-index 76a144702586..ffefe20b5d29 100644
+index b54d3a86c444..0bdb392861ca 100644
 --- a/arch/arm64/include/asm/efi.h
 +++ b/arch/arm64/include/asm/efi.h
 @@ -135,6 +135,10 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
@@ -35,7 +36,7 @@ index 76a144702586..ffefe20b5d29 100644
  
  void efi_virtmap_load(void);
 diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
-index 9cc5206acd2b..d27ce40f1e76 100644
+index d0937a1d8a58..35c659fc9c1e 100644
 --- a/arch/arm64/include/asm/mmu_context.h
 +++ b/arch/arm64/include/asm/mmu_context.h
 @@ -238,7 +238,7 @@ static inline void __switch_mm(struct mm_struct *next)

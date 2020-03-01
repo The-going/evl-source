@@ -1,17 +1,18 @@
-From 939bef4a870ff41e2dd4d8b1728bf3823c4c402a Mon Sep 17 00:00:00 2001
+From 727e2aa1aea8fbb41a10df577b70fc393e1e42ef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 10 Aug 2019 16:20:15 +0200
 Subject: [PATCH] x86: irq_pipeline: hardirqs off on irq routing
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/apic/io_apic.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/kernel/apic/io_apic.c b/arch/x86/kernel/apic/io_apic.c
-index c0e2647faf6c..3c1a4cc5b238 100644
+index 24d64845a0b7..3c454161c398 100644
 --- a/arch/x86/kernel/apic/io_apic.c
 +++ b/arch/x86/kernel/apic/io_apic.c
-@@ -3013,13 +3013,13 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
+@@ -3016,13 +3016,13 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
  	cfg = irqd_cfg(irq_data);
  	add_pin_to_irq_node(data, ioapic_alloc_attr_node(info), ioapic, pin);
  

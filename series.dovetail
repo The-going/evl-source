@@ -5,9 +5,10 @@
 	patches.dovetail/ARM-thread-add-thread-local-synchronous-flags.patch
 	patches.dovetail/ARM-introduce-raw-console-device.patch
 	patches.dovetail/ARM-VDSO-add-private-per-process-storage-page.patch
-	patches.dovetail/clocksource-Mmio-add-user-mappable-mmio-clocksources.patch
-	patches.dovetail/ARM-VDSO-use-mmio-clocksources.patch
-	patches.dovetail/clocksource-mmio-rework-kernel-interface-to-user-map.patch
+	patches.dovetail/clocksource-mmio-add-user-mappable-mmio-clocksources.patch
+	patches.dovetail/clocksource-mmio-rework-kernel-interface-to-ucs.patch
+	patches.dovetail/clocksource-mmio-detect-stale-ucs-mapping-ownership.patch
+	patches.dovetail/lib-vdso-export-MMIO-clocksources-to-applications.patch
 	patches.dovetail/drivers-net-fec-decouple-TX-enable-from-RX-enable.patch
 	patches.dovetail/drivers-net-fec-fix-RX-stall.patch
 	patches.dovetail/ARM64-dts-bcm2837-provide-for-BT-less-variant-re-ena.patch
@@ -57,6 +58,7 @@
 	patches.dovetail/gpio-pl061-irq_pipeline-enable-pipelined-interrupt-c.patch
 	patches.dovetail/gpu-ipu-v3-irq_pipeline-enable-interrupt-pipeline-co.patch
 	patches.dovetail/ARM-twd-irq_pipeline-enable-pipelined-clock-events.patch
+	patches.dovetail/ARM-vDSO-export-MMIO-clocksources-to-applications.patch
 	patches.dovetail/clocksource-timer-imx-gpt-irq_pipeline-enable-pipeli.patch
 	patches.dovetail/clocksource-arm_arch_timer-irq_pipeline-enable-pipel.patch
 	patches.dovetail/arm64-irq_pipeline-add-IRQ-pipeline-core.patch
@@ -76,17 +78,15 @@
 	patches.dovetail/fs-file-dovetail-enable-file_operations-for-oob-requ.patch
 	patches.dovetail/ARM-dovetail-add-core-support.patch
 	patches.dovetail/ARM-dovetail-route-syscalls-and-traps-to-co-kernel.patch
-	patches.dovetail/clocksource-arm_arch_timer-dovetail-enable-user-acce.patch
 	patches.dovetail/irqchip-gic-v2m-irq_pipeline-enable-pipelined-interr.patch
 	patches.dovetail/tty-pl011-add-raw-console-channel.patch
 	patches.dovetail/ARM-mm-cache-l2x0-irq_pipeline-allow-for-disabling-w.patch
-	patches.dovetail/ARM-dovetail-enable-VDSO-access-from-the-oob-stage.patch
-	patches.dovetail/clocksource-timer-imx-gpt-convert-to-user-mmio-clock.patch
-	patches.dovetail/clocksource-arm_global_timer-convert-to-user-mmio-cl.patch
-	patches.dovetail/clocksource-st_lpc-convert-to-user-mmio-clocksource.patch
+	patches.dovetail/clocksource-timer-imx-gpt-export-to-applications-via.patch
+	patches.dovetail/clocksource-arm_global_timer-export-to-applications-.patch
+	patches.dovetail/clocksource-st_lpc-export-to-applications-via-generi.patch
 	patches.dovetail/clocksource-arm_global_timer-irq_pipeline-enable-pip.patch
 	patches.dovetail/tty-st-asc-add-raw-console-channel.patch
-	patches.dovetail/clocksource-dw_apb_timer-convert-to-user-mmio-clocks.patch
+	patches.dovetail/clocksource-dw_apb_timer-export-to-applications-via-.patch
 	patches.dovetail/regmap-irq_pipeline-enable-pipelined-interrupt-contr.patch
 	patches.dovetail/arm64-dovetail-add-core-support.patch
 	patches.dovetail/arm64-dovetail-enable-context-switching-from-the-oob.patch
@@ -104,10 +104,9 @@
 	patches.dovetail/ARM-OMAP2-timer-irq_pipeline-enable-pipelined-clock-.patch
 	patches.dovetail/gpio-omap-irq_pipeline-enable-pipelined-interrupt-co.patch
 	patches.dovetail/mfd-tps65217-irq_pipeline-enable-pipelined-interrupt.patch
-	patches.dovetail/ARM-OMAP2-timer-convert-to-user-mmio-clocksource.patch
+	patches.dovetail/ARM-OMAP2-timer-export-to-applications-via-generic-v.patch
 	patches.dovetail/genirq-irq_pipeline-inline-short-code-on-fast-path.patch
 	patches.dovetail/soc-qcom-enable-pipelined-interrupt-control.patch
-	patches.dovetail/clocksource-arm_arch_timer-dovetail-fix-call-to-arch.patch
 	patches.dovetail/genirq-irq_pipeline-drop-redundant-sanity-check.patch
 	patches.dovetail/genirq-irq_pipeline-move-stage-predicates-to-the-def.patch
 	patches.dovetail/rcu-irq_pipeline-remove-cyclic-header-dependency.patch
@@ -177,8 +176,6 @@
 	patches.dovetail/ARM-dovetail-document-oob_trap_notify-assumptions-in.patch
 	patches.dovetail/ARM-irq_pipeline-convert-code-patching-lock-to-hard-.patch
 	patches.dovetail/genirq-irq_pipeline-fix-double-ack-in-irqflow-re-ent.patch
-	patches.dovetail/clocksource-mmio-detect-stale-ucs-mapping-ownership.patch
-	patches.dovetail/clocksource-mmio-rename-user_mmio_clksrc-as-mmio_ucs.patch
 	patches.dovetail/genirq-irq_pipeline-irq_settings_set-clr_oob-are-ide.patch
 	patches.dovetail/clocksource-bcm2835-irq_pipeline-enable-pipelined-cl.patch
 	patches.dovetail/clocksource-arm_arch_timer-irq_pipeline-handle-non-s.patch
@@ -265,3 +262,12 @@
 	patches.dovetail/irq_pipeline-fix-error-code-on-allocation-failure.patch
 	patches.dovetail/genirq-irq_pipeline-add-4th-mapping-level-to-interru.patch
 	patches.dovetail/genirq-irq_pipeline-remove-code-redundancy.patch
+	patches.dovetail/irqchip-sunxi-irq_pipeline-enable-pipelined-interrup.patch
+	patches.dovetail/pinctrl-sunxi-irq_pipeline-enable-pipelined-interrup.patch
+	patches.dovetail/clocksource-sun4i-irq_pipeline-enable-pipelined-cloc.patch
+	patches.dovetail/time-proxy-redirect-broadcast-handler-as-required.patch
+	patches.dovetail/time-proxy-deny-entering-deep-idle-if-broadcast-is-n.patch
+	patches.dovetail/clocksource-export-vDSO-access-type-unconditionally.patch
+	patches.dovetail/x86-tsc-set-vDSO-access-type.patch
+	patches.dovetail/clocksource-arm_arch_timer-set-vDSO-access-type-unco.patch
+	patches.dovetail/clocksource-mmio-set-vDSO-access-type-unconditionall.patch

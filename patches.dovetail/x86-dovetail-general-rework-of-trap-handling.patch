@@ -1,4 +1,4 @@
-From 9fe2d1e856d57d9635b0efbe6fba14eb8bcbd69e Mon Sep 17 00:00:00 2001
+From 2b0b89ab535ed74135206617fe211dc4d69a28eb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 17 May 2019 17:32:22 +0200
 Subject: [PATCH] x86: dovetail: general rework of trap handling
@@ -23,6 +23,8 @@ interrupt state the kernel wants at fault_exit().
 Finally, if CONFIG_PREEMPT is enabled, skip preempt_schedule_irq() if
 the inband state is disabled upon return from common IDT entry
 handlers (paranoid handlers already skip kernel preemption by design).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/entry/entry_64.S     |  9 +++--
  arch/x86/kernel/asm-offsets.c |  5 ++-
@@ -31,10 +33,10 @@ handlers (paranoid handlers already skip kernel preemption by design).
  4 files changed, 78 insertions(+), 52 deletions(-)
 
 diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index 8854adc52acf..d3ff65c7c12d 100644
+index 74c550e4c847..60a164a3e0ab 100644
 --- a/arch/x86/entry/entry_64.S
 +++ b/arch/x86/entry/entry_64.S
-@@ -1427,12 +1427,15 @@ ENTRY(error_exit)
+@@ -1427,12 +1427,15 @@ SYM_CODE_START_LOCAL(error_exit)
  	DISABLE_INTERRUPTS(CLBR_ANY)
  	TRACE_IRQS_OFF
  #ifdef CONFIG_IRQ_PIPELINE
@@ -77,10 +79,10 @@ index edc4259629ff..6528c28224e5 100644
  
  	BLANK();
 diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 675d81858e8f..c6db1dcaf5f6 100644
+index 75d30d2aa912..555a22a060e5 100644
 --- a/arch/x86/kernel/traps.c
 +++ b/arch/x86/kernel/traps.c
-@@ -81,6 +81,13 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
+@@ -76,6 +76,13 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
  	unsigned long flags;
  	int nosync = 1;
  
@@ -94,7 +96,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	oob_trap_notify(trapnr, regs);
  
  	flags = hard_local_irq_save();
-@@ -305,8 +312,6 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
+@@ -300,8 +307,6 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
  {
  	unsigned long flags;
  
@@ -103,7 +105,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
  
  	/*
-@@ -314,16 +319,15 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
+@@ -309,16 +314,15 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
  	 * notifier chain.
  	 */
  	if (!user_mode(regs) && fixup_bug(regs, trapnr))
@@ -123,7 +125,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  }
  
  #define IP ((void __user *)uprobe_get_trap_addr(regs))
-@@ -480,14 +484,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+@@ -484,14 +488,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
  	const struct mpx_bndcsr *bndcsr;
  	unsigned long flags;
  
@@ -141,7 +143,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	if (!user_mode(regs))
  		die("bounds", regs, error_code);
  
-@@ -576,23 +580,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -580,23 +584,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
  	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
  	cond_local_irq_enable(regs);
  
@@ -169,7 +171,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  
  		tsk->thread.error_code = error_code;
  		tsk->thread.trap_nr = X86_TRAP_GP;
-@@ -604,21 +606,23 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -608,21 +610,23 @@ do_general_protection(struct pt_regs *regs, long error_code)
  		 */
  		if (!preemptible() && kprobe_running() &&
  		    kprobe_fault_handler(regs, X86_TRAP_GP))
@@ -196,7 +198,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	pipelined_fault_exit(flags);
  }
  NOKPROBE_SYMBOL(do_general_protection);
-@@ -627,8 +631,6 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -631,8 +635,6 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  {
  	unsigned long flags;
  
@@ -205,7 +207,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  #ifdef CONFIG_DYNAMIC_FTRACE
  	/*
  	 * ftrace must be first, everything else may cause a recursive crash.
-@@ -636,10 +638,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -640,10 +642,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  	 */
  	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
  	    ftrace_int3_handler(regs))
@@ -218,7 +220,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  
  	/*
  	 * Use ist_enter despite the fact that we don't use an IST stack.
-@@ -666,13 +668,13 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -670,13 +672,13 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  		goto exit;
  
  	cond_local_irq_enable(regs);
@@ -234,7 +236,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  }
  NOKPROBE_SYMBOL(do_int3);
  
-@@ -830,11 +832,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -834,11 +836,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		goto exit;
  #endif
  
@@ -247,7 +249,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  
  	/*
  	 * Let others (NMI) know that the debug stack is in use
-@@ -850,7 +850,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -854,7 +854,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  					X86_TRAP_DB);
  		cond_local_irq_disable(regs);
  		debug_stack_usage_dec();
@@ -256,7 +258,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	}
  
  	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
-@@ -865,13 +865,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -869,13 +869,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		regs->flags &= ~X86_EFLAGS_TF;
  	}
  	si_code = get_si_code(tsk->thread.debugreg6);
@@ -274,7 +276,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  exit:
  	ist_exit(regs);
  }
-@@ -891,13 +892,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -895,13 +896,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
  						"simd exception";
  
@@ -289,7 +291,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  
  		task->thread.error_code = error_code;
  		task->thread.trap_nr = trapnr;
-@@ -905,7 +904,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -909,7 +908,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  		if (notify_die(DIE_TRAP, str, regs, error_code,
  					trapnr, SIGFPE) != NOTIFY_STOP)
  			die(str, regs, error_code);
@@ -298,7 +300,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	}
  
  	/*
-@@ -919,11 +918,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -923,11 +922,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	si_code = fpu__exception_code(fpu, trapnr);
  	/* Retry when we get spurious exceptions: */
  	if (!si_code)
@@ -314,7 +316,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  	pipelined_fault_exit(flags);
  }
  
-@@ -957,10 +958,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
+@@ -961,10 +962,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
  	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
  		struct math_emu_info info = { };
  
@@ -327,7 +329,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  		info.regs = regs;
  		math_emulate(&info);
  
-@@ -988,7 +989,6 @@ NOKPROBE_SYMBOL(do_device_not_available);
+@@ -992,7 +993,6 @@ NOKPROBE_SYMBOL(do_device_not_available);
  dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
  {
  	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
@@ -336,7 +338,7 @@ index 675d81858e8f..c6db1dcaf5f6 100644
  
  	if (notify_die(DIE_TRAP, "iret exception", regs, error_code,
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 3bbc0a337042..38b8146bc1c9 100644
+index 16586a296773..e16acc05987f 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
 @@ -709,7 +709,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,

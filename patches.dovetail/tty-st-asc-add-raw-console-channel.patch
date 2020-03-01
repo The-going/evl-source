@@ -1,14 +1,15 @@
-From 3e3fbfab4fe532929baf816c1b2f4b4318c48873 Mon Sep 17 00:00:00 2001
+From 724b0c1e6d25192a1f1750bc867dfa15b6ee2501 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 23 Jul 2018 18:28:48 +0200
 Subject: [PATCH] tty: st-asc: add raw console channel
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/tty/serial/st-asc.c | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
 
 diff --git a/drivers/tty/serial/st-asc.c b/drivers/tty/serial/st-asc.c
-index 7971997cdea..e80561f15eb 100644
+index 7971997cdead..e80561f15eb5 100644
 --- a/drivers/tty/serial/st-asc.c
 +++ b/drivers/tty/serial/st-asc.c
 @@ -909,6 +909,29 @@ static void asc_console_write(struct console *co, const char *s, unsigned count)

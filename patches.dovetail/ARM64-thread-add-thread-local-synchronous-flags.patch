@@ -1,10 +1,12 @@
-From 2e7dfec465fec48af114f48db52415d3a480647c Mon Sep 17 00:00:00 2001
+From d8078ba405029c0b2edda71ad2137fb4d6a80958 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 16:32:28 +0100
 Subject: [PATCH] ARM64/thread: add thread-local (synchronous) flags
 
 Provide per-thread storage for private flags (i.e. lockless access is
 safe).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/thread_info.h | 3 +++
  arch/arm64/kernel/asm-offsets.c      | 1 +
@@ -32,7 +34,7 @@ index f0cec4160136..a9cbbaff07b2 100644
  
  #define TIF_SIGPENDING		0	/* signal pending */
 diff --git a/arch/arm64/kernel/asm-offsets.c b/arch/arm64/kernel/asm-offsets.c
-index 214685760e1c..65587e6657f5 100644
+index a5bdce8af65b..9b702844a787 100644
 --- a/arch/arm64/kernel/asm-offsets.c
 +++ b/arch/arm64/kernel/asm-offsets.c
 @@ -29,6 +29,7 @@ int main(void)

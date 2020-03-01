@@ -1,4 +1,4 @@
-From 4c328662e6e519793b62dc2325efd0b08ef3260a Mon Sep 17 00:00:00 2001
+From 268ccc3955c1426065732c1b910bbd225e4ed5f9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Oct 2016 10:00:24 +0200
 Subject: [PATCH] genirq: irq_pipeline: make IRQ descriptor lock mutable
@@ -20,6 +20,8 @@ stage;
 
 - only physically for the head stage, since we may not reschedule from
   such context anyway.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqdesc.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,8 +1,9 @@
-From ddc0cc3ab423a33e4cdb504e81828714c5952cfd Mon Sep 17 00:00:00 2001
+From d2d4aea8d894a4bd063589e58bc24d1722829f4a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 10 Jul 2019 17:59:43 +0200
 Subject: [PATCH] arm64: irq_pipeline: convert to {enter|leave}_irq_pipeline()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/kernel/irq.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)

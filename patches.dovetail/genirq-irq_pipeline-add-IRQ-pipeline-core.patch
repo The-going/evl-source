@@ -1,8 +1,9 @@
-From c1ba19401bd89ef644cdf974d2050eb889d9db50 Mon Sep 17 00:00:00 2001
+From 270f072ab1b8a61abc87c73224ebe338ef33f2e4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 20 Jul 2016 15:06:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  Documentation/irq_pipeline.rst     |  693 +++++++++++++++++
  drivers/cpuidle/cpuidle.c          |   15 +
@@ -744,7 +745,7 @@ index 000000000000..4f84c28e31f7
 +.. [#f2] Yaghmour, Karim; "ADEOS - Adaptive Domain Environment for Operating Systems"
 +    https://www.opersys.com/ftp/pub/Adeos/adeos.pdf
 diff --git a/drivers/cpuidle/cpuidle.c b/drivers/cpuidle/cpuidle.c
-index 0895b988fa92..416ea72f0e94 100644
+index 33d19c8eb027..4171580df8b8 100644
 --- a/drivers/cpuidle/cpuidle.c
 +++ b/drivers/cpuidle/cpuidle.c
 @@ -17,6 +17,7 @@
@@ -755,7 +756,7 @@ index 0895b988fa92..416ea72f0e94 100644
  #include <linux/ktime.h>
  #include <linux/hrtimer.h>
  #include <linux/module.h>
-@@ -203,6 +204,19 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+@@ -205,6 +206,19 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  	bool broadcast = !!(target_state->flags & CPUIDLE_FLAG_TIMER_STOP);
  	ktime_t time_start, time_end;
  
@@ -775,7 +776,7 @@ index 0895b988fa92..416ea72f0e94 100644
  	/*
  	 * Tell the time framework to switch to a broadcast timer because our
  	 * local timer will be shut down.  If a local timer is used from another
-@@ -227,6 +241,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+@@ -229,6 +243,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  
  	stop_critical_timings();
  	entered_state = target_state->enter(dev, drv, index);
@@ -937,7 +938,7 @@ index da0af631ded5..ec5757babe95 100644
 +
  #endif /* LINUX_HARDIRQ_H */
 diff --git a/include/linux/interrupt.h b/include/linux/interrupt.h
-index 89fc59dab57d..070dd60e3e4d 100644
+index c5fe60ec6b84..2e8ed8fac8e9 100644
 --- a/include/linux/interrupt.h
 +++ b/include/linux/interrupt.h
 @@ -61,6 +61,12 @@
@@ -961,7 +962,7 @@ index 89fc59dab57d..070dd60e3e4d 100644
  
  #define IRQF_TIMER		(__IRQF_TIMER | IRQF_NO_SUSPEND | IRQF_NO_THREAD)
  
-@@ -499,9 +506,29 @@ extern bool force_irqthreads;
+@@ -512,9 +519,29 @@ extern bool force_irqthreads;
   * to ensure that after a local_irq_disable(), interrupts have
   * really been disabled in hardware. Such architectures need to
   * implement the following hook.
@@ -993,7 +994,7 @@ index 89fc59dab57d..070dd60e3e4d 100644
  
  /* PLEASE, avoid to allocate new softirqs, if you need not _really_ high
 diff --git a/include/linux/irq.h b/include/linux/irq.h
-index fb301cf29148..aab2c331f755 100644
+index 7853eb9301f2..d38210020920 100644
 --- a/include/linux/irq.h
 +++ b/include/linux/irq.h
 @@ -71,6 +71,11 @@ enum irqchip_irq_state;
@@ -1049,7 +1050,7 @@ index fb301cf29148..aab2c331f755 100644
  
  extern void handle_fasteoi_nmi(struct irq_desc *desc);
  extern void handle_percpu_devid_fasteoi_nmi(struct irq_desc *desc);
-@@ -744,7 +754,13 @@ extern int irq_set_irq_type(unsigned int irq, unsigned int type);
+@@ -750,7 +760,13 @@ extern int irq_set_irq_type(unsigned int irq, unsigned int type);
  extern int irq_set_msi_desc(unsigned int irq, struct msi_desc *entry);
  extern int irq_set_msi_desc_off(unsigned int irq_base, unsigned int irq_offset,
  				struct msi_desc *entry);
@@ -1064,7 +1065,7 @@ index fb301cf29148..aab2c331f755 100644
  
  static inline struct irq_chip *irq_get_chip(unsigned int irq)
  {
-@@ -1114,6 +1130,12 @@ static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
+@@ -1120,6 +1136,12 @@ static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
  
  #define IRQ_MSK(n) (u32)((n) < 32 ? ((1 << (n)) - 1) : UINT_MAX)
  
@@ -1798,7 +1799,7 @@ index 6246a06364d0..1d060bc15c98 100644
 +	"$(CONFIG_PREEMPT_RT)" "$(CONFIG_IRQ_PIPELINE)" \
 +	"$(CC) $(KBUILD_CFLAGS)"
 diff --git a/init/main.c b/init/main.c
-index 91f6ebb30ef0..3f338902d01f 100644
+index 1ecfd43ed464..d53cbba28d3b 100644
 --- a/init/main.c
 +++ b/init/main.c
 @@ -49,6 +49,7 @@
@@ -1809,7 +1810,7 @@ index 91f6ebb30ef0..3f338902d01f 100644
  #include <linux/taskstats_kern.h>
  #include <linux/delayacct.h>
  #include <linux/unistd.h>
-@@ -583,7 +584,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -584,7 +585,7 @@ asmlinkage __visible void __init start_kernel(void)
  
  	cgroup_init_early();
  
@@ -1818,7 +1819,7 @@ index 91f6ebb30ef0..3f338902d01f 100644
  	early_boot_irqs_disabled = true;
  
  	/*
-@@ -623,6 +624,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -624,6 +625,7 @@ asmlinkage __visible void __init start_kernel(void)
  	setup_log_buf(0);
  	vfs_caches_init_early();
  	sort_main_extable();
@@ -1826,7 +1827,7 @@ index 91f6ebb30ef0..3f338902d01f 100644
  	trap_init();
  	mm_init();
  
-@@ -672,6 +674,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -673,6 +675,7 @@ asmlinkage __visible void __init start_kernel(void)
  	/* init some links before init_ISA_irqs() */
  	early_irq_init();
  	init_IRQ();
@@ -1834,7 +1835,7 @@ index 91f6ebb30ef0..3f338902d01f 100644
  	tick_init();
  	rcu_init_nohz();
  	init_timers();
-@@ -700,7 +703,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -701,7 +704,7 @@ asmlinkage __visible void __init start_kernel(void)
  	WARN(!irqs_disabled(), "Interrupts were enabled early\n");
  
  	early_boot_irqs_disabled = false;
@@ -1881,7 +1882,7 @@ index b4f53717d143..e37dd48cd8d0 100644
  obj-$(CONFIG_GENERIC_PENDING_IRQ) += migration.o
  obj-$(CONFIG_GENERIC_IRQ_MIGRATION) += cpuhotplug.o
 diff --git a/kernel/irq/chip.c b/kernel/irq/chip.c
-index b76703b2c0af..ffcec88262a4 100644
+index b3fa2d87d2f3..e50ce9deaa5f 100644
 --- a/kernel/irq/chip.c
 +++ b/kernel/irq/chip.c
 @@ -14,6 +14,7 @@
@@ -2397,7 +2398,7 @@ index a4ace611f47f..e3f249fef88d 100644
  EXPORT_SYMBOL_GPL(handle_bad_irq);
  
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index 9be995fc3c5a..2936457d8693 100644
+index 5b8fdd659e54..b54dbf7b143f 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
 @@ -16,6 +16,7 @@
@@ -4239,7 +4240,7 @@ index e43795cd2ccf..adc2fd0ed47b 100644
 +	desc->status_use_accessors &= ~_IRQ_CHAINED;
 +}
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 35995dfb4072..473ab5ecac09 100644
+index 7220f566f90b..83a984688bc6 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -48,6 +48,7 @@
@@ -4251,7 +4252,7 @@ index 35995dfb4072..473ab5ecac09 100644
  #include <linux/uaccess.h>
  #include <asm/sections.h>
 diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-index 8dad5aa600ea..14af576bdaef 100644
+index ffa959e91227..80955e96b07f 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
 @@ -77,22 +77,29 @@ void __weak arch_cpu_idle_dead(void) { }
@@ -4289,7 +4290,7 @@ index 8dad5aa600ea..14af576bdaef 100644
  	}
  }
  
-@@ -208,6 +215,13 @@ static void cpuidle_idle_call(void)
+@@ -214,6 +221,13 @@ static void cpuidle_idle_call(void)
  exit_idle:
  	__current_set_polling();
  
@@ -4303,7 +4304,7 @@ index 8dad5aa600ea..14af576bdaef 100644
  	/*
  	 * It is up to the idle functions to reenable local interrupts
  	 */
-@@ -261,6 +275,7 @@ static void do_idle(void)
+@@ -267,6 +281,7 @@ static void do_idle(void)
  			cpu_idle_poll();
  		} else {
  			cpuidle_idle_call();
@@ -4312,7 +4313,7 @@ index 8dad5aa600ea..14af576bdaef 100644
  		arch_cpu_idle_exit();
  	}
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 0db2c1b3361e..34f7319fb334 100644
+index 280a3c735935..d8c0bd217c41 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -52,6 +52,7 @@
@@ -4324,10 +4325,10 @@ index 0db2c1b3361e..34f7319fb334 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 93d97f9b0157..592b32055cb6 100644
+index 5ffe144c9794..9ee859bb1b76 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -814,6 +814,16 @@ config DEBUG_SHIRQ
+@@ -794,6 +794,16 @@ config DEBUG_SHIRQ
  	  Drivers ought to be able to handle interrupts coming in at those
  	  points; some don't and need to be caught.
  
@@ -4341,11 +4342,11 @@ index 93d97f9b0157..592b32055cb6 100644
 +
 +	  If unsure, say N.
 +
- menu "Debug Lockups and Hangs"
+ menu "Debug Oops, Lockups and Hangs"
  
- config LOCKUP_DETECTOR
+ config PANIC_ON_OOPS
 diff --git a/lib/dump_stack.c b/lib/dump_stack.c
-index 5cff72f18c4a..6ebef0ca7672 100644
+index 33ffbf308853..8954244a0930 100644
 --- a/lib/dump_stack.c
 +++ b/lib/dump_stack.c
 @@ -56,6 +56,11 @@ void dump_stack_print_info(const char *log_lvl)
@@ -4361,7 +4362,7 @@ index 5cff72f18c4a..6ebef0ca7672 100644
  }
  
 diff --git a/scripts/mkcompile_h b/scripts/mkcompile_h
-index d1d757c6edf4..9103227ae82d 100755
+index 3a5a4b210c86..45a6ff897a55 100755
 --- a/scripts/mkcompile_h
 +++ b/scripts/mkcompile_h
 @@ -6,7 +6,8 @@ ARCH=$2
@@ -4379,9 +4380,9 @@ index d1d757c6edf4..9103227ae82d 100755
  if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
  if [ -n "$PREEMPT_RT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT_RT"; fi
 +if [ -n "$IRQPIPE" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS IRQPIPE"; fi
- UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS $TIMESTAMP"
  
  # Truncate to maximum length
+ UTS_LEN=64
 -- 
 2.16.4
 

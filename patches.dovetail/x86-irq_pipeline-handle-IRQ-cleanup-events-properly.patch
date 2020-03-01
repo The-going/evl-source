@@ -1,4 +1,4 @@
-From 906f75cd81b7fe2aa02246322eaa5153228c8afc Mon Sep 17 00:00:00 2001
+From aa0211969820e2c1766edba2a6a4123d656945ef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 10 Jun 2019 12:12:22 +0200
 Subject: [PATCH] x86: irq_pipeline: handle IRQ cleanup events properly
@@ -20,6 +20,8 @@ news is that there is no reason for other CPUs to grab the vector_lock
 as part of out-of-band processing. However, the current CPU handling
 the cleanup event might run with IRQs hard disabled for too long if
 that happens.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/apic/vector.c  |  4 ++++
  arch/x86/kernel/irq_pipeline.c | 44 +++++++++++++++++++++---------------------

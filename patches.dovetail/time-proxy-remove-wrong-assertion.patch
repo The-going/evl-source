@@ -1,8 +1,9 @@
-From e356f40022419c506c799e538a0b0e1ed582c8be Mon Sep 17 00:00:00 2001
+From 648fcc3a9bee16623f1b29f5abc6b5722388e54d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 3 May 2019 10:22:45 +0200
 Subject: [PATCH] time: proxy: remove wrong assertion
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/time/tick-proxy.c | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)

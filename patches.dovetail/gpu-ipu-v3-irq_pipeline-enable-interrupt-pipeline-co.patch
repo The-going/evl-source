@@ -1,8 +1,9 @@
-From 1446c20512217a98b5dbf6ef09f4897bdfdb3e0c Mon Sep 17 00:00:00 2001
+From bd42a9f03054329a510aac35f9377923608c4c96 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 Feb 2017 09:26:50 +0100
 Subject: [PATCH] gpu: ipu-v3: irq_pipeline: enable interrupt pipeline control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/gpu/ipu-v3/ipu-common.c | 1 +
  1 file changed, 1 insertion(+)

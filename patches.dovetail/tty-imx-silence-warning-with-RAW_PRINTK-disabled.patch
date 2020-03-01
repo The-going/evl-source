@@ -1,17 +1,18 @@
-From 1c07ae8fd16d8cb7ee5fb42a47db985f118a2caf Mon Sep 17 00:00:00 2001
+From e26c124931224ea8e0612e9f2d8efe5e9cec5239 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 7 Oct 2019 11:51:49 +0200
 Subject: [PATCH] tty: imx: silence warning with RAW_PRINTK disabled
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/tty/serial/imx.c | 2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/tty/serial/imx.c b/drivers/tty/serial/imx.c
-index 2e97d2f50e2e..c586fc62059d 100644
+index c08ea42128fa..4eda24ce8813 100644
 --- a/drivers/tty/serial/imx.c
 +++ b/drivers/tty/serial/imx.c
-@@ -1972,11 +1972,13 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
+@@ -1971,11 +1971,13 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
  	return __imx_uart_console_write(co, s, count, 1);
  }
  

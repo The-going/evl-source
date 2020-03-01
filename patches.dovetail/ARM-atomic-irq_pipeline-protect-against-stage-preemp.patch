@@ -1,8 +1,9 @@
-From 5ad7aacec436f69af17773c7309be653604405ee Mon Sep 17 00:00:00 2001
+From ae75213a01743b105e3c3d18afc8a292ab7c8dcb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Oct 2016 12:49:11 +0200
 Subject: [PATCH] ARM/atomic: irq_pipeline: protect against stage preemption
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/include/asm/atomic.h  | 16 ++++++++--------
  arch/arm/include/asm/bitops.h  | 24 ++++++++++++------------
@@ -10,7 +11,7 @@ Subject: [PATCH] ARM/atomic: irq_pipeline: protect against stage preemption
  3 files changed, 24 insertions(+), 24 deletions(-)
 
 diff --git a/arch/arm/include/asm/atomic.h b/arch/arm/include/asm/atomic.h
-index 50c3ac5f0809..adbb6d1bd5d0 100644
+index 75bb2c543e59..57665cc84942 100644
 --- a/arch/arm/include/asm/atomic.h
 +++ b/arch/arm/include/asm/atomic.h
 @@ -166,9 +166,9 @@ static inline void atomic_##op(int i, atomic_t *v)			\

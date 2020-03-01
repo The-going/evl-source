@@ -1,8 +1,9 @@
-From 7b2bb3231286f761312ba622020edf6502cce156 Mon Sep 17 00:00:00 2001
+From 848fa635349dfeb9f177cc2ddcc47ef080945519 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 29 Sep 2018 16:38:00 +0200
 Subject: [PATCH] arm64: fpsimd: dovetail: enable sharing with oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/dovetail.h |   2 +
  arch/arm64/include/asm/fpsimd.h   |   1 +
@@ -24,7 +25,7 @@ index c2c0ae6c1e05..d33227c898c1 100644
 +
  #endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/include/asm/fpsimd.h b/arch/arm64/include/asm/fpsimd.h
-index b6a2c352f4c3..6cecc2d3c037 100644
+index 59f10dd13f12..1f8faac0dacf 100644
 --- a/arch/arm64/include/asm/fpsimd.h
 +++ b/arch/arm64/include/asm/fpsimd.h
 @@ -43,6 +43,7 @@ extern void fpsimd_flush_thread(void);
@@ -36,7 +37,7 @@ index b6a2c352f4c3..6cecc2d3c037 100644
  
  extern void fpsimd_bind_task_to_cpu(void);
 diff --git a/arch/arm64/kernel/Makefile b/arch/arm64/kernel/Makefile
-index 7028bca90cc2..85e9129c3768 100644
+index 067a5701fedf..ec3b3a5802e7 100644
 --- a/arch/arm64/kernel/Makefile
 +++ b/arch/arm64/kernel/Makefile
 @@ -52,6 +52,7 @@ obj-$(CONFIG_ACPI_NUMA)			+= acpi_numa.o
@@ -66,7 +67,7 @@ index 000000000000..4aee34fb0e88
 +	fpsimd_restore_current_oob();
 +}
 diff --git a/arch/arm64/kernel/fpsimd.c b/arch/arm64/kernel/fpsimd.c
-index 51b16cc13ef3..d194bff98777 100644
+index 69abf8a97af3..e0860298fff3 100644
 --- a/arch/arm64/kernel/fpsimd.c
 +++ b/arch/arm64/kernel/fpsimd.c
 @@ -156,6 +156,42 @@ static void __get_cpu_fpsimd_context(void)
@@ -276,14 +277,14 @@ index 51b16cc13ef3..d194bff98777 100644
  	 * Force reallocation of task SVE state to the correct size
 @@ -922,6 +980,8 @@ void fpsimd_release_task(struct task_struct *dead_task)
   */
- asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  {
 +	unsigned long flags;
 +
  	oob_trap_notify(ARM64_TRAP_SVE, regs);
  
  	/* Even if we chose not to use SVE, the hardware could still trap: */
-@@ -932,9 +992,9 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+@@ -932,9 +992,9 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  
  	sve_alloc(current);
  
@@ -295,7 +296,7 @@ index 51b16cc13ef3..d194bff98777 100644
  
  	/* Force ret_to_user to reload the registers: */
  	fpsimd_flush_task_state(current);
-@@ -943,7 +1003,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+@@ -943,7 +1003,7 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  	if (test_and_set_thread_flag(TIF_SVE))
  		WARN_ON(1); /* SVE access shouldn't have trapped */
  
@@ -304,7 +305,7 @@ index 51b16cc13ef3..d194bff98777 100644
  }
  
  /*
-@@ -985,14 +1045,17 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
+@@ -985,14 +1045,17 @@ void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
  void fpsimd_thread_switch(struct task_struct *next)
  {
  	bool wrong_task, wrong_cpu;

@@ -337,3 +337,13 @@
 	patches.evl-only/uapi-evl-fptest-try-harder-not-to-shadow-local-varia.patch
 	patches.evl-only/evl-thread-fix-inverted-single-step-bit-flip.patch
 	patches.evl-only/evl-thread-switch-potentially-large-cpumask-to-stati.patch
+	patches.evl-only/evl-xbuf-fix-POLLIN-detection.patch
+	patches.evl-only/x86-build-evl-drop-pointless-include-directives.patch
+	patches.evl-only/arm-build-evl-drop-pointless-include-directives.patch
+	patches.evl-only/arm64-build-evl-drop-pointless-include-directives.patch
+	patches.evl-only/evl-drop-pointless-include-directive.patch
+	patches.evl-only/evl-rename-main-header-for-device-drivers.patch
+	patches.evl-only/evl-add-stage-exclusion-lock-mechanism.patch
+	patches.evl-only/evl-proxy-run-deferred-output-on-dedicated-wq.patch
+	patches.evl-only/evl-proxy-skip-wq-creation-for-mapping-only-service.patch
+	patches.evl-only/evl-syscall-honor-vDSO-fallback-calls-in-oob-mode.patch

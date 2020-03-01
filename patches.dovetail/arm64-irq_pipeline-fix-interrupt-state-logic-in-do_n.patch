@@ -1,4 +1,4 @@
-From 45014f0074528b4fd7c01ee6db473204658672c2 Mon Sep 17 00:00:00 2001
+From 5600ec68f4c5483d97c4cb1a11fc4bbcd287bce4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 18 Mar 2019 12:48:27 +0100
 Subject: [PATCH] arm64: irq_pipeline: fix interrupt state logic in
@@ -17,6 +17,8 @@ make sure it stays that way including when pipelining interrupts.
 At this chance, the way we deal with the interrupt state logic in this
 routine was greatly simplified, which unsurprisingly leads to a saner
 behavior.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/kernel/signal.c | 38 +++++++++++++++++++-------------------
  1 file changed, 19 insertions(+), 19 deletions(-)

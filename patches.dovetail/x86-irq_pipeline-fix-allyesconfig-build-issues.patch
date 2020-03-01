@@ -1,8 +1,9 @@
-From b1dca8cc7ed25fd5cc2575c1379bb195140d6ca5 Mon Sep 17 00:00:00 2001
+From 91b19e8cde9390bc75264443fab4bcac7b45f0d1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 17:00:01 +0200
 Subject: [PATCH] x86: irq_pipeline: fix allyesconfig build issues
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/irq_pipeline.h | 8 ++++++++
  arch/x86/kernel/traps.c             | 1 +
@@ -50,7 +51,7 @@ index f4ae6d9c3b20..756c80d6dfc9 100644
  unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
  {
 diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index a108f180fec1..5d2514e7e1c2 100644
+index 555a22a060e5..a9e719abd75a 100644
 --- a/arch/x86/kernel/traps.c
 +++ b/arch/x86/kernel/traps.c
 @@ -14,6 +14,7 @@

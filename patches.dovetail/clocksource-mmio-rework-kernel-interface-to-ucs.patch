@@ -1,38 +1,16 @@
-From 82b4c8f46d07b80eb2122c5be1902a9f7bc2d1ac Mon Sep 17 00:00:00 2001
+From 64434da3f0812dccd7b717ca4d587fcf5b9f97a9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 9 Jul 2018 16:41:27 +0200
-Subject: [PATCH] clocksource: mmio: rework kernel interface to user-mappable
- clocksources
+Subject: [PATCH] clocksource: mmio: rework kernel interface to ucs
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
- arch/arm/include/asm/clocksource.h |  12 --
- drivers/clocksource/mmio.c         | 315 ++++++++++++++++++-------------------
- include/linux/clocksource.h        |  57 +++++--
- 3 files changed, 192 insertions(+), 192 deletions(-)
+ drivers/clocksource/mmio.c  | 310 +++++++++++++++++++++-----------------------
+ include/linux/clocksource.h |  57 +++++---
+ 2 files changed, 189 insertions(+), 178 deletions(-)
 
-diff --git a/arch/arm/include/asm/clocksource.h b/arch/arm/include/asm/clocksource.h
-index 58bcd93e6730..ceb2048a2846 100644
---- a/arch/arm/include/asm/clocksource.h
-+++ b/arch/arm/include/asm/clocksource.h
-@@ -13,16 +13,4 @@ struct arch_clocksource_data {
- 	enum arch_clock_uaccess_type clock_type;
- };
- 
--#ifdef CONFIG_VDSO
--
--#define arch_clocksource_arch_timer_init \
--	arch_clocksource_arch_timer_init
--void arch_clocksource_arch_timer_init(struct clocksource *cs);
--
--#define arch_clocksource_user_mmio_init \
--	arch_clocksource_user_mmio_init
--void arch_clocksource_user_mmio_init(struct clocksource *cs, unsigned id);
--
--#endif /* CONFIG_VDSO */
--
- #endif
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index 94a2864bd386..a9920b5c98c4 100644
+index 176531be52a7..a3ce72c473d1 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
 @@ -15,36 +15,10 @@
@@ -362,15 +340,13 @@ index 94a2864bd386..a9920b5c98c4 100644
  	return err;
  }
  
-@@ -387,16 +360,14 @@ static unsigned long default_revmap(void *virt)
+@@ -387,16 +360,11 @@ static unsigned long default_revmap(void *virt)
  	return vm->phys_addr + (virt - vm->addr);
  }
  
 -typedef u64 clksrc_read_t(struct clocksource *);
 -typedef unsigned long clksrc_revmap_t(void *);
-+void __weak
-+arch_clocksource_user_mmio_init(struct clocksource *cs, unsigned id) { }
- 
+-
 -int __init clocksource_user_dual_mmio_init(
 -	void __iomem *reg_lower, unsigned int bits_lower,
 -	void __iomem *reg_upper, unsigned int bits_upper,
@@ -385,7 +361,7 @@ index 94a2864bd386..a9920b5c98c4 100644
  		[CLKSRC_MMIO_L_UP] = clocksource_mmio_readl_up,
  		[CLKSRC_MMIO_L_DOWN] = clocksource_mmio_readl_down,
  		[CLKSRC_DMMIO_L_UP] = clocksource_dual_mmio_readl_up,
-@@ -404,98 +375,116 @@ int __init clocksource_user_dual_mmio_init(
+@@ -404,94 +372,114 @@ int __init clocksource_user_dual_mmio_init(
  		[CLKSRC_MMIO_W_DOWN] = clocksource_mmio_readw_down,
  		[CLKSRC_DMMIO_W_UP] = clocksource_dual_mmio_readw_up,
  	};
@@ -431,11 +407,29 @@ index 94a2864bd386..a9920b5c98c4 100644
  			return -EINVAL;
 -	} else
 -		phys_upper = 0;
-+	}
- 
+-
 -	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 -	if (!cs)
 -		return -ENOMEM;
+-
+-	spin_lock_init(&cs->lock);
+-	cs->type = type;
+-	cs->mask_lower = CLOCKSOURCE_MASK(bits_lower);
+-	cs->bits_lower = bits_lower;
+-	cs->reg_upper = reg_upper;
+-	cs->mask_upper = CLOCKSOURCE_MASK(bits_upper);
+-
+-	_clocksource_mmio_init(reg_lower, name, hz, rating,
+-			       bits_lower + bits_upper, read, &cs->mmio);
+-
+-	err = clocksource_register_hz(&cs->mmio.clksrc, hz);
+-	if (err < 0) {
+-		kfree(cs);
+-		return err;
+ 	}
+ 
+-	cs->phys_lower = phys_lower;
+-	cs->phys_upper = phys_upper;
 +	ucs->mmio.reg = regs->reg_lower;
 +	ucs->type = type;
 +	ucs->bits_lower = regs->bits_lower;
@@ -450,78 +444,40 @@ index 94a2864bd386..a9920b5c98c4 100644
 +	if (err < 0)
 +		return err;
  
--	spin_lock_init(&cs->lock);
--	cs->type = type;
--	cs->mask_lower = CLOCKSOURCE_MASK(bits_lower);
--	cs->bits_lower = bits_lower;
--	cs->reg_upper = reg_upper;
--	cs->mask_upper = CLOCKSOURCE_MASK(bits_upper);
-+	spin_lock(&user_clksrcs_lock);
- 
--	_clocksource_mmio_init(reg_lower, name, hz, rating,
--			       bits_lower + bits_upper, read, &cs->mmio);
-+	ucs->id = user_clksrcs_count++;
-+	if (ucs->id < CLKSRC_USER_MMIO_MAX)
-+		list_add_tail(&ucs->link, &user_clksrcs);
- 
--	err = clocksource_register_hz(&cs->mmio.clksrc, hz);
--	if (err < 0) {
--		kfree(cs);
--		return err;
-+	spin_unlock(&user_clksrcs_lock);
-+
-+	if (ucs->id >= CLKSRC_USER_MMIO_MAX) {
-+		pr_warn("%s: Too many clocksources\n", name);
-+		err = -EAGAIN;
-+		goto fail;
- 	}
- 
--	cs->phys_lower = phys_lower;
--	cs->phys_upper = phys_upper;
-+	arch_clocksource_user_mmio_init(&ucs->mmio.clksrc, ucs->id);
- 
--	spin_lock(&user_clksrcs_lock);
+ 	spin_lock(&user_clksrcs_lock);
 -	cs->id = user_clksrcs_count++;
 -	if (cs->id < CLKSRC_USER_MMIO_MAX) {
 -		list_add_tail(&cs->link, &user_clksrcs);
 -		class = user_mmio_class;
-+	if (user_mmio_class) {
-+		err = ucs_create_cdev(user_mmio_class, ucs);
-+		if (err < 0) {
-+			pr_warn("%s: Failed to add character device\n", name);
-+			goto fail;
-+		}
- 	}
--	spin_unlock(&user_clksrcs_lock);
- 
--#ifdef arch_clocksource_user_mmio_init
--	arch_clocksource_user_mmio_init(&cs->mmio.clksrc, cs->id);
--#endif
-+	return 0;
+-	}
++
++	ucs->id = user_clksrcs_count++;
++	if (ucs->id < CLKSRC_USER_MMIO_MAX)
++		list_add_tail(&ucs->link, &user_clksrcs);
++
+ 	spin_unlock(&user_clksrcs_lock);
  
 -	if (cs->id >= CLKSRC_USER_MMIO_MAX)
--		pr_warn("%s: Too many clocksources\n", name);
-+fail:
-+	clocksource_unregister(&ucs->mmio.clksrc);
++	if (ucs->id >= CLKSRC_USER_MMIO_MAX) {
+ 		pr_warn("%s: Too many clocksources\n", name);
++		err = -EAGAIN;
++		goto fail;
++	}
  
 -	if (class) {
 -		err = cs_create_char_dev(class, cs);
 -		if (err < 0)
--			pr_warn("%s: Failed to add character device\n", name);
--	}
-+	return err;
-+}
++	if (user_mmio_class) {
++		err = ucs_create_cdev(user_mmio_class, ucs);
++		if (err < 0) {
+ 			pr_warn("%s: Failed to add character device\n", name);
++			goto fail;
++		}
+ 	}
  
 -	if (bits_lower != 32 || read != clocksource_dual_mmio_readl_up)
 -		return 0;
-+int __init clocksource_user_single_mmio_init(
-+	void __iomem *base, const char *name,
-+	unsigned long hz, int rating, unsigned int bits,
-+	u64 (*read)(struct clocksource *))
-+{
-+	struct clocksource_user_mmio *ucs;
-+	struct clocksource_mmio_regs regs;
-+	int ret;
++	return 0;
  
 -	/*
 -	 * Some architectures may prefer to only use the low 32 bits of the
@@ -531,11 +487,26 @@ index 94a2864bd386..a9920b5c98c4 100644
 -				   kasprintf(GFP_KERNEL, "%s_low_32", name),
 -				   hz, rating + 1, bits_lower,
 -				   clocksource_mmio_readl_up, revmap);
++fail:
++	clocksource_unregister(&ucs->mmio.clksrc);
+ 
+-	return 0;
++	return err;
++}
++
++int __init clocksource_user_single_mmio_init(
++	void __iomem *base, const char *name,
++	unsigned long hz, int rating, unsigned int bits,
++	u64 (*read)(struct clocksource *))
++{
++	struct clocksource_user_mmio *ucs;
++	struct clocksource_mmio_regs regs;
++	int ret;
++
 +	ucs = kzalloc(sizeof(*ucs), GFP_KERNEL);
 +	if (!ucs)
 +		return -ENOMEM;
- 
--	return 0;
++
 +	mmio_base_init(name, rating, bits, read, &ucs->mmio.clksrc);
 +	regs.reg_lower = base;
 +	regs.reg_upper = NULL;
@@ -557,7 +528,7 @@ index 94a2864bd386..a9920b5c98c4 100644
  	struct class *class;
  	int err;
  
-@@ -517,13 +506,13 @@ static int __init mmio_clksrc_chr_dev_init(void)
+@@ -513,13 +501,13 @@ static int __init mmio_clksrc_chr_dev_init(void)
  	 * added to the list tail, never removed.
  	 */
  	spin_lock(&user_clksrcs_lock);

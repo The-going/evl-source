@@ -1,8 +1,9 @@
-From 01389b8c62d2833eac26cf97cd46cf7269193fa9 Mon Sep 17 00:00:00 2001
+From 09275a4c7f85f4055ad5637f9bd311a855f8d66a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:33:32 +0200
 Subject: [PATCH] x86/mtrr: irq_pipeline: guard against stage preemption
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/cpu/mtrr/generic.c | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)

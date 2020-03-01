@@ -1,16 +1,17 @@
-From 32072a3b7e8fe7285cd7fb6f6856500298e132f2 Mon Sep 17 00:00:00 2001
+From cdd9407a59f56e42008490b879480eb6ed2bd7bc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Apr 2017 12:20:17 +0200
 Subject: [PATCH] preempt: irq_pipeline: add preemption-safe
  hard_preempt_{enable, disable}() ops
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/preempt.h | 16 ++++++++++++++++
  kernel/irq/pipeline.c   |  3 ++-
  2 files changed, 18 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/preempt.h b/include/linux/preempt.h
-index 35f6f83cc33..33337499b84 100644
+index c688ac6610e4..5a415322c2b7 100644
 --- a/include/linux/preempt.h
 +++ b/include/linux/preempt.h
 @@ -338,4 +338,20 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,
@@ -35,7 +36,7 @@ index 35f6f83cc33..33337499b84 100644
 +
  #endif /* __LINUX_PREEMPT_H */
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index f000cdf10d1..415585a6d1b 100644
+index f000cdf10d16..415585a6d1b7 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -732,7 +732,8 @@ void hard_preempt_enable(unsigned long flags)

@@ -1,14 +1,15 @@
-From b8957d720aa80627ecfc2988e3cbb298a82aae7a Mon Sep 17 00:00:00 2001
+From 6171e1b5d028fa13f99323af406a78872d437cd2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 3 Oct 2018 15:30:27 +0200
 Subject: [PATCH] KGDB: irq_pipeline: basic adaptation to oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/debug/debug_core.c | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
 
 diff --git a/kernel/debug/debug_core.c b/kernel/debug/debug_core.c
-index f76d6f77dd5e..0b354ac9d1b9 100644
+index 2b7c9b67931d..0a320604b8f0 100644
 --- a/kernel/debug/debug_core.c
 +++ b/kernel/debug/debug_core.c
 @@ -120,8 +120,8 @@ static struct kgdb_bkpt		kgdb_break[KGDB_MAX_BREAKPOINTS] = {
@@ -22,7 +23,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  
  /*
   * We use NR_CPUs not PERCPU, in case kgdb is used to debug early
-@@ -549,7 +549,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+@@ -580,7 +580,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
  	 * Interrupts will be restored by the 'trap return' code, except when
  	 * single stepping.
  	 */
@@ -31,7 +32,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  
  	cpu = ks->cpu;
  	kgdb_info[cpu].debuggerinfo = regs;
-@@ -600,7 +600,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+@@ -634,7 +634,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
  			smp_mb__before_atomic();
  			atomic_dec(&slaves_in_kgdb);
  			dbg_touch_watchdogs();
@@ -40,7 +41,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  			return 0;
  		}
  		cpu_relax();
-@@ -618,7 +618,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+@@ -652,7 +652,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
  		atomic_set(&kgdb_active, -1);
  		raw_spin_unlock(&dbg_master_lock);
  		dbg_touch_watchdogs();
@@ -49,7 +50,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  
  		goto acquirelock;
  	}
-@@ -651,8 +651,11 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+@@ -685,8 +685,11 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
  		atomic_set(ks->send_ready, 1);
  
  	/* Signal the other CPUs to enter kgdb_wait() */
@@ -62,7 +63,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  #endif
  
  	/*
-@@ -737,7 +740,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+@@ -771,7 +774,7 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
  	atomic_set(&kgdb_active, -1);
  	raw_spin_unlock(&dbg_master_lock);
  	dbg_touch_watchdogs();
@@ -71,7 +72,7 @@ index f76d6f77dd5e..0b354ac9d1b9 100644
  
  	return kgdb_info[cpu].ret_state;
  }
-@@ -855,7 +858,7 @@ static void kgdb_console_write(struct console *co, const char *s,
+@@ -889,7 +892,7 @@ static void kgdb_console_write(struct console *co, const char *s,
  	if (!kgdb_connected || atomic_read(&kgdb_active) != -1 || dbg_kdb_mode)
  		return;
  

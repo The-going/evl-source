@@ -1,4 +1,4 @@
-From 8d5465dd429e3205c0ce0a046f1bd2c638094c0a Mon Sep 17 00:00:00 2001
+From a1e5807d5251ca2da6549d57737dc31119cf467f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 10 Feb 2015 15:08:45 +0100
 Subject: [PATCH] drivers/net/fec: fix RX stall
@@ -18,12 +18,14 @@ To prevent this, we pull exactly one frame from the RX ring if RDAR is
 zero, _after_ the EIMR was updated. RDAR gets written to as a
 consequence of such action, which is enough to re-enable the RXF
 event.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/net/ethernet/freescale/fec_main.c | 54 +++++++++++++++++++++++++++----
  1 file changed, 48 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/ethernet/freescale/fec_main.c b/drivers/net/ethernet/freescale/fec_main.c
-index ad859a2da3eb..7daed49a2c96 100644
+index 9b7774f90ba7..fcf0924fd730 100644
 --- a/drivers/net/ethernet/freescale/fec_main.c
 +++ b/drivers/net/ethernet/freescale/fec_main.c
 @@ -1619,11 +1619,54 @@ fec_enet_interrupt(int irq, void *dev_id)

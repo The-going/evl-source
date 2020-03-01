@@ -1,9 +1,10 @@
-From c9a6f85ab556df1ad88382bdc3757a7e8fc84932 Mon Sep 17 00:00:00 2001
+From 4e3edf186e4297e4e03c8b16549c10af8f95905e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 25 Aug 2017 16:25:14 +0200
 Subject: [PATCH] pinctrl/bcm2835: irq_pipeline: enable pipelined interrupt
  control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/pinctrl/bcm/pinctrl-bcm2835.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

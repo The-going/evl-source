@@ -1,8 +1,9 @@
-From f6f0fcdbe7582a0fa9997ce2c34bc647544b4eb6 Mon Sep 17 00:00:00 2001
+From 55faf0356a8ec8b830a3f6dd38cfa4fdb91daa12 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 Feb 2017 12:11:36 +0100
 Subject: [PATCH] ARM/twd: irq_pipeline: enable pipelined clock events
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/kernel/smp_twd.c | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)

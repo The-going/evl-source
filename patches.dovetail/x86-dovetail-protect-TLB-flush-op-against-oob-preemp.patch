@@ -1,8 +1,9 @@
-From 7580d751055ceb4fbd28ff0a837941938f040f5a Mon Sep 17 00:00:00 2001
+From 628aa87fd033c7035d065390fe127f4cd3d16dc8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 20 May 2019 11:42:41 +0200
 Subject: [PATCH] x86: dovetail: protect TLB flush op against oob preemption
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/tlbflush.h | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)

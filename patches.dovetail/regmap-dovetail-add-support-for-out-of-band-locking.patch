@@ -1,4 +1,4 @@
-From 7c173d907b51e9e7eacf678abef2d66e723a9fe5 Mon Sep 17 00:00:00 2001
+From 3a5153cee0330d21a833e33879d93a5bf5e8226f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 15 Aug 2019 11:57:25 +0200
 Subject: [PATCH] regmap: dovetail: add support for out-of-band locking
@@ -10,6 +10,8 @@ was already a common assumption with regular spinlocks.
 
 Out-of-band locking is enabled by setting config.oob_io to true, which
 is only considered in fast_io mode.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/base/regmap/internal.h |  5 ++++-
  drivers/base/regmap/regmap.c   | 41 +++++++++++++++++++++++++++++++++++------

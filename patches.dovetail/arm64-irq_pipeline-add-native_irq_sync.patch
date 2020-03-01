@@ -1,17 +1,18 @@
-From 774fc2a25c12e26154c7f29179bf4a52cca7b1b3 Mon Sep 17 00:00:00 2001
+From ee49154900955b73494e11577cee4d300e465e67 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 16 Jul 2019 10:05:56 +0200
 Subject: [PATCH] arm64: irq_pipeline: add native_irq_sync()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/irqflags.h | 7 +++++++
  1 file changed, 7 insertions(+)
 
 diff --git a/arch/arm64/include/asm/irqflags.h b/arch/arm64/include/asm/irqflags.h
-index 7742d960039d..5e4306e63cad 100644
+index 572246d9b58a..177c7e7c5a20 100644
 --- a/arch/arm64/include/asm/irqflags.h
 +++ b/arch/arm64/include/asm/irqflags.h
-@@ -65,6 +65,13 @@ static inline void native_irq_disable(void)
+@@ -66,6 +66,13 @@ static inline void native_irq_disable(void)
  		: "memory");
  }
  

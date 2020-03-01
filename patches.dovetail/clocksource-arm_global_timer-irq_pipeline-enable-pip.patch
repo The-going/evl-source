@@ -1,9 +1,10 @@
-From 346b27d4ffa1d7c78efd8ab6ad6753df33e9206b Mon Sep 17 00:00:00 2001
+From 1c2f807ebdaa1e28ac512f91c5cc64faab1c8687 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 22 Jul 2018 18:02:10 +0200
 Subject: [PATCH] clocksource/arm_global_timer: irq_pipeline: enable pipelined
  clock events
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/arm_global_timer.c | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)

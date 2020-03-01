@@ -1,8 +1,9 @@
-From 527fd4f62c61d3f56a0d1397f8d23d80c1beeb53 Mon Sep 17 00:00:00 2001
+From 08abbc38354ac02fdcc7d904324b8653dcf69f69 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:38:38 +0200
 Subject: [PATCH] lockdep: irq_pipeline: add pipeline awareness
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/irq_pipeline.h |   5 ++
  kernel/locking/lockdep.c           | 104 +++++++++++++++++++++++++++++--------
@@ -25,7 +26,7 @@ index 5ce7339d5de0..857dd9318169 100644
 +
  #endif /* __ASM_GENERIC_IRQ_PIPELINE_H */
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 233459c03b5a..cfd4241e32a5 100644
+index 32282e7112d3..b3b90382672e 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
 @@ -42,6 +42,7 @@
@@ -174,7 +175,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  		return 0;
  
  	for (hlock = curr->held_locks + idx; idx < depth; idx++, hlock++) {
-@@ -4397,7 +4448,13 @@ static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie
+@@ -4395,7 +4446,13 @@ static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie
  static void check_flags(unsigned long flags)
  {
  #if defined(CONFIG_PROVE_LOCKING) && defined(CONFIG_DEBUG_LOCKDEP)
@@ -189,7 +190,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  		return;
  
  	if (irqs_disabled_flags(flags)) {
-@@ -4475,19 +4532,20 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
+@@ -4473,19 +4530,20 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
  			  struct lockdep_map *nest_lock, unsigned long ip)
  {
  	unsigned long flags;
@@ -213,7 +214,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  }
  EXPORT_SYMBOL_GPL(lock_acquire);
  
-@@ -4499,14 +4557,14 @@ void lock_release(struct lockdep_map *lock, int nested,
+@@ -4496,14 +4554,14 @@ void lock_release(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -230,7 +231,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  }
  EXPORT_SYMBOL_GPL(lock_release);
  
-@@ -4518,13 +4576,13 @@ int lock_is_held_type(const struct lockdep_map *lock, int read)
+@@ -4515,13 +4573,13 @@ int lock_is_held_type(const struct lockdep_map *lock, int read)
  	if (unlikely(current->lockdep_recursion))
  		return 1; /* avoid false negative lockdep_assert_held() */
  
@@ -246,7 +247,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  
  	return ret;
  }
-@@ -4714,13 +4772,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
+@@ -4711,13 +4769,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -262,7 +263,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  }
  EXPORT_SYMBOL_GPL(lock_contended);
  
-@@ -4734,12 +4792,12 @@ void lock_acquired(struct lockdep_map *lock, unsigned long ip)
+@@ -4731,12 +4789,12 @@ void lock_acquired(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -277,7 +278,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  }
  EXPORT_SYMBOL_GPL(lock_acquired);
  #endif
-@@ -5287,7 +5345,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5284,7 +5342,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  	if (unlikely(!debug_locks))
  		return;
  
@@ -286,7 +287,7 @@ index 233459c03b5a..cfd4241e32a5 100644
  	for (i = 0; i < curr->lockdep_depth; i++) {
  		hlock = curr->held_locks + i;
  
-@@ -5298,7 +5356,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5295,7 +5353,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  		print_freed_lock_bug(curr, mem_from, mem_from + mem_len, hlock);
  		break;
  	}
@@ -315,10 +316,10 @@ index 18d85aebbb57..accaa7f35cdd 100644
  }
  
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 592b32055cb6..d542923fcd6a 100644
+index 9ee859bb1b76..58ade7828b57 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1209,6 +1209,12 @@ config DEBUG_LOCK_ALLOC
+@@ -1181,6 +1181,12 @@ config DEBUG_LOCK_ALLOC
  	 spin_lock_init()/mutex_init()/etc., or whether there is any lock
  	 held during task exit.
  

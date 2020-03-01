@@ -1,8 +1,9 @@
-From 2ff0149bddaa3a34760af507944dbea1f2a1b8a4 Mon Sep 17 00:00:00 2001
+From 0e2df7441c9bfba5cdfb919f3dd2df8507105eef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 13 Jul 2019 17:45:43 +0200
 Subject: [PATCH] arm64: dovetail: inline trivial context switch helper
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/dovetail.h |  7 ++++++-
  arch/arm64/kernel/Makefile        |  1 -
@@ -35,7 +36,7 @@ index c9a51cd389c2..4802df0c347c 100644
  
  #endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/kernel/Makefile b/arch/arm64/kernel/Makefile
-index 85e9129c3768..7028bca90cc2 100644
+index ec3b3a5802e7..067a5701fedf 100644
 --- a/arch/arm64/kernel/Makefile
 +++ b/arch/arm64/kernel/Makefile
 @@ -52,7 +52,6 @@ obj-$(CONFIG_ACPI_NUMA)			+= acpi_numa.o

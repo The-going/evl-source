@@ -1,8 +1,9 @@
-From 4fdb24a057ac128b862280db2d2d3488a721db1e Mon Sep 17 00:00:00 2001
+From 42b40721fcf31296e5e87416ee97b3343fdabb22 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 May 2019 16:51:50 +0200
 Subject: [PATCH] dovetail: disable hard irqs around out-of-band trap handling
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/dovetail.c | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)

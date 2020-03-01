@@ -1,4 +1,4 @@
-From 51e54ff6f675d137b9b0c67068b019a344ed3d97 Mon Sep 17 00:00:00 2001
+From 834dde724f312921e2d5cb1d5cb91852f63f3b0a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 26 Apr 2019 08:22:57 +0200
 Subject: [PATCH] genirq: irq_pipeline: sanitize static initializer of percpu
@@ -8,6 +8,8 @@ irq_pipeline.__curr points at per-cpu memory, so we can't initialize
 it statically in a reliable way for all archs.
 
 To address this issue, make __curr an index in the stages[] array.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h | 11 +++++++----
  kernel/irq/pipeline.c    |  6 +++---

@@ -1,8 +1,9 @@
-From dca8af8570b457b19f9a9134b68fd608c512f400 Mon Sep 17 00:00:00 2001
+From e9efebbfde96ec2d460351c5b607ecdc5a9f9985 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Jun 2019 10:25:07 +0200
 Subject: [PATCH] dovetail: disable dovetail_mm_state() for kthreads
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 3 +++
  1 file changed, 3 insertions(+)

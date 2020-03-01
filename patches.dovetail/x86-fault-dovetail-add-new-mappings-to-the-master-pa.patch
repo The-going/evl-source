@@ -1,15 +1,16 @@
-From 2ccb88798a2f5098dca79c88748fe66714862c60 Mon Sep 17 00:00:00 2001
+From 878494e792a6f5184fe9af0240102ccd279bc4ae Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 15:35:50 +0200
 Subject: [PATCH] x86/fault: dovetail: add new mappings to the master page
  table
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/mm/fault.c | 38 ++++++++++++++++++++++++++++++++++++++
  1 file changed, 38 insertions(+)
 
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 1ea1a07cb698..3bbc0a337042 100644
+index 67e905615522..16586a296773 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
 @@ -1537,3 +1537,41 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long addr

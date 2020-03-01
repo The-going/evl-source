@@ -1,4 +1,4 @@
-From 45d16188559fbe336762ec05303d01c74cb05f8d Mon Sep 17 00:00:00 2001
+From e312e7f0e833bbf749a584bdbf2b6a42ca556dea Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 16 Aug 2019 15:57:54 +0200
 Subject: [PATCH] genirq: irq_pipeline: check_inband() must preserve the
@@ -27,12 +27,14 @@ hard_lock_irq(&lock);
   /* irqs_disabled() */
 
 At this chance, clarify the related warning message too.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 21 ++++++++++++++-------
  1 file changed, 14 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index d69085713e8..684ebffbfe6 100644
+index d69085713e88..684ebffbfe60 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -1488,17 +1488,24 @@ notrace void check_inband_stage(void)

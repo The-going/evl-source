@@ -1,9 +1,10 @@
-From 090a37fb4fb270aac6bc96ee06b7991abaaa2ff8 Mon Sep 17 00:00:00 2001
+From 41c34b621cafdb58cfa59bed2440bd43c305863b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 3 Jun 2019 10:28:53 +0200
 Subject: [PATCH] clocksource/bcm2835: irq_pipeline: enable pipelined clock
  events
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/bcm2835_timer.c | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)

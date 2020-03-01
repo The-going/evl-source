@@ -1,15 +1,16 @@
-From 078e2f18be947bb3150422a889ee7c38354e5b5b Mon Sep 17 00:00:00 2001
+From 6ee482618946e16783aa39e54850b85c052b7489 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 10 Jul 2019 18:01:30 +0200
 Subject: [PATCH] x86: irq_pipeline: convert to {enter|leave}_irq_pipeline()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/irq.c          | 1 +
  arch/x86/kernel/irq_pipeline.c | 4 +++-
  2 files changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/kernel/irq.c b/arch/x86/kernel/irq.c
-index cbed2a29dbf..70c9cb8a771 100644
+index ed0b75d37bb4..41a29f9ce801 100644
 --- a/arch/x86/kernel/irq.c
 +++ b/arch/x86/kernel/irq.c
 @@ -4,6 +4,7 @@
@@ -21,7 +22,7 @@ index cbed2a29dbf..70c9cb8a771 100644
  #include <linux/of.h>
  #include <linux/seq_file.h>
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 61d4bc66178..2373dbe4399 100644
+index eefe68f8a357..9513382fe2c8 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -194,9 +194,11 @@ __visible unsigned int __irq_entry handle_arch_irq_pipelined(struct pt_regs *reg

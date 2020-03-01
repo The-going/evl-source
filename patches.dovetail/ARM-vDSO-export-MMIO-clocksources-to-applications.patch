@@ -1,0 +1,135 @@
+From 542ccbb300517b78509a4a9f3526cdcf9d1a1c9d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 22 Dec 2019 17:44:55 +0100
+Subject: [PATCH] ARM: vDSO: export MMIO clocksources to applications
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm/include/asm/vdso/gettimeofday.h | 60 ++++++++++++++++++++++++++++++++
+ arch/arm/include/asm/vdso/vsyscall.h     |  2 +-
+ arch/arm/kernel/vdso.c                   | 10 +++++-
+ 3 files changed, 70 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/include/asm/vdso/gettimeofday.h b/arch/arm/include/asm/vdso/gettimeofday.h
+index 0ad2429c324f..7fe49381b540 100644
+--- a/arch/arm/include/asm/vdso/gettimeofday.h
++++ b/arch/arm/include/asm/vdso/gettimeofday.h
+@@ -92,6 +92,66 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
+ 	return __get_datapage();
+ }
+ 
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++
++extern struct vdso_priv *__get_privpage(void);
++
++static __always_inline struct vdso_priv *__arch_get_vdso_priv(void)
++{
++	return __get_privpage();
++}
++
++static __always_inline long clock_open_device(const char *path, int mode)
++{
++	register u32 r0 asm("r0") = (u32)path;
++	register u32 r1 asm("r1") = (u32)mode;
++	register long ret asm ("r0");
++	register long nr asm("r7") = __NR_open;
++
++	asm volatile(
++		"	swi #0\n"
++		: "=r" (ret)
++		: "r"(r0), "r"(r1), "r"(nr)
++		: "memory");
++
++	return ret;
++}
++
++static __always_inline
++long clock_ioctl_device(int fd, unsigned int cmd, long arg)
++{
++	register u32 r0 asm("r0") = (u32)fd;
++	register u32 r1 asm("r1") = (u32)cmd;
++	register u32 r2 asm("r2") = (u32)arg;
++	register long ret asm ("r0");
++	register long nr asm("r7") = __NR_ioctl;
++
++ 	asm volatile(
++		"	swi #0\n"
++		: "=r" (ret)
++		: "r"(r0), "r"(r1), "r"(r2), "r"(nr)
++		: "memory");
++
++ 	return ret;
++}
++
++static __always_inline long clock_close_device(int fd)
++{
++	register u32 r0 asm("r0") = (u32)fd;
++	register long ret asm ("r0");
++	register long nr asm("r7") = __NR_close;
++
++	asm volatile(
++		"	swi #0\n"
++		: "=r" (ret)
++		: "r"(r0), "r"(nr)
++		: "memory");
++
++	return ret;
++}
++
++#endif	/* CONFIG_GENERIC_CLOCKSOURCE_VDSO */
++
+ #endif /* !__ASSEMBLY__ */
+ 
+ #endif /* __ASM_VDSO_GETTIMEOFDAY_H */
+diff --git a/arch/arm/include/asm/vdso/vsyscall.h b/arch/arm/include/asm/vdso/vsyscall.h
+index c4166f317071..3e091a1fb170 100644
+--- a/arch/arm/include/asm/vdso/vsyscall.h
++++ b/arch/arm/include/asm/vdso/vsyscall.h
+@@ -36,7 +36,7 @@ struct vdso_data *__arm_get_k_vdso_data(void)
+ static __always_inline
+ int __arm_update_vdso_data(void)
+ {
+-	return !cntvct_ok;
++	return !IS_ENABLED(CONFIG_GENERIC_CLOCKSOURCE_VDSO) && !cntvct_ok;
+ }
+ #define __arch_update_vdso_data __arm_update_vdso_data
+ 
+diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
+index f3b929bb3e2c..61697576c03f 100644
+--- a/arch/arm/kernel/vdso.c
++++ b/arch/arm/kernel/vdso.c
+@@ -181,8 +181,10 @@ static void __init patch_vdso(void *ehdr)
+ 	/* If the virtual counter is absent or non-functional we don't
+ 	 * want programs to incur the slight additional overhead of
+ 	 * dispatching through the VDSO only to fall back to syscalls.
++	 * However, if clocksources supporting generic MMIO access can
++	 * be reached via the vDSO, keep this fast path enabled.
+ 	 */
+-	if (!cntvct_ok) {
++	if (!cntvct_ok && !IS_ENABLED(CONFIG_GENERIC_CLOCKSOURCE_VDSO)) {
+ 		vdso_nullpatch_one(&einfo, "__vdso_gettimeofday");
+ 		vdso_nullpatch_one(&einfo, "__vdso_clock_gettime");
+ 	}
+@@ -225,6 +227,9 @@ static int __init vdso_init(void)
+ 	cntvct_ok = cntvct_functional();
+ 
+ 	patch_vdso(vdso_start);
++#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
++	vdso_data->cs_type_seq = CLOCKSOURCE_VDSO_NONE << 16 | 1;
++#endif
+ 
+ 	return 0;
+ }
+@@ -247,6 +252,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+ 	if (IS_ERR(vma))
+ 		return PTR_ERR(vma);
+ 
++	if (cache_is_vivt())
++		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
++
+ 	return vma->vm_start != addr ? -EINVAL : 0;
+ }
+ 
+-- 
+2.16.4
+

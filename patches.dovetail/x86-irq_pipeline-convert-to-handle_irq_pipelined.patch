@@ -1,8 +1,9 @@
-From 1633ee365f2d2cbca93c0b5e08918c9822fd017a Mon Sep 17 00:00:00 2001
+From de484a730fef8c19f2c65da73bedca240d2c3092 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 1 Oct 2019 11:36:58 +0200
 Subject: [PATCH] x86: irq_pipeline: convert to handle_irq_pipelined()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/irq_pipeline.h |  2 ++
  arch/x86/kernel/irq_pipeline.c      | 10 +++++++---
@@ -22,7 +23,7 @@ index 756c80d6dfc9..163bd20dda51 100644
  
  struct pt_regs;
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 44827d4fef6a..95ef162c3392 100644
+index 174336dbf3d9..452a28698949 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -175,7 +175,7 @@ void arch_do_IRQ_pipelined(struct irq_desc *desc)

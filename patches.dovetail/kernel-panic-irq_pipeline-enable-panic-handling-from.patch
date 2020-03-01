@@ -1,15 +1,16 @@
-From d0069c2676c0bdfbb8f0853cdec9b267f4b34520 Mon Sep 17 00:00:00 2001
+From 523f3c78b385d99c4e30d107107024109aa75253 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 10 Jan 2019 17:16:42 +0100
 Subject: [PATCH] kernel/panic: irq_pipeline: enable panic handling from oob
  context
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/panic.c | 26 ++++++++++++++++----------
  1 file changed, 16 insertions(+), 10 deletions(-)
 
 diff --git a/kernel/panic.c b/kernel/panic.c
-index f470a038b05b..6a73816b9903 100644
+index b69ee9e76cb2..0ddb91a4dd90 100644
 --- a/kernel/panic.c
 +++ b/kernel/panic.c
 @@ -27,6 +27,7 @@

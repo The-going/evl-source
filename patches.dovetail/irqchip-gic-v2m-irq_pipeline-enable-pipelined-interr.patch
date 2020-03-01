@@ -1,18 +1,19 @@
-From 97ab5560c04d802ec388856d15c711d41a5b4922 Mon Sep 17 00:00:00 2001
+From ddfb4eaf6d54dd5f2d0f3cb688550a0b97683e06 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 28 May 2018 16:25:08 +0200
 Subject: [PATCH] irqchip/gic-v2m: irq_pipeline: enable pipelined interrupt
  control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/irqchip/irq-gic-v2m.c | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/drivers/irqchip/irq-gic-v2m.c b/drivers/irqchip/irq-gic-v2m.c
-index 7338f90b2f9e..31af670fcbbe 100644
+index fbec07d634ad..c3f19ef14cf7 100644
 --- a/drivers/irqchip/irq-gic-v2m.c
 +++ b/drivers/irqchip/irq-gic-v2m.c
-@@ -88,6 +88,7 @@ static struct irq_chip gicv2m_msi_irq_chip = {
+@@ -89,6 +89,7 @@ static struct irq_chip gicv2m_msi_irq_chip = {
  	.irq_unmask		= gicv2m_unmask_msi_irq,
  	.irq_eoi		= irq_chip_eoi_parent,
  	.irq_write_msi_msg	= pci_msi_domain_write_msg,
@@ -20,7 +21,7 @@ index 7338f90b2f9e..31af670fcbbe 100644
  };
  
  static struct msi_domain_info gicv2m_msi_domain_info = {
-@@ -129,6 +130,7 @@ static struct irq_chip gicv2m_irq_chip = {
+@@ -130,6 +131,7 @@ static struct irq_chip gicv2m_irq_chip = {
  	.irq_eoi		= irq_chip_eoi_parent,
  	.irq_set_affinity	= irq_chip_set_affinity_parent,
  	.irq_compose_msi_msg	= gicv2m_compose_msi_msg,
@@ -28,7 +29,7 @@ index 7338f90b2f9e..31af670fcbbe 100644
  };
  
  static int gicv2m_irq_gic_domain_alloc(struct irq_domain *domain,
-@@ -251,6 +253,7 @@ static bool is_msi_spi_valid(u32 base, u32 num)
+@@ -252,6 +254,7 @@ static bool is_msi_spi_valid(u32 base, u32 num)
  
  static struct irq_chip gicv2m_pmsi_irq_chip = {
  	.name			= "pMSI",

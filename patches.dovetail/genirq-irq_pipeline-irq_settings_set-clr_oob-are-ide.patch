@@ -1,15 +1,16 @@
-From 2647eee41236a9af97e3e1e5e6407dad69405615 Mon Sep 17 00:00:00 2001
+From 2dd82986ccaa6c7b5d714064dbf705852e1cd973 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 3 Jun 2019 09:14:21 +0200
 Subject: [PATCH] genirq: irq_pipeline: irq_settings_set/clr_oob() are
  idempotent
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/manage.c | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/irq/manage.c b/kernel/irq/manage.c
-index 56844d77bb5a..5dc99d1e5921 100644
+index 707b006e3655..121fe833e837 100644
 --- a/kernel/irq/manage.c
 +++ b/kernel/irq/manage.c
 @@ -769,13 +769,10 @@ int irq_switch_oob(unsigned int irq, bool on)

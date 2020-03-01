@@ -1,9 +1,10 @@
-From 18678e5a466d65bf230e78f2fdba14c983617ec7 Mon Sep 17 00:00:00 2001
+From 83aac735d6bf1a19027d9c2fafd8d6dc893efded Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 18 Mar 2019 17:06:50 +0100
 Subject: [PATCH] ARM: irq_pipeline: fix interrupt state logic in
  do_work_pending()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/kernel/signal.c | 42 ++++++++++++++++--------------------------
  1 file changed, 16 insertions(+), 26 deletions(-)

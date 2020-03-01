@@ -1,0 +1,100 @@
+From 0342b1704a863320353a7d15924f37daedf736d5 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 20 Jan 2020 16:38:25 +0100
+Subject: [PATCH] clocksource: export vDSO access type unconditionally
+
+Knowing whether the current clocksource is accessible via the vDSO is
+a useful information to low latency infrastructures, which should be
+available regardless of whether the platform actually exports MMIO
+clocksources to userland.
+
+Add the 'vdso_clocksource' sysfs attribute to export the vDSO access
+type of the current clocksource independently from
+GENERIC_CLOCKSOURCE_VDSO.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/linux/clocksource.h |  6 +-----
+ kernel/time/clocksource.c   | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/clocksource.h b/include/linux/clocksource.h
+index 7e3406a97b7e..8cde0502f392 100644
+--- a/include/linux/clocksource.h
++++ b/include/linux/clocksource.h
+@@ -30,13 +30,11 @@ struct module;
+ #include <asm/clocksource.h>
+ #endif
+ 
+-#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
+ enum clocksource_vdso_type {
+ 	CLOCKSOURCE_VDSO_NONE = 0,
+ 	CLOCKSOURCE_VDSO_ARCHITECTED,
+ 	CLOCKSOURCE_VDSO_MMIO,	/* <= Must be last. */
+ };
+-#endif
+ 
+ /**
+  * struct clocksource - hardware abstraction for a free running counter
+@@ -109,6 +107,7 @@ struct clocksource {
+ 	void (*resume)(struct clocksource *cs);
+ 	void (*mark_unstable)(struct clocksource *cs);
+ 	void (*tick_stable)(struct clocksource *cs);
++  	enum clocksource_vdso_type vdso_type;
+ 
+ 	/* private: */
+ #ifdef CONFIG_CLOCKSOURCE_WATCHDOG
+@@ -116,9 +115,6 @@ struct clocksource {
+ 	struct list_head wd_list;
+ 	u64 cs_last;
+ 	u64 wd_last;
+-#endif
+-#ifdef CONFIG_GENERIC_CLOCKSOURCE_VDSO
+-  	enum clocksource_vdso_type vdso_type;
+ #endif
+ 	struct module *owner;
+ };
+diff --git a/kernel/time/clocksource.c b/kernel/time/clocksource.c
+index 49b55a38fea1..fddc5767f5d0 100644
+--- a/kernel/time/clocksource.c
++++ b/kernel/time/clocksource.c
+@@ -1160,10 +1160,36 @@ static ssize_t available_clocksource_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(available_clocksource);
+ 
++/**
++ * vdso_clocksource_show - sysfs interface for vDSO type of
++ *      current clocksource
++ * @dev:	unused
++ * @attr:	unused
++ * @buf:	char buffer to be filled with vDSO type
++ */
++static ssize_t vdso_clocksource_show(struct device *dev,
++				struct device_attribute *attr,
++				char *buf)
++{
++	ssize_t count = 0, type;
++
++	mutex_lock(&clocksource_mutex);
++	type = curr_clocksource->vdso_type;
++	count = snprintf(buf, PAGE_SIZE, "%s\n",
++			type == CLOCKSOURCE_VDSO_NONE ?	"none" :
++			type == CLOCKSOURCE_VDSO_ARCHITECTED ?	"architected" :
++			"mmio");
++	mutex_unlock(&clocksource_mutex);
++
++	return count;
++}
++static DEVICE_ATTR_RO(vdso_clocksource);
++
+ static struct attribute *clocksource_attrs[] = {
+ 	&dev_attr_current_clocksource.attr,
+ 	&dev_attr_unbind_clocksource.attr,
+ 	&dev_attr_available_clocksource.attr,
++	&dev_attr_vdso_clocksource.attr,
+ 	NULL
+ };
+ ATTRIBUTE_GROUPS(clocksource);
+-- 
+2.16.4
+

@@ -1,8 +1,9 @@
-From ea21ba634815d722c9431e6bbc357656eff991ae Mon Sep 17 00:00:00 2001
+From 6c60895ef8822ede32e4289511abf8e0a79b0d0e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:23:29 +0200
 Subject: [PATCH] x86/hpet: irq_pipeline: enable pipelined clock events
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/hpet.c | 4 ++--
  arch/x86/kernel/time.c | 2 +-

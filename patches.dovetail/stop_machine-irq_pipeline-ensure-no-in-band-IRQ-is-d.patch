@@ -1,4 +1,4 @@
-From f94f961251eeb94f62665eef5adf6e73886ab51a Mon Sep 17 00:00:00 2001
+From 6ee88c46b887bf27397fec5d16cbc58209c202d7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 5 May 2019 18:27:46 +0200
 Subject: [PATCH] stop_machine: irq_pipeline: ensure no in-band IRQ is deferred
@@ -7,12 +7,14 @@ Subject: [PATCH] stop_machine: irq_pipeline: ensure no in-band IRQ is deferred
 We don't want any inband interrupt received to linger into the interrupt
 log before we start the multi-cpu stop protocol. Swap the hard and
 virtual interrupt disabling in MULTI_STOP_DISABLE_IRQ to ensure this.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/stop_machine.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index d93f9c9d63d1..a665d13d67d7 100644
+index 09efc7f22418..6a478c21e4e5 100644
 --- a/kernel/stop_machine.c
 +++ b/kernel/stop_machine.c
 @@ -216,8 +216,8 @@ static int multi_cpu_stop(void *data)

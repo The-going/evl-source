@@ -1,14 +1,15 @@
-From 80cdf3ba517ffd7549ac9cf2f3548c55f13d345a Mon Sep 17 00:00:00 2001
+From 839fc8af9bd4436145bb7fcb127fb4b6a948c3f9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 15 Jun 2018 14:02:35 +0200
 Subject: [PATCH] gpio: pl061: irq_pipeline: enable pipelined interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/gpio/gpio-pl061.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/gpio/gpio-pl061.c b/drivers/gpio/gpio-pl061.c
-index 722ce5cf861e..72914aba9f78 100644
+index 5df7782e348f..dc29518eb0f1 100644
 --- a/drivers/gpio/gpio-pl061.c
 +++ b/drivers/gpio/gpio-pl061.c
 @@ -47,7 +47,7 @@ struct pl061_context_save_regs {
@@ -20,7 +21,7 @@ index 722ce5cf861e..72914aba9f78 100644
  
  	void __iomem		*base;
  	struct gpio_chip	gc;
-@@ -320,6 +320,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
+@@ -323,6 +323,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
  	pl061->irq_chip.irq_unmask = pl061_irq_unmask;
  	pl061->irq_chip.irq_set_type = pl061_irq_type;
  	pl061->irq_chip.irq_set_wake = pl061_irq_set_wake;

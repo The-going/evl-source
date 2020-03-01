@@ -1,8 +1,9 @@
-From fcce6d0e329c375bf2f20de18e7b4f5218180969 Mon Sep 17 00:00:00 2001
+From 5aaae1422d5c727623a4ac40cbba6f3450c31d90 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 13 Dec 2019 13:12:05 +0100
 Subject: [PATCH] irq_pipeline: fix error code on allocation failure
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/irqptorture.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)

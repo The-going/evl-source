@@ -1,4 +1,4 @@
-From 0cfc2cd22e9a7e57f82f9b981c3379eb3cabdfb1 Mon Sep 17 00:00:00 2001
+From d35a214fc73c90ee3a11052b861459cb78db0d8b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 16:07:57 +0200
 Subject: [PATCH] locking: irq_pipeline: add hard locking API
@@ -15,6 +15,8 @@ IRQ disabling.
 
 Only such locks can provide proper serialization with activities
 running on the head IRQ stage.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/lockdep.h           |  13 +--
  include/linux/spinlock.h          |  86 ++++++++++++-------
@@ -26,7 +28,7 @@ running on the head IRQ stage.
  create mode 100644 include/linux/spinlock_pipeline.h
 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index b8a835fd611b..f6c5e365b8a8 100644
+index c50d01ef1414..065b81422d7b 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
 @@ -309,21 +309,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
@@ -550,7 +552,7 @@ index 24b4e6f2c1a2..7eb1b2aa8276 100644
  
  #endif /* __LINUX_SPINLOCK_TYPES_H */
 diff --git a/kernel/locking/spinlock_debug.c b/kernel/locking/spinlock_debug.c
-index 399669f7eba8..a6b3a703f93c 100644
+index 472dd462a40c..df7f958ea190 100644
 --- a/kernel/locking/spinlock_debug.c
 +++ b/kernel/locking/spinlock_debug.c
 @@ -114,6 +114,7 @@ void do_raw_spin_lock(raw_spinlock_t *lock)

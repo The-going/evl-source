@@ -1,8 +1,9 @@
-From 78eb566b7aaeab20d533fd6de71fad7d3cea7327 Mon Sep 17 00:00:00 2001
+From 1368b6bfe7116261790d23233261169e2c7be8d5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 11 May 2019 15:49:44 +0200
 Subject: [PATCH] arm64: fpsimd: convert to switch prepare/finish handlers
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/dovetail.h | 3 +--
  arch/arm64/kernel/dovetail.c      | 2 +-

@@ -1,4 +1,4 @@
-From b0dfb8275a7e8f2eccef8762238fcf5a6f4636ea Mon Sep 17 00:00:00 2001
+From ca09570036f7858e882bb7370e8e23ab4388901c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 5 Dec 2015 18:36:25 +0100
 Subject: [PATCH] printk: introduce raw console channel
@@ -15,6 +15,8 @@ the fairly complex printk() handling is not an option. Unlike early
 consoles, regular consoles can provide a raw output service past the
 boot sequence. Raw output handlers are typically provided by serial
 console devices.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/console.h |  1 +
  include/linux/printk.h  | 11 +++++++++
@@ -35,7 +37,7 @@ index d09951d5a94e..f45d24f0e1ce 100644
  	struct tty_driver *(*device)(struct console *, int *);
  	void	(*unblank)(void);
 diff --git a/include/linux/printk.h b/include/linux/printk.h
-index c09d67edda3a..5336696565d0 100644
+index 1e6108b8d15f..ef57562240a7 100644
 --- a/include/linux/printk.h
 +++ b/include/linux/printk.h
 @@ -158,6 +158,17 @@ static inline void printk_nmi_direct_enter(void) { }
@@ -57,10 +59,10 @@ index c09d67edda3a..5336696565d0 100644
  asmlinkage __printf(5, 0)
  int vprintk_emit(int facility, int level,
 diff --git a/init/Kconfig b/init/Kconfig
-index b4daad2bac23..7bcf6cc43c7b 100644
+index a34064a031a5..58f5a5027279 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1435,6 +1435,18 @@ config PRINTK_NMI
+@@ -1402,6 +1402,18 @@ config PRINTK_NMI
  	depends on PRINTK
  	depends on HAVE_NMI
  
@@ -80,7 +82,7 @@ index b4daad2bac23..7bcf6cc43c7b 100644
  	bool "BUG() support" if EXPERT
  	default y
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index ca65327a6de8..b837f375a39f 100644
+index 1ef6f75d92f1..267b7be1e8be 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -2114,6 +2114,66 @@ asmlinkage __visible void early_printk(const char *fmt, ...)

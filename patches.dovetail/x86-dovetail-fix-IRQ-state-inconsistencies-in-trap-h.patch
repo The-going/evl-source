@@ -1,4 +1,4 @@
-From 69eeceba6f985cc67ab2ff5462b8b33024e5c12e Mon Sep 17 00:00:00 2001
+From 291477534b3fd174455e9f4089abbde6fcc821fa Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 16 Oct 2019 17:41:27 +0200
 Subject: [PATCH] x86: dovetail: fix IRQ state inconsistencies in trap handlers
@@ -6,15 +6,17 @@ Subject: [PATCH] x86: dovetail: fix IRQ state inconsistencies in trap handlers
 This fixes issues reported by the LOCKDEP debug engine when traversing
 several trap handlers. In short: notify_die() should run only once the
 real and virtual IRQ states have been reconciled in fault_entry().
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/traps.c | 70 +++++++++++++++++++++++++++----------------------
  1 file changed, 39 insertions(+), 31 deletions(-)
 
 diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 43c2fe7eef6f..77e1fbc14a01 100644
+index a9e719abd75a..51567f323eeb 100644
 --- a/arch/x86/kernel/traps.c
 +++ b/arch/x86/kernel/traps.c
-@@ -93,9 +93,11 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
+@@ -88,9 +88,11 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
  
  	flags = hard_local_irq_save();
  
@@ -27,7 +29,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	if (oob_stage_present())
  		hard_local_irq_enable();
  
-@@ -113,6 +115,7 @@ void pipelined_fault_exit(unsigned long combo)
+@@ -108,6 +110,7 @@ void pipelined_fault_exit(unsigned long combo)
  	flags = irqs_split_flags(combo, &nosync);
  	if (!nosync) {
  		hard_local_irq_disable();
@@ -35,7 +37,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  		clear_stage_bit(STAGE_STALL_BIT, this_inband_staged());
  		if (!hard_irqs_disabled_flags(flags))
  			hard_local_irq_enable();
-@@ -125,7 +128,7 @@ void pipelined_fault_exit(unsigned long combo)
+@@ -120,7 +123,7 @@ void pipelined_fault_exit(unsigned long combo)
  static inline void cond_local_irq_enable(struct pt_regs *regs)
  {
  	if (regs->flags & X86_EFLAGS_IF)
@@ -44,7 +46,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  }
  
  static inline void cond_local_irq_disable(struct pt_regs *regs)
-@@ -322,13 +325,15 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
+@@ -317,13 +320,15 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
  	if (!user_mode(regs) && fixup_bug(regs, trapnr))
  		return;
  
@@ -62,7 +64,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  }
  
  #define IP ((void __user *)uprobe_get_trap_addr(regs))
-@@ -485,14 +490,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+@@ -489,14 +494,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
  	const struct mpx_bndcsr *bndcsr;
  	unsigned long flags;
  
@@ -79,7 +81,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	if (!user_mode(regs))
  		die("bounds", regs, error_code);
  
-@@ -578,24 +583,26 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -582,24 +587,26 @@ do_general_protection(struct pt_regs *regs, long error_code)
  	struct task_struct *tsk;
  	unsigned long flags;
  
@@ -109,7 +111,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  
  		tsk->thread.error_code = error_code;
  		tsk->thread.trap_nr = X86_TRAP_GP;
-@@ -607,23 +614,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -611,23 +618,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
  		 */
  		if (!preemptible() && kprobe_running() &&
  		    kprobe_fault_handler(regs, X86_TRAP_GP))
@@ -136,7 +138,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	pipelined_fault_exit(flags);
  }
  NOKPROBE_SYMBOL(do_general_protection);
-@@ -664,15 +669,17 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -668,15 +673,17 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  		goto exit;
  #endif
  
@@ -157,7 +159,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  
  exit:
  	ist_exit(regs);
-@@ -809,7 +816,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -813,7 +820,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		     is_sysenter_singlestep(regs))) {
  		dr6 &= ~DR_STEP;
  		if (!dr6)
@@ -166,7 +168,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  		/*
  		 * else we might have gotten a single-step trap and hit a
  		 * watchpoint at the same time, in which case we should fall
-@@ -830,9 +837,11 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -834,9 +841,11 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  
  #ifdef CONFIG_KPROBES
  	if (kprobe_debug_handler(regs))
@@ -179,7 +181,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
  							SIGTRAP) == NOTIFY_STOP)
  		goto exit;
-@@ -866,15 +875,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -870,15 +879,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		regs->flags &= ~X86_EFLAGS_TF;
  	}
  	si_code = get_si_code(tsk->thread.debugreg6);
@@ -198,7 +200,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	ist_exit(regs);
  }
  NOKPROBE_SYMBOL(do_debug);
-@@ -893,11 +901,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -897,11 +905,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
  						"simd exception";
  
@@ -213,7 +215,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  
  		task->thread.error_code = error_code;
  		task->thread.trap_nr = trapnr;
-@@ -905,7 +915,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -909,7 +919,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  		if (notify_die(DIE_TRAP, str, regs, error_code,
  					trapnr, SIGFPE) != NOTIFY_STOP)
  			die(str, regs, error_code);
@@ -222,7 +224,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	}
  
  	/*
-@@ -919,13 +929,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -923,13 +933,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	si_code = fpu__exception_code(fpu, trapnr);
  	/* Retry when we get spurious exceptions: */
  	if (!si_code)
@@ -238,7 +240,7 @@ index 43c2fe7eef6f..77e1fbc14a01 100644
  	pipelined_fault_exit(flags);
  }
  
-@@ -959,10 +967,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
+@@ -963,10 +971,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
  	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
  		struct math_emu_info info = { };
  

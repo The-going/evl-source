@@ -1,8 +1,9 @@
-From 01c30f6a38bdcab83fb8dd26b283d98aa88440b8 Mon Sep 17 00:00:00 2001
+From 4071beddba7145087e0847961a4a44303264e6f0 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 13 Jul 2019 17:06:27 +0200
 Subject: [PATCH] genirq: irq_pipeline: flatten IRQ fast path
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h |  9 ---------
  include/linux/irqdesc.h      | 18 +++++++++++++++---
@@ -84,7 +85,7 @@ index 5a74f7c58f83..3f38f784f839 100644
  
  /* Test to see if a driver has successfully requested an irq */
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index 9dd5a0e4c1db..790237998823 100644
+index 0d3fe8c6e558..3fcbc1d5c080 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
 @@ -646,22 +646,35 @@ int generic_handle_irq(unsigned int irq)

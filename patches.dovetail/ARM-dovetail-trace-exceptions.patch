@@ -1,8 +1,9 @@
-From 7605c0dabe830a64d55316051439ac8d14b9b621 Mon Sep 17 00:00:00 2001
+From e886ecf12b98827938831ab9bad47a4c6099be0b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 15:46:32 +0200
 Subject: [PATCH] ARM: dovetail: trace exceptions
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/include/asm/trace/exceptions.h | 62 +++++++++++++++++++++++++++++++++
  arch/arm/mm/fault.c                     | 33 ++++++++++++------
@@ -78,7 +79,7 @@ index 000000000000..bdb666b3da4e
 +/* This part must be outside protection */
 +#include <trace/define_trace.h>
 diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index 4c960c0be7e0..7cc6ca235f1b 100644
+index 70b977a16e6c..cb78b0927b45 100644
 --- a/arch/arm/mm/fault.c
 +++ b/arch/arm/mm/fault.c
 @@ -24,6 +24,8 @@

@@ -1,4 +1,4 @@
-From c7b555a84266cab68a0291464762f89831082925 Mon Sep 17 00:00:00 2001
+From de3c748ae984d060ecb58c2eaae5077a6f356bf2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 16 Jun 2019 16:55:34 +0200
 Subject: [PATCH] evl/poll: drop evl_clear_poll_events()
@@ -24,10 +24,10 @@ it.
  5 files changed, 5 insertions(+), 65 deletions(-)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index 82f7bb176c51..f67f6b822a3d 100644
+index 3f00dfc0b519..0d14a563951f 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -1018,15 +1018,12 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1137,15 +1137,12 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		raw_spin_lock_irqsave(&le->oob_state.lock, flags);
  
  		ret = kfifo_get(&le->events, &ge);

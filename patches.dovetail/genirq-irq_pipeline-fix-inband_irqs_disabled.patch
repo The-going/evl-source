@@ -1,4 +1,4 @@
-From 0eb0d7f75316bff4a48a86f2cbd1decc5c3d6cdc Mon Sep 17 00:00:00 2001
+From e0c116f7be795bf4cfdfec943c3dbdef6b833721 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 22 Aug 2019 17:32:59 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix inband_irqs_disabled()
@@ -14,6 +14,7 @@ CPU0: &this_inband_staged()->status is computed
 CPU1: <migration to CPU1>
 CPU0: [in-band is stalled]
 CPU1: STALL_BIT from CPU0 is tested, seen as "stalled" => *BUG*
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 26 +++++++++-----------------
  1 file changed, 9 insertions(+), 17 deletions(-)

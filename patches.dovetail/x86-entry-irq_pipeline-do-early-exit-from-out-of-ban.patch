@@ -1,8 +1,9 @@
-From fcbb217d467026c21e05ad73bee8080caeb14e24 Mon Sep 17 00:00:00 2001
+From 658ed125b039b37c4c911da11c3a5ee8e896a9a5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 May 2019 15:57:54 +0200
 Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/entry/common.c       |  2 ++
  arch/x86/entry/entry_64.S     | 17 +++++++++++++----
@@ -11,10 +12,10 @@ Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
  4 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 3edf33826339..c737f2398944 100644
+index 0d72bce95e5b..d077be9f2d10 100644
 --- a/arch/x86/entry/common.c
 +++ b/arch/x86/entry/common.c
-@@ -202,6 +202,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+@@ -203,6 +203,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
  	struct thread_info *ti = current_thread_info();
  	u32 cached_flags;
  
@@ -24,10 +25,10 @@ index 3edf33826339..c737f2398944 100644
  
  	lockdep_assert_irqs_disabled();
 diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index 7288eb0b1d9a..8854adc52acf 100644
+index eca914f5019c..74c550e4c847 100644
 --- a/arch/x86/entry/entry_64.S
 +++ b/arch/x86/entry/entry_64.S
-@@ -579,10 +579,11 @@ ENTRY(interrupt_entry)
+@@ -579,10 +579,11 @@ SYM_CODE_START(interrupt_entry)
  
  1:
  	ENTER_IRQ_STACK old_rsp=%rdi save_ret=1
@@ -43,7 +44,7 @@ index 7288eb0b1d9a..8854adc52acf 100644
  #ifndef CONFIG_IRQ_PIPELINE
  	TRACE_IRQS_OFF
  #endif
-@@ -1425,6 +1426,14 @@ ENTRY(error_exit)
+@@ -1425,6 +1426,14 @@ SYM_CODE_START_LOCAL(error_exit)
  	UNWIND_HINT_REGS
  	DISABLE_INTERRUPTS(CLBR_ANY)
  	TRACE_IRQS_OFF
@@ -57,7 +58,7 @@ index 7288eb0b1d9a..8854adc52acf 100644
 +#endif
  	testb	$3, CS(%rsp)
  	jz	retint_kernel
- 	jmp	retint_user
+ 	jmp	.Lretint_user
 diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
 index 974c7a4a16cf..edc4259629ff 100644
 --- a/arch/x86/kernel/asm-offsets.c
@@ -76,10 +77,10 @@ index 974c7a4a16cf..edc4259629ff 100644
  	BLANK();
  	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index af64519b2695..ad990d84977e 100644
+index 506d66830d4d..79f6b2a59427 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -512,6 +512,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+@@ -437,6 +437,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
  		     this_cpu_read(irq_count) != -1);
  

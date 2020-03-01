@@ -1,4 +1,4 @@
-From 6e17380d07cc7819f93da2e094894596e471f5e9 Mon Sep 17 00:00:00 2001
+From 53509cdb38e3d0309d3ae4f15c54eade529d035d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Mar 2017 12:18:51 +0100
 Subject: [PATCH] irq_work: irq_pipeline: enable work submission from the oob
@@ -22,6 +22,8 @@ the next timer tick comes in).
 
 The net result makes irq_work_queue() available for scheduling work
 requests in the in-band stage from the oob stage.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 37 +++++++++++++++++++++++++++++++++++++
  kernel/irq_work.c     |  9 +++++++--
@@ -90,10 +92,10 @@ index 293d897930f5..efc5596c6ab0 100644
  	 * We are running on the boot CPU, hw interrupts are off, and
  	 * secondary CPUs are still lost in space. Now we may run
 diff --git a/kernel/irq_work.c b/kernel/irq_work.c
-index d42acaf81886..332994d90d9f 100644
+index 828cc30774bc..46997e102b47 100644
 --- a/kernel/irq_work.c
 +++ b/kernel/irq_work.c
-@@ -57,6 +57,11 @@ void __weak arch_irq_work_raise(void)
+@@ -49,6 +49,11 @@ void __weak arch_irq_work_raise(void)
  	 */
  }
  
@@ -105,8 +107,8 @@ index d42acaf81886..332994d90d9f 100644
  /* Enqueue on current CPU, work must already be claimed and preempt disabled */
  static void __irq_work_queue_local(struct irq_work *work)
  {
-@@ -64,10 +69,10 @@ static void __irq_work_queue_local(struct irq_work *work)
- 	if (work->flags & IRQ_WORK_LAZY) {
+@@ -56,10 +61,10 @@ static void __irq_work_queue_local(struct irq_work *work)
+ 	if (atomic_read(&work->flags) & IRQ_WORK_LAZY) {
  		if (llist_add(&work->llnode, this_cpu_ptr(&lazy_list)) &&
  		    tick_nohz_tick_stopped())
 -			arch_irq_work_raise();

@@ -1,8 +1,9 @@
-From 14d4d6fd18222252c3c10fd773167671ba3cdfc1 Mon Sep 17 00:00:00 2001
+From 8e2bff4de940fb7afdf594186f0e5618eb9dca26 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 19:48:11 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix naming conflict w/ iSCSI
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h | 24 ++++++++++++------------
  kernel/irq/pipeline.c    | 40 ++++++++++++++++++++--------------------
@@ -256,7 +257,7 @@ index cc0e2ea7a06f..f969b1b9db05 100644
  		   !test_stage_bit(STAGE_STALL_BIT, this_oob_staged()))) {
  		hard_smp_local_irq_restore(flags);
 diff --git a/lib/dump_stack.c b/lib/dump_stack.c
-index 3472d4b5224f..9031ab75746a 100644
+index 5a62ff9d0b71..b9e688851148 100644
 --- a/lib/dump_stack.c
 +++ b/lib/dump_stack.c
 @@ -59,7 +59,7 @@ void dump_stack_print_info(const char *log_lvl)

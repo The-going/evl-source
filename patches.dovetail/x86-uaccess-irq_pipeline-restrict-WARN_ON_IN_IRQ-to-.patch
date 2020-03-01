@@ -1,4 +1,4 @@
-From bc47d40356e15958ae3eb21b0488edb7e4c7a650 Mon Sep 17 00:00:00 2001
+From 500c790897fbe1eb5d9e2b285ceb4318b2924e5d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 2 Aug 2019 17:26:14 +0200
 Subject: [PATCH] x86/uaccess: irq_pipeline: restrict WARN_ON_IN_IRQ() to
@@ -7,12 +7,14 @@ Subject: [PATCH] x86/uaccess: irq_pipeline: restrict WARN_ON_IN_IRQ() to
 Prevent false positives when uaccess helpers are called from
 out-of-band context, since the latter may have preempted an in-band
 IRQ context.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/uaccess.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 9c4435307ff8..bd1de56ba1b6 100644
+index 61d93f062a36..8ae74e0bcf00 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -68,7 +68,7 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un

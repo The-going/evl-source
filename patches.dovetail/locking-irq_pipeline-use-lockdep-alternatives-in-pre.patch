@@ -1,17 +1,18 @@
-From 2c745958cdf9ed0ca9f679544ec742bce97aa906 Mon Sep 17 00:00:00 2001
+From 3865d79a64a50123e240fcd864be888fa35cc5f6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 25 Apr 2019 11:30:48 +0200
 Subject: [PATCH] locking: irq_pipeline: use lockdep alternatives in predicates
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/lockdep.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index f6c5e365b8a8..c25f8c4c156e 100644
+index 065b81422d7b..2af5f24ca0a1 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
-@@ -363,8 +363,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
+@@ -362,8 +362,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
  	return lock_is_held_type(lock, -1);
  }
  

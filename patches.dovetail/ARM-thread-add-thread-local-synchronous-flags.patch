@@ -1,10 +1,12 @@
-From 7807b17f1ef6bd02eb9b0b4a3adea3f1a10b5253 Mon Sep 17 00:00:00 2001
+From 32a9c247c2d312d5188c58431b7b3bd626630980 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 16:32:28 +0100
 Subject: [PATCH] ARM/thread: add thread-local (synchronous) flags
 
 Provide per-thread storage for private flags (i.e. lockless access is
 safe).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/include/asm/thread_info.h | 4 ++++
  arch/arm/kernel/asm-offsets.c      | 1 +

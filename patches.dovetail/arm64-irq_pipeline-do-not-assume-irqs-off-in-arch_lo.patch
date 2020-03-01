@@ -1,9 +1,10 @@
-From 45342917b1f0435ec073925474daac2fc4433984 Mon Sep 17 00:00:00 2001
+From 12f2c461c2d62ff56b6955ba6fe1ec3b63df2b4a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 27 Apr 2019 19:23:07 +0200
 Subject: [PATCH] arm64: irq_pipeline: do not assume irqs off in
  arch_local_irq_restore()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/irq_pipeline.h | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)

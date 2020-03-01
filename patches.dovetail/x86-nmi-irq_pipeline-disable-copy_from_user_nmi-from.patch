@@ -1,8 +1,9 @@
-From 835db2ad90a700a678cab636cf03241e9140dd19 Mon Sep 17 00:00:00 2001
+From 64545692fe2e7300db65c07470316e43cd771595 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:39:20 +0200
 Subject: [PATCH] x86/nmi: irq_pipeline: disable copy_from_user_nmi() from oob
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/lib/usercopy.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

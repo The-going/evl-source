@@ -1,4 +1,4 @@
-From 9100bd90a2569f90c78e59c615513f01791e7735 Mon Sep 17 00:00:00 2001
+From 893b855e78c3113de5ab18b6e1290f75a6afda53 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 22 Sep 2019 19:20:08 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix handling of edge events
@@ -8,6 +8,8 @@ as the current event is acked in the controller, which means while the
 latter is being processed in do_oob_irq(). We need to iterate over
 do_oob_irq() until all edge events pending for a given IRQ line
 received by any CPU have been handled.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/chip.c      |  6 ++++++
  kernel/irq/internals.h |  2 ++
@@ -15,7 +17,7 @@ received by any CPU have been handled.
  3 files changed, 26 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/irq/chip.c b/kernel/irq/chip.c
-index 307b7b8de2c7..c68034bb05dd 100644
+index e0467ee8ebee..f0fc54255b0d 100644
 --- a/kernel/irq/chip.c
 +++ b/kernel/irq/chip.c
 @@ -872,6 +872,7 @@ void handle_edge_irq(struct irq_desc *desc)

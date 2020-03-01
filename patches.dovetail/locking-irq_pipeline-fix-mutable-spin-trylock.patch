@@ -1,8 +1,9 @@
-From 33a5ee24d025bd0b92f61061e0f4ab28959f9e11 Mon Sep 17 00:00:00 2001
+From a46e745027beb93df89f39f3e7339e129dedf2cc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 23 Oct 2019 20:22:14 +0200
 Subject: [PATCH] locking: irq_pipeline: fix mutable spin trylock
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_pipeline.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

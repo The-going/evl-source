@@ -1,17 +1,18 @@
-From 7ddc4b99ce133e6bd6b934f79b4327d0825d68d9 Mon Sep 17 00:00:00 2001
+From eb56b3375ad729206bb5fdad6f83c26e00a2f615 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 22 Aug 2019 17:49:35 +0200
 Subject: [PATCH] rcu: irq_pipeline: out-of-band context is by essence non-idle
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/rcu/tree.c | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
-index 81105141b6a8..956763448678 100644
+index 1694a6b57ad8..92ddc06a292a 100644
 --- a/kernel/rcu/tree.c
 +++ b/kernel/rcu/tree.c
-@@ -897,6 +897,9 @@ bool notrace rcu_is_watching(void)
+@@ -918,6 +918,9 @@ bool notrace rcu_is_watching(void)
  {
  	bool ret;
  

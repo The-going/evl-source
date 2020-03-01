@@ -1,9 +1,10 @@
-From dc796132260e369e4a3e5ca6797b3e9d3e4868ad Mon Sep 17 00:00:00 2001
+From 691f4de2841ad0abd05221ba0c120c3a560ab749 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 17:22:16 +0200
 Subject: [PATCH] genirq: irq_pipeline: move stage predicates to the definition
  file
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h | 20 --------------------
  include/linux/preempt.h  | 23 +++++++++++++++++++++++
@@ -48,7 +49,7 @@ index 88125c1e24ca..bd308e7dc2f4 100644
  {
  	return false;
 diff --git a/include/linux/preempt.h b/include/linux/preempt.h
-index 33337499b844..aba040d2739b 100644
+index 5a415322c2b7..febc7f6fd9f8 100644
 --- a/include/linux/preempt.h
 +++ b/include/linux/preempt.h
 @@ -339,9 +339,32 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,

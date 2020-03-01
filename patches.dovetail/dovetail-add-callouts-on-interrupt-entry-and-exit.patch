@@ -1,4 +1,4 @@
-From 0bfd56743bb11a87ba28b2277f377109583237db Mon Sep 17 00:00:00 2001
+From cdeaea04db548268f24fe8f0fc96407e54a4fb8a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 22 Jul 2019 10:44:47 +0200
 Subject: [PATCH] dovetail: add callouts on interrupt entry and exit
@@ -17,6 +17,8 @@ allowed the oob handler to reschedule), introducing a couple of
 callouts to notify the companion kernel when the interrupt is about to
 be handled (irq_enter_pipeline()) and when the handling is complete
 and a rescheduling operation can take place (irq_exit_pipeline()).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/dovetail/irq.h | 11 +++++++++++
  kernel/irq/pipeline.c  | 34 ++++++++++++++++------------------
@@ -25,7 +27,7 @@ and a rescheduling operation can take place (irq_exit_pipeline()).
 
 diff --git a/include/dovetail/irq.h b/include/dovetail/irq.h
 new file mode 100644
-index 00000000000..ac8b5310e29
+index 000000000000..ac8b5310e29d
 --- /dev/null
 +++ b/include/dovetail/irq.h
 @@ -0,0 +1,11 @@
@@ -41,7 +43,7 @@ index 00000000000..ac8b5310e29
 +
 +#endif /* !_DOVETAIL_IRQ_H */
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 3674525c21f..deb29b4e7e3 100644
+index 3674525c21f8..deb29b4e7e3e 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -11,6 +11,7 @@

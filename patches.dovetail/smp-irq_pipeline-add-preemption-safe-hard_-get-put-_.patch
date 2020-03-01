@@ -1,9 +1,10 @@
-From db0ac3bd28c9d23fe4a3a4e15408540737132f31 Mon Sep 17 00:00:00 2001
+From 794a551905902413cc85c381f0420816470344b4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 15:19:00 +0200
 Subject: [PATCH] smp: irq_pipeline: add preemption-safe hard_{get, put}_cpu()
  ops
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/smp.h | 15 +++++++++++++++
  1 file changed, 15 insertions(+)

@@ -1,4 +1,4 @@
-From 5b800baf223b264ad56fb01bc1d8d74d47a80cd8 Mon Sep 17 00:00:00 2001
+From f3e4daa8f36fd337fdc153552c84df5eb93ffb9c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 17 Jul 2019 21:42:21 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix oob IRQ epilogue
@@ -9,12 +9,14 @@ deciding whether to switch back to the inband stage upon return from
 the oob handler.
 
 [1] genirq: irq_pipeline: assume that oob handlers may switch context
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 31 ++++++++++++++++++-------------
  1 file changed, 18 insertions(+), 13 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 847b3956796..3674525c21f 100644
+index 847b3956796a..3674525c21f8 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -932,17 +932,22 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */

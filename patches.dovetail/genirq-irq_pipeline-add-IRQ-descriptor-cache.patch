@@ -1,4 +1,4 @@
-From b3de260618ee1da518e3f4cf59e30582b8cb9fe3 Mon Sep 17 00:00:00 2001
+From c8918031c4d2443a685a623bde5b80baf2cbebe6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 12 Jul 2019 19:51:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ descriptor cache
@@ -6,6 +6,8 @@ Subject: [PATCH] genirq: irq_pipeline: add IRQ descriptor cache
 Really ugly performances of the radix tree in sparse mode may be
 observed under mm stress on low-end hardware, use a local descriptor
 cache to ease the pain.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h |  6 +++++
  kernel/irq/irqdesc.c         |  1 +
@@ -28,7 +30,7 @@ index f56568cf7bc3..3ebfaa5a914e 100644
 +
  #endif /* _LINUX_IRQ_PIPELINE_H */
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index 2936457d8693..9dd5a0e4c1db 100644
+index b54dbf7b143f..0d3fe8c6e558 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
 @@ -453,6 +453,7 @@ static void free_desc(unsigned int irq)

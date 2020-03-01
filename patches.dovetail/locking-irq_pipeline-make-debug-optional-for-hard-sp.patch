@@ -1,8 +1,9 @@
-From eae6d37b146ec6bc39c32925d7417dbf2ab1b862 Mon Sep 17 00:00:00 2001
+From b4880d17d00a1ebe2a086b31fd116d7d7e7cf410 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 19:36:20 +0200
 Subject: [PATCH] locking: irq_pipeline: make debug optional for hard spinlocks
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/irq_pipeline.h |  2 +-
  include/linux/lockdep.h            | 31 ++++++++++++++++---------------
@@ -27,7 +28,7 @@ index d818ebfd9f8e..4263f7044f95 100644
  
  #endif /* __ASM_GENERIC_IRQ_PIPELINE_H */
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index c25f8c4c156e..dd2f3a0d6222 100644
+index 2af5f24ca0a1..3715b57c8761 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
 @@ -309,14 +309,14 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
@@ -59,7 +60,7 @@ index c25f8c4c156e..dd2f3a0d6222 100644
  
  static inline int lockdep_match_key(struct lockdep_map *lock,
  				    struct lock_class_key *key)
-@@ -363,8 +363,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
+@@ -362,8 +362,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
  	return lock_is_held_type(lock, -1);
  }
  
@@ -70,7 +71,7 @@ index c25f8c4c156e..dd2f3a0d6222 100644
  
  extern void lock_set_class(struct lockdep_map *lock, const char *name,
  			   struct lock_class_key *key, unsigned int subclass,
-@@ -389,26 +389,27 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
+@@ -388,26 +388,27 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
  #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
  
  #define lockdep_assert_held(l)	do {				\
@@ -267,7 +268,7 @@ index 962550ca59af..b63f16dc6b32 100644
  	if (!hard_irqs_disabled_flags(flags))
  		hard_local_irq_enable();
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index cfd4241e32a5..7bb244f618f9 100644
+index b3b90382672e..0a2493580ad5 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
 @@ -792,8 +792,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
@@ -288,10 +289,10 @@ index cfd4241e32a5..7bb244f618f9 100644
  #endif /* !CONFIG_IRQ_PIPELINE */
  
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 7a0af9f2bcc2..4098b553d33a 100644
+index 20f997313045..da2b1afc2535 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1154,6 +1154,7 @@ config LOCK_STAT
+@@ -1126,6 +1126,7 @@ config LOCK_STAT
  	select DEBUG_MUTEXES
  	select DEBUG_RT_MUTEXES if RT_MUTEXES
  	select DEBUG_LOCK_ALLOC
@@ -299,7 +300,7 @@ index 7a0af9f2bcc2..4098b553d33a 100644
  	default n
  	help
  	 This feature enables tracking lock contention points
-@@ -1231,8 +1232,23 @@ config DEBUG_LOCK_ALLOC
+@@ -1203,8 +1204,23 @@ config DEBUG_LOCK_ALLOC
  	 spin_lock_init()/mutex_init()/etc., or whether there is any lock
  	 held during task exit.
  

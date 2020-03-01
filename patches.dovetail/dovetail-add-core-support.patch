@@ -1,4 +1,4 @@
-From 6f7a8792bf7307143d881cdae295dbf686a42303 Mon Sep 17 00:00:00 2001
+From 409b07c7d59549c2c23928d83f0d09b6b8e24cda Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:04:43 +0200
 Subject: [PATCH] dovetail: add core support
@@ -10,6 +10,8 @@ The co-kernel leverages the interrupt pipeline ability to turn common
 device IRQs into pseudo-NMIs from the perspective of the in-band code
 (CONFIG_IRQ_PIPELINE), to achieve very low latency for the co-kernel
 running on the oob stage.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  Documentation/dovetail.rst     | 352 +++++++++++++++++++++++++++++++++++++++++
  include/dovetail/mm_info.h     |  12 ++
@@ -615,7 +617,7 @@ index 000000000000..adc6922d64e1
 +	  running a secondary kernel side-by-side with Linux (aka
 +	  "dual kernel" configuration).
 diff --git a/kernel/Makefile b/kernel/Makefile
-index daad787fb795..3743adee6652 100644
+index f2cc0d118a0b..e0ada4e055ff 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -100,6 +100,7 @@ obj-$(CONFIG_TRACE_CLOCK) += trace/
@@ -897,7 +899,7 @@ index 415585a6d1b7..74bc3b092e60 100644
  out:
  	set_irq_regs(old_regs);
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 367c6890f8e0..f0b76db02cf8 100644
+index d8c0bd217c41..f82288358f6b 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -53,6 +53,7 @@
@@ -909,10 +911,10 @@ index 367c6890f8e0..f0b76db02cf8 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 1a71df2fdcfe..890776c0d0c3 100644
+index 1977fd70cc43..1eb1c63b0f7b 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -836,6 +836,16 @@ config IRQ_PIPELINE_TORTURE_TEST
+@@ -816,6 +816,16 @@ config IRQ_PIPELINE_TORTURE_TEST
  	  Say Y here if you want the IRQ pipeline torture tests to run
  	  when the kernel starts. Say N if you are unsure.
  
@@ -926,9 +928,9 @@ index 1a71df2fdcfe..890776c0d0c3 100644
 +	  option implicitly enables the interrupt pipeline debugging
 +	  features.
 +
- menu "Debug Lockups and Hangs"
+ menu "Debug Oops, Lockups and Hangs"
  
- config LOCKUP_DETECTOR
+ config PANIC_ON_OOPS
 -- 
 2.16.4
 

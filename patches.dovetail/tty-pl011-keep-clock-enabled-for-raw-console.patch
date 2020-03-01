@@ -1,17 +1,18 @@
-From 23a0b36200c48edb6a9c0290b4147e81f5ef3c6d Mon Sep 17 00:00:00 2001
+From 11ff96eb92986c8763cdd84b4c20cc5814ab1f0e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 2 Aug 2019 12:28:47 +0200
 Subject: [PATCH] tty: pl011: keep clock enabled for raw console
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/tty/serial/amba-pl011.c | 36 +++++++++++++++++++-----------------
  1 file changed, 19 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/tty/serial/amba-pl011.c b/drivers/tty/serial/amba-pl011.c
-index 39493e7b114..46ea59c2766 100644
+index d214f50ec2d6..f2b2a4f0a491 100644
 --- a/drivers/tty/serial/amba-pl011.c
 +++ b/drivers/tty/serial/amba-pl011.c
-@@ -1880,6 +1880,8 @@ static void pl011_shutdown(struct uart_port *port)
+@@ -1874,6 +1874,8 @@ static void pl011_shutdown(struct uart_port *port)
  
  	pl011_disable_uart(uap);
  
@@ -20,7 +21,7 @@ index 39493e7b114..46ea59c2766 100644
  	/*
  	 * Shut down the clock producer
  	 */
-@@ -2208,34 +2210,31 @@ static void pl011_console_putchar(struct uart_port *port, int ch)
+@@ -2202,34 +2204,31 @@ static void pl011_console_putchar(struct uart_port *port, int ch)
  
  #ifdef CONFIG_RAW_PRINTK
  
@@ -69,7 +70,7 @@ index 39493e7b114..46ea59c2766 100644
  }
  
  #endif  /* !CONFIG_RAW_PRINTK */
-@@ -2370,6 +2369,9 @@ static int __init pl011_console_setup(struct console *co, char *options)
+@@ -2364,6 +2363,9 @@ static int __init pl011_console_setup(struct console *co, char *options)
  			pl011_console_get_options(uap, &baud, &parity, &bits);
  	}
  

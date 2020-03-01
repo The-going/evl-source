@@ -1,4 +1,4 @@
-From a6fac88dc316d07383217c93ea2ba18d6cb9a872 Mon Sep 17 00:00:00 2001
+From 7bf90a3cfee08805c2e155b0e4ec2934312c4bbf Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 16 Oct 2019 10:35:18 +0200
 Subject: [PATCH] genirq: irq_pipeline: drop irq_pipeline_data.__curr
@@ -7,6 +7,8 @@ Now that running_inband(), running_oob() yield consistent values at
 the scheduler exchange point when transitioning between inband <-> oob
 stages, we don't need to track the active stage index in
 irq_pipeline_data.__curr anymore.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h | 17 +++++------------
  kernel/irq/pipeline.c    |  3 ---

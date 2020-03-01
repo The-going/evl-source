@@ -1,14 +1,15 @@
-From 195a18dff16562ed87740d86b561e0deaf271edf Mon Sep 17 00:00:00 2001
+From 1d404967108c4d091ab8dfa32aee3ff3c556ef07 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 22 Jul 2019 20:34:33 +0200
 Subject: [PATCH] genirq: irq_pipeline: remove error case from oob fast path
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 42 ++++++++++++++++++++++++++++--------------
  1 file changed, 28 insertions(+), 14 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 72a8c6f84e5..94bddebe7ec 100644
+index 72a8c6f84e51..94bddebe7ec2 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -912,16 +912,15 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */

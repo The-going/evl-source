@@ -1,0 +1,43 @@
+From 9d4ce57d2cd0989283d607d51a3b6e3f20254d8e Mon Sep 17 00:00:00 2001
+From: leo <vtk-powerlab@yandex.ru>
+Date: Tue, 24 Dec 2019 19:13:24 +0100
+Subject: [PATCH] irqchip/sunxi: irq_pipeline: enable pipelined interrupt
+ control
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ drivers/irqchip/irq-sun4i.c     | 2 +-
+ drivers/irqchip/irq-sunxi-nmi.c | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/irqchip/irq-sun4i.c b/drivers/irqchip/irq-sun4i.c
+index fb78d6623556..4f5c42be1842 100644
+--- a/drivers/irqchip/irq-sun4i.c
++++ b/drivers/irqchip/irq-sun4i.c
+@@ -87,7 +87,7 @@ static struct irq_chip sun4i_irq_chip = {
+ 	.irq_eoi	= sun4i_irq_ack,
+ 	.irq_mask	= sun4i_irq_mask,
+ 	.irq_unmask	= sun4i_irq_unmask,
+-	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
++	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED | IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static int sun4i_irq_map(struct irq_domain *d, unsigned int virq,
+diff --git a/drivers/irqchip/irq-sunxi-nmi.c b/drivers/irqchip/irq-sunxi-nmi.c
+index a412b5d5d0fa..ada16f40886f 100644
+--- a/drivers/irqchip/irq-sunxi-nmi.c
++++ b/drivers/irqchip/irq-sunxi-nmi.c
+@@ -200,7 +200,9 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
+ 	gc->chip_types[0].chip.irq_unmask	= irq_gc_mask_set_bit;
+ 	gc->chip_types[0].chip.irq_eoi		= irq_gc_ack_set_bit;
+ 	gc->chip_types[0].chip.irq_set_type	= sunxi_sc_nmi_set_type;
+-	gc->chip_types[0].chip.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED;
++	gc->chip_types[0].chip.flags		= IRQCHIP_EOI_THREADED |
++									IRQCHIP_EOI_IF_HANDLED |
++									IRQCHIP_PIPELINE_SAFE;
+ 	gc->chip_types[0].regs.ack		= reg_offs->pend;
+ 	gc->chip_types[0].regs.mask		= reg_offs->enable;
+ 	gc->chip_types[0].regs.type		= reg_offs->ctrl;
+-- 
+2.16.4
+

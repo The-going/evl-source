@@ -1,14 +1,15 @@
-From eaf1c68f839617a7cd59fde307fc2a7480a07e25 Mon Sep 17 00:00:00 2001
+From b1aab82b5e87ee9025c4a291c9c53d112d05b6d8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 18:37:41 +0200
 Subject: [PATCH] x86: dovetail: route syscalls to the co-kernel
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/entry/common.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++--
  1 file changed, 52 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 2b1440e65590..41a73cca980f 100644
+index edc94f366037..0d72bce95e5b 100644
 --- a/arch/x86/entry/common.c
 +++ b/arch/x86/entry/common.c
 @@ -17,6 +17,7 @@
@@ -19,7 +20,7 @@ index 2b1440e65590..41a73cca980f 100644
  #include <linux/signal.h>
  #include <linux/export.h>
  #include <linux/context_tracking.h>
-@@ -285,7 +286,10 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
+@@ -289,7 +290,10 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
  	 * First do one-time work.  If these work items are enabled, we
  	 * want to run them exactly once per syscall exit with IRQs on.
  	 */
@@ -31,7 +32,7 @@ index 2b1440e65590..41a73cca980f 100644
  		syscall_slow_exit_work(regs, cached_flags);
  
  	disable_local_irqs();
-@@ -296,10 +300,20 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
+@@ -300,10 +304,20 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
  __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
  {
  	struct thread_info *ti;
@@ -52,7 +53,7 @@ index 2b1440e65590..41a73cca980f 100644
  	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
  		nr = syscall_trace_enter(regs);
  
-@@ -314,12 +328,38 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
+@@ -318,12 +332,38 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
  		regs->ax = x32_sys_call_table[nr](regs);
  #endif
  	}
@@ -92,7 +93,7 @@ index 2b1440e65590..41a73cca980f 100644
  /*
   * Does a 32-bit syscall.  Called with IRQs on in CONTEXT_KERNEL.  Does
   * all entry and exit work and returns with IRQs off.  This function is
-@@ -330,11 +370,20 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+@@ -334,11 +374,20 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
  {
  	struct thread_info *ti = current_thread_info();
  	unsigned int nr = (unsigned int)regs->orig_ax;
@@ -113,7 +114,7 @@ index 2b1440e65590..41a73cca980f 100644
  	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY) {
  		/*
  		 * Subtlety here: if ptrace pokes something larger than
-@@ -363,6 +412,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
+@@ -367,6 +416,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
  #endif /* CONFIG_IA32_EMULATION */
  	}
  

@@ -1,14 +1,15 @@
-From 61944568c835b4c002012d33719cd890a8f7a7a4 Mon Sep 17 00:00:00 2001
+From 180d22eda36a5aab7c77c72465f51714744439dd Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 17:14:40 +0200
 Subject: [PATCH] ARM: dovetail: notify co-kernel about und_usr
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/kernel/entry-armv.S | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
 diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
-index 6c94f18f753e..5375c934fb52 100644
+index 19936cb1235a..67517f26f3af 100644
 --- a/arch/arm/kernel/entry-armv.S
 +++ b/arch/arm/kernel/entry-armv.S
 @@ -496,6 +496,18 @@ ENDPROC(__irq_usr)

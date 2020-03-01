@@ -1,8 +1,9 @@
-From 59f12956b80393d6793b98f83134f0e283a03939 Mon Sep 17 00:00:00 2001
+From d94782af64dc969f66b16837097cd3209a45dfea Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 1 Oct 2019 11:36:32 +0200
 Subject: [PATCH] ARM: irq_pipeline: convert to handle_irq_pipelined()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/kernel/irq.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)

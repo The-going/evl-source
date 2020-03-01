@@ -1,8 +1,9 @@
-From e34211240d4600cc258e05c43cbdd3cf5fc99701 Mon Sep 17 00:00:00 2001
+From 1740b7d343b6ce7513d632bd9e88a5576812f3bc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/trace/ftrace.c                | 18 +++++++++++++-----
  kernel/trace/ring_buffer.c           | 17 ++++++++++++++---
@@ -17,10 +18,10 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index f296d89be757..d539a44821b6 100644
+index ac99a3500076..458c09c05e09 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
-@@ -5652,10 +5652,10 @@ static int ftrace_process_locs(struct module *mod,
+@@ -6146,10 +6146,10 @@ static int ftrace_process_locs(struct module *mod,
  	 * reason to cause large interrupt latencies while we do it.
  	 */
  	if (!mod)
@@ -33,7 +34,7 @@ index f296d89be757..d539a44821b6 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6193,9 +6193,9 @@ void __init ftrace_init(void)
+@@ -6691,9 +6691,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +46,7 @@ index f296d89be757..d539a44821b6 100644
  	if (ret)
  		goto failed;
  
-@@ -6330,7 +6330,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6831,7 +6831,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:
@@ -63,10 +64,10 @@ index f296d89be757..d539a44821b6 100644
  }
  
 diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 66358d66c933..3af2d6661a54 100644
+index 3f655371eaf6..d6b4442f4db6 100644
 --- a/kernel/trace/ring_buffer.c
 +++ b/kernel/trace/ring_buffer.c
-@@ -2690,8 +2690,8 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
+@@ -2691,8 +2691,8 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
  static __always_inline int
  trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
  {
@@ -77,7 +78,7 @@ index 66358d66c933..3af2d6661a54 100644
  	int bit;
  
  	if (!(pc & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
-@@ -2700,20 +2700,31 @@ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
+@@ -2701,20 +2701,31 @@ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
  		bit = pc & NMI_MASK ? RB_CTX_NMI :
  			pc & HARDIRQ_MASK ? RB_CTX_IRQ : RB_CTX_SOFTIRQ;
  
@@ -111,10 +112,10 @@ index 66358d66c933..3af2d6661a54 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 714518187048..affcfd50f83c 100644
+index 865e42133781..b97aa42f53ed 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -941,9 +941,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
+@@ -956,9 +956,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
  		return;
  	}
  
@@ -126,7 +127,7 @@ index 714518187048..affcfd50f83c 100644
  }
  
  void tracing_snapshot_instance(struct trace_array *tr)
-@@ -1555,7 +1555,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
+@@ -1639,7 +1639,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
  	if (tr->stop_count)
  		return;
  
@@ -135,7 +136,7 @@ index 714518187048..affcfd50f83c 100644
  
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
-@@ -1599,7 +1599,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
+@@ -1683,7 +1683,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
  	if (tr->stop_count)
  		return;
  
@@ -144,7 +145,7 @@ index 714518187048..affcfd50f83c 100644
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
  		WARN_ON_ONCE(tr->current_trace != &nop_trace);
-@@ -6766,13 +6766,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+@@ -6867,13 +6867,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
  			ret = tracing_alloc_snapshot_instance(tr);
  		if (ret < 0)
  			break;
@@ -161,7 +162,7 @@ index 714518187048..affcfd50f83c 100644
  	default:
  		if (tr->allocated_snapshot) {
 diff --git a/kernel/trace/trace_branch.c b/kernel/trace/trace_branch.c
-index 3ea65cdff30d..10d680e3239c 100644
+index 88e158d27965..38248f142323 100644
 --- a/kernel/trace/trace_branch.c
 +++ b/kernel/trace/trace_branch.c
 @@ -53,7 +53,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)

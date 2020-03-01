@@ -1,4 +1,4 @@
-From f9170589f8b95345dc7e39cc25f22c019dd347fb Mon Sep 17 00:00:00 2001
+From 717ac161447cd06e56cceb13834a5048cb5dc299 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 15:45:09 +0200
 Subject: [PATCH] genirq: irq_pipeline: switch out-of-band eagerly on IRQ
@@ -22,6 +22,8 @@ care about the following issues:
   words, we should not downgrade to the preempted in-band context
   between calls to the out-of-band event handler and
   dovetail_irq_exit().
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/hardirq.h      |   2 +
  include/linux/irq_pipeline.h |   4 --
@@ -30,7 +32,7 @@ care about the following issues:
  4 files changed, 98 insertions(+), 48 deletions(-)
 
 diff --git a/include/linux/hardirq.h b/include/linux/hardirq.h
-index 3350a2bc8a4..2acfcd9223d 100644
+index 3350a2bc8a4f..2acfcd9223db 100644
 --- a/include/linux/hardirq.h
 +++ b/include/linux/hardirq.h
 @@ -45,6 +45,7 @@ extern void rcu_nmi_exit(void);
@@ -50,7 +52,7 @@ index 3350a2bc8a4..2acfcd9223d 100644
  #ifndef arch_nmi_enter
  #define arch_nmi_enter()	do { } while (0)
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index de0c8368dea..e8493d09e37 100644
+index de0c8368dea6..e8493d09e37f 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -44,10 +44,6 @@ static __always_inline void synchronize_pipeline_on_irq(void)
@@ -65,7 +67,7 @@ index de0c8368dea..e8493d09e37 100644
  			  struct pt_regs *regs);
  
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 07dbedff571..d69085713e8 100644
+index 07dbedff571e..d69085713e88 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -918,47 +918,9 @@ static inline void incr_irq_kstat(struct irq_desc *desc)
@@ -265,7 +267,7 @@ index 07dbedff571..d69085713e8 100644
  	}
  
 diff --git a/kernel/softirq.c b/kernel/softirq.c
-index a6b81c6b6bf..a9dc17cdc91 100644
+index 0427a86743a4..8027a6d5c464 100644
 --- a/kernel/softirq.c
 +++ b/kernel/softirq.c
 @@ -417,6 +417,18 @@ void irq_exit(void)

@@ -1,10 +1,22 @@
-From 10854a41b5597f4fb62fd389ed4b1b93a802b577 Mon Sep 17 00:00:00 2001
+From cfcc63dfb96a5cdc1891c94e31873045b6892a49 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Thu, 21 Jul 2016 00:59:57 +0200
-Subject: [PATCH] clocksource: Mmio: add user-mappable mmio clocksources
+Subject: [PATCH] clocksource: mmio: add user-mappable mmio clocksources
+
+This is a building block for exporting MMIO clocksources to
+applications via the vDSO, which we direly need for gaining
+syscall-less clock readouts with many types of ARM clocksources.
+
+A new clocksource description (struct clocksource_user_mmio) is
+introduced, which specifies how to read the underlying time counter
+from a set of generic MMIO operations. In addition, it exports a basic
+ioctl-based information & MMIO mapping request, which is available to
+applications for gaining (read-only) access to the counter.
 
 This is Gilles's original implementation, to which I added refcounting
 to track usage of mappings across fork().
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/mmio.c       | 479 ++++++++++++++++++++++++++++++++++++++-
  include/linux/clocksource.h      |  21 ++

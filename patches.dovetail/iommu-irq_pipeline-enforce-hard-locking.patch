@@ -1,8 +1,9 @@
-From 5e42cef4a27b35c637b350cc840c4a8a52d12745 Mon Sep 17 00:00:00 2001
+From 67a843809b45c6c17bc972676c884d86290392f1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 09:12:19 +0200
 Subject: [PATCH] iommu: irq_pipeline: enforce hard locking
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/intel-iommu.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

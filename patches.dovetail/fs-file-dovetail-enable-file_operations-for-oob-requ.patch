@@ -1,9 +1,10 @@
-From d61e69b11ac8c748f706c8996ea050ae865e2d38 Mon Sep 17 00:00:00 2001
+From 97f57da7624214469f62018fa7b5f117fa359feb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 13 Jan 2019 10:36:09 +0100
 Subject: [PATCH] fs/file: dovetail: enable file_operations for oob request
  handling
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  fs/file.c                |  7 +++++++
  include/linux/dovetail.h | 25 +++++++++++++++++++++++++
@@ -13,7 +14,7 @@ Subject: [PATCH] fs/file: dovetail: enable file_operations for oob request
  5 files changed, 60 insertions(+)
 
 diff --git a/fs/file.c b/fs/file.c
-index 3da91a112bab..d4fbe05210ab 100644
+index 2f4fcf985079..191f7486ba10 100644
 --- a/fs/file.c
 +++ b/fs/file.c
 @@ -385,6 +385,7 @@ static struct fdtable *close_files(struct files_struct * files)
@@ -125,7 +126,7 @@ index b9a48597e904..d924f4358c08 100644
  
  static inline bool dovetailing(void)
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e0d909d35763..d95ce9460f92 100644
+index 98e0349adb52..b8bab327588b 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
 @@ -54,6 +54,7 @@ struct kiocb;
@@ -144,7 +145,7 @@ index e0d909d35763..d95ce9460f92 100644
  
  #ifdef CONFIG_EPOLL
  	/* Used by fs/eventpoll.c to link all the hooks to this file */
-@@ -1824,6 +1826,10 @@ struct file_operations {
+@@ -1831,6 +1833,10 @@ struct file_operations {
  	__poll_t (*poll) (struct file *, struct poll_table_struct *);
  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);

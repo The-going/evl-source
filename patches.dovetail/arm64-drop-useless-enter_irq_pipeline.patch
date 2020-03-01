@@ -1,8 +1,9 @@
-From dd562a3cc1da23a643d580cbefaeb4fd17e60ba3 Mon Sep 17 00:00:00 2001
+From d482afd2a488d4756e718ae9b913e03f234b1b76 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 12:59:08 +0200
 Subject: [PATCH] arm64: drop useless enter_irq_pipeline()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/kernel/irq.c | 1 -
  1 file changed, 1 deletion(-)

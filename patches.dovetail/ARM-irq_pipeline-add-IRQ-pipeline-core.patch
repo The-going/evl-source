@@ -1,8 +1,9 @@
-From e69ceea41da1625742218d06aab984c92976ffdf Mon Sep 17 00:00:00 2001
+From d2e6c7182bde3a3e0bb4a18afde03a50c9bd02c3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Oct 2016 12:48:34 +0200
 Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/Kconfig                    |   1 +
  arch/arm/include/asm/assembler.h    |  12 ++++
@@ -27,10 +28,10 @@ Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
  create mode 100644 arch/arm/kernel/irq_pipeline.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 8a50efb559f3..03cf86cea18d 100644
+index ba75e3661a41..541c4c9a9ad7 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -580,6 +580,7 @@ config ARCH_MULTI_V7
+@@ -578,6 +578,7 @@ config ARCH_MULTI_V7
  config ARCH_MULTI_V6_V7
  	bool
  	select MIGHT_HAVE_CACHE_L2X0
@@ -387,10 +388,10 @@ index 704903f82912..9397f8ae5555 100644
  #endif /* __KERNEL__ */
  #endif /* __ASM_ARM_THREAD_INFO_H */
 diff --git a/arch/arm/kernel/Makefile b/arch/arm/kernel/Makefile
-index 9ab239f73889..4771a5876d59 100644
+index 64341e25f658..9107e6329448 100644
 --- a/arch/arm/kernel/Makefile
 +++ b/arch/arm/kernel/Makefile
-@@ -92,6 +92,8 @@ ifeq ($(CONFIG_DEBUG_LL),y)
+@@ -96,6 +96,8 @@ ifeq ($(CONFIG_DEBUG_LL),y)
  obj-$(CONFIG_RAW_PRINTK)	+= raw_printk.o
  endif
  
@@ -658,10 +659,10 @@ index 000000000000..d27402b739ea
 +#endif
 +}
 diff --git a/arch/arm/kernel/process.c b/arch/arm/kernel/process.c
-index 9485acc520a4..7cd001e6e968 100644
+index cea1c27c29cb..364274db3df7 100644
 --- a/arch/arm/kernel/process.c
 +++ b/arch/arm/kernel/process.c
-@@ -69,7 +69,7 @@ void arch_cpu_idle(void)
+@@ -71,7 +71,7 @@ void arch_cpu_idle(void)
  		arm_pm_idle();
  	else
  		cpu_do_idle();
@@ -738,10 +739,10 @@ index ab2568996ddb..1f2d54bc0ff0 100644
  
  struct page *get_signal_page(void)
 diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
-index 4b0bab2607e4..275e7474ff49 100644
+index 46e1be9e57a8..6a8f65d05955 100644
 --- a/arch/arm/kernel/smp.c
 +++ b/arch/arm/kernel/smp.c
-@@ -393,6 +393,13 @@ asmlinkage void secondary_start_kernel(void)
+@@ -397,6 +397,13 @@ asmlinkage void secondary_start_kernel(void)
  	enter_lazy_tlb(mm, current);
  	local_flush_tlb_all();
  
@@ -755,7 +756,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  	/*
  	 * All kernel threads share the same mm context; grab a
  	 * reference and switch to it.
-@@ -435,7 +442,7 @@ asmlinkage void secondary_start_kernel(void)
+@@ -439,7 +446,7 @@ asmlinkage void secondary_start_kernel(void)
  
  	complete(&cpu_running);
  
@@ -764,7 +765,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  	local_fiq_enable();
  	local_abt_enable();
  
-@@ -517,12 +524,68 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
+@@ -521,12 +528,68 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
  	S(IPI_COMPLETION, "completion interrupts"),
  };
  
@@ -835,7 +836,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  void show_ipi_list(struct seq_file *p, int prec)
  {
  	unsigned int cpu, i;
-@@ -596,7 +659,7 @@ static void ipi_cpu_stop(unsigned int cpu)
+@@ -600,7 +663,7 @@ static void ipi_cpu_stop(unsigned int cpu)
  	set_cpu_online(cpu, false);
  
  	local_fiq_disable();
@@ -844,7 +845,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  
  	while (1) {
  		cpu_relax();
-@@ -625,7 +688,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
+@@ -629,7 +692,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
  	handle_IPI(ipinr, regs);
  }
  
@@ -853,7 +854,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  {
  	unsigned int cpu = smp_processor_id();
  	struct pt_regs *old_regs = set_irq_regs(regs);
-@@ -685,6 +748,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
+@@ -689,6 +752,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
  		printk_nmi_exit();
  		break;
  
@@ -872,7 +873,7 @@ index 4b0bab2607e4..275e7474ff49 100644
  	default:
  		pr_crit("CPU%u: Unknown IPI message 0x%x\n",
  		        cpu, ipinr);
-@@ -696,6 +771,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
+@@ -700,6 +775,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
  	set_irq_regs(old_regs);
  }
  

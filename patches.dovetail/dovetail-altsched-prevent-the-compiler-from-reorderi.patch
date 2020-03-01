@@ -1,18 +1,19 @@
-From 21ecb4da69d94bdb177b0bba4a07811c4618af8a Mon Sep 17 00:00:00 2001
+From 287e86bf642e5b39e95ae8af6a1b2d53820ff406 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 12 Aug 2019 12:12:38 +0200
 Subject: [PATCH] dovetail: altsched: prevent the compiler from reordering past
  switch_to()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/sched/core.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index a7e3a2cff1c5..856f33dd5f88 100644
+index c5fd6bcee496..eaba34c0ae0e 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8099,6 +8099,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8109,6 +8109,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  	}
  
  	switch_to(prev, next, last);

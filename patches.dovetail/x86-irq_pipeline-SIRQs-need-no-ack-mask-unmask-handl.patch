@@ -1,14 +1,15 @@
-From 680d674fcdcb002a72fc87db67a5141a72c1ea94 Mon Sep 17 00:00:00 2001
+From 4bcf0454414b8dd976e7ae9b1627ba8bdbafbd30 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 21 Jul 2019 21:48:47 +0200
 Subject: [PATCH] x86: irq_pipeline: SIRQs need no ack, mask, unmask handlers
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/irq_pipeline.c | 3 ---
  1 file changed, 3 deletions(-)
 
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 787bcc89322..2a734a57514 100644
+index 93fe7e3b19d8..08d7943067b0 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -28,9 +28,6 @@ static struct irq_chip sipic_chip = {

@@ -1,0 +1,51 @@
+From 72cbd9ec16a539be23ff6a148ec743d24557557b Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 11 Jan 2020 17:31:08 +0100
+Subject: [PATCH] evl: rename main header for device drivers
+
+---
+ include/evl/{devices.h => device.h} | 6 +++---
+ include/evl/devices/gpio.h          | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+ rename include/evl/{devices.h => device.h} (86%)
+
+diff --git a/include/evl/devices.h b/include/evl/device.h
+similarity index 86%
+rename from include/evl/devices.h
+rename to include/evl/device.h
+index 29b168dd0f58..59a2b0e5487b 100644
+--- a/include/evl/devices.h
++++ b/include/evl/device.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVL_DEVICES_H
+-#define _EVL_DEVICES_H
++#ifndef _EVL_DEVICE_H
++#define _EVL_DEVICE_H
+ 
+ #ifdef CONFIG_EVL
+ 
+@@ -29,4 +29,4 @@ static inline bool evl_enabled(void)
+ 	return IS_ENABLED(CONFIG_EVL);
+ }
+ 
+-#endif /* !_EVL_DEVICES_H */
++#endif /* !_EVL_DEVICE_H */
+diff --git a/include/evl/devices/gpio.h b/include/evl/devices/gpio.h
+index 4a0f15cc9cc4..06d03464ff68 100644
+--- a/include/evl/devices/gpio.h
++++ b/include/evl/devices/gpio.h
+@@ -7,7 +7,7 @@
+ #ifndef _EVL_DEVICES_GPIO_H
+ #define _EVL_DEVICES_GPIO_H
+ 
+-#include <evl/devices.h>
++#include <evl/device.h>
+ #include <uapi/evl/devices/gpio.h>
+ 
+ #ifdef CONFIG_EVL
+-- 
+2.16.4
+

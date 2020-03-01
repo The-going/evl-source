@@ -1,4 +1,4 @@
-From e7aba20def36cf5f11ac59976e7b25888726d596 Mon Sep 17 00:00:00 2001
+From bdaa6a481e82cb903b0393f6ae39da8199f5b6a0 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 1 Oct 2019 11:19:34 +0200
 Subject: [PATCH] genirq: irq_pipeline: provide generic decoding handler for
@@ -15,6 +15,8 @@ handle_irq_pipelined(). This change also makes sure that all pending
 IRQs have been decoded prior to allowing a companion kernel to
 reschedule in irq_exit_pipeline(), by moving the latter call from
 generic_pipeline_irq() up to the outer IRQ handling layer.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h | 34 ++--------------------------------
  kernel/irq/pipeline.c        | 44 +++++++++++++++++++++++++++++++++++++++-----

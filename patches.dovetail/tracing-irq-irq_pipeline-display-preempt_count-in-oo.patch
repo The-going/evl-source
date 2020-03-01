@@ -1,18 +1,19 @@
-From b15f3537d5318941622f97f77b99e501259588c2 Mon Sep 17 00:00:00 2001
+From 33d91985330f52a196f8c6e3be5c87b1f1002bf4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Aug 2019 13:23:19 +0200
 Subject: [PATCH] tracing/irq: irq_pipeline: display preempt_count in oob
  context too
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/trace/trace_output.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index 33a6c96f110..ec75d6ff48f 100644
+index b440537725f2..d6e4f52a0f0b 100644
 --- a/kernel/trace/trace_output.c
 +++ b/kernel/trace/trace_output.c
-@@ -474,7 +474,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+@@ -489,7 +489,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
  	trace_seq_printf(s, "%c%c%c",
  			 irqs_off, need_resched, hardsoft_irq);
  

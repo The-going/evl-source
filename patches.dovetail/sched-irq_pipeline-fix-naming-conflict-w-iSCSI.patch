@@ -1,17 +1,18 @@
-From 5a7a186f2d7876acd67b04760c626bdf62385714 Mon Sep 17 00:00:00 2001
+From 02d4dd3b1d8e21397a0c3f027e572f2334a32700 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 19:48:55 +0200
 Subject: [PATCH] sched: irq_pipeline: fix naming conflict w/ iSCSI
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/sched/core.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 5c4e9337b065..9a98bf7eaa1c 100644
+index 1e98bd57fce0..09807bdfb9ed 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -4345,7 +4345,7 @@ static inline void preempt_sync_inband_irqs(void)
+@@ -4355,7 +4355,7 @@ static inline void preempt_sync_inband_irqs(void)
  		preempt_disable();
  		trace_hardirqs_on();
  		clear_stage_bit(STAGE_STALL_BIT, p);

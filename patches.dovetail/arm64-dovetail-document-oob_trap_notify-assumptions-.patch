@@ -1,18 +1,19 @@
-From e9e91e5ff0b76d99ff2ec75ca77e09028e9688b8 Mon Sep 17 00:00:00 2001
+From ea762b993f2b33b1e57a8162f30222ba6b48e56b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 17:33:36 +0200
 Subject: [PATCH] arm64: dovetail: document oob_trap_notify() assumptions in
  callee
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/mm/fault.c | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 4d93f5a2d23b..b611c8b83627 100644
+index c69df499c134..6128cc5b0cf0 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
-@@ -89,11 +89,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+@@ -90,11 +90,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
  	int nosync = 1;
  
  	/*

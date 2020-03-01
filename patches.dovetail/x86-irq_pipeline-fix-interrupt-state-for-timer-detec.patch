@@ -1,14 +1,15 @@
-From 407e5d20fb3dfee22a48d9845d316e2f4daab41c Mon Sep 17 00:00:00 2001
+From 7799cf72b02d19a3fb54dd35063c13dbdea6a42e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 7 Jun 2019 10:02:48 +0200
 Subject: [PATCH] x86: irq_pipeline: fix interrupt state for timer detection
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/apic/io_apic.c | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
 
 diff --git a/arch/x86/kernel/apic/io_apic.c b/arch/x86/kernel/apic/io_apic.c
-index ef4825272fa1..5f1f87302afb 100644
+index ddff70c9cbb3..24d64845a0b7 100644
 --- a/arch/x86/kernel/apic/io_apic.c
 +++ b/arch/x86/kernel/apic/io_apic.c
 @@ -1637,7 +1637,7 @@ static int __init timer_irq_works(void)
@@ -29,7 +30,7 @@ index ef4825272fa1..5f1f87302afb 100644
  
  	/*
  	 * Expect a few ticks at least, to be sure some possible
-@@ -2134,7 +2136,7 @@ static inline void __init check_timer(void)
+@@ -2137,7 +2139,7 @@ static inline void __init check_timer(void)
  	if (!global_clock_event)
  		return;
  
@@ -38,7 +39,7 @@ index ef4825272fa1..5f1f87302afb 100644
  
  	/*
  	 * get/set the timer IRQ vector:
-@@ -2202,7 +2204,7 @@ static inline void __init check_timer(void)
+@@ -2205,7 +2207,7 @@ static inline void __init check_timer(void)
  			goto out;
  		}
  		panic_if_irq_remap("timer doesn't work through Interrupt-remapped IO-APIC");
@@ -47,7 +48,7 @@ index ef4825272fa1..5f1f87302afb 100644
  		clear_IO_APIC_pin(apic1, pin1);
  		if (!no_pin1)
  			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
-@@ -2226,7 +2228,7 @@ static inline void __init check_timer(void)
+@@ -2229,7 +2231,7 @@ static inline void __init check_timer(void)
  		/*
  		 * Cleanup, just in case ...
  		 */
@@ -56,7 +57,7 @@ index ef4825272fa1..5f1f87302afb 100644
  		legacy_pic->mask(0);
  		clear_IO_APIC_pin(apic2, pin2);
  		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
-@@ -2243,7 +2245,7 @@ static inline void __init check_timer(void)
+@@ -2246,7 +2248,7 @@ static inline void __init check_timer(void)
  		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
  		goto out;
  	}
@@ -65,7 +66,7 @@ index ef4825272fa1..5f1f87302afb 100644
  	legacy_pic->mask(0);
  	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | cfg->vector);
  	apic_printk(APIC_QUIET, KERN_INFO "..... failed.\n");
-@@ -2261,7 +2263,7 @@ static inline void __init check_timer(void)
+@@ -2264,7 +2266,7 @@ static inline void __init check_timer(void)
  		apic_printk(APIC_QUIET, KERN_INFO "..... works.\n");
  		goto out;
  	}
@@ -74,7 +75,7 @@ index ef4825272fa1..5f1f87302afb 100644
  	apic_printk(APIC_QUIET, KERN_INFO "..... failed :(.\n");
  	if (apic_is_x2apic_enabled())
  		apic_printk(APIC_QUIET, KERN_INFO
-@@ -2270,7 +2272,7 @@ static inline void __init check_timer(void)
+@@ -2273,7 +2275,7 @@ static inline void __init check_timer(void)
  	panic("IO-APIC + timer doesn't work!  Boot with apic=debug and send a "
  		"report.  Then try booting with the 'noapic' option.\n");
  out:

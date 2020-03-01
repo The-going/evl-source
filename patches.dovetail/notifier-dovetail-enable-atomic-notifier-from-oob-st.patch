@@ -1,17 +1,18 @@
-From 9cc9489b49c3e82772e20dd594986a882adb7c63 Mon Sep 17 00:00:00 2001
+From 341b63e9f6ba5c2ee4e2dbd72563f779d0636a15 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 22 Apr 2017 20:52:59 +0200
 Subject: [PATCH] notifier: dovetail: enable atomic notifier from oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/notifier.c | 3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/kernel/notifier.c b/kernel/notifier.c
-index d9f5081d578d..1da0eb3e2102 100644
+index 63d7501ac638..3fd415d4738c 100644
 --- a/kernel/notifier.c
 +++ b/kernel/notifier.c
-@@ -192,6 +192,9 @@ NOKPROBE_SYMBOL(__atomic_notifier_call_chain);
+@@ -180,6 +180,9 @@ NOKPROBE_SYMBOL(__atomic_notifier_call_chain);
  int atomic_notifier_call_chain(struct atomic_notifier_head *nh,
  			       unsigned long val, void *v)
  {

@@ -1,8 +1,9 @@
-From 3921b4902986ccad2fa0c7f17a2b79708782a41d Mon Sep 17 00:00:00 2001
+From 89dd1955a266064151d84531067690fed55d2580 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 17:31:24 +0200
 Subject: [PATCH] dovetail: document assumptions in oob_trap_notify()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/dovetail.c | 5 +++++
  1 file changed, 5 insertions(+)

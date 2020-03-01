@@ -1,4 +1,4 @@
-From 54caba0837ce0ec3b0f2eb33e948836b60495bd8 Mon Sep 17 00:00:00 2001
+From 63421ec59fdb06f4a4442e9b4128b4ac79035b74 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 17 Jul 2019 10:47:11 +0200
 Subject: [PATCH] genirq: irq_pipeline: assume that oob handlers may switch
@@ -9,13 +9,15 @@ an out-of-band handler. Drop the enter/exit_oob_irq() notifiers which
 don't fit this requirement, assume that the companion kernel can
 trigger the interrupt entry/exit work upon each event without specific
 support from the pipeline.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h |  7 -------
  kernel/irq/pipeline.c        | 13 +++++++------
  2 files changed, 7 insertions(+), 13 deletions(-)
 
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index 1868cfee7b9..de0c8368dea 100644
+index 1868cfee7b92..de0c8368dea6 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -44,22 +44,15 @@ static __always_inline void synchronize_pipeline_on_irq(void)
@@ -42,7 +44,7 @@ index 1868cfee7b9..de0c8368dea 100644
  	 * We have to synchronize the logs because interrupts might
  	 * have been logged while we were busy handling an OOB event
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 01b5f6a03f6..847b3956796 100644
+index 01b5f6a03f6e..847b3956796a 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -801,10 +801,6 @@ void hard_preempt_enable(unsigned long flags)

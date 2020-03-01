@@ -1,8 +1,9 @@
-From f27461ea5fe096ca6f805296d19782239309437b Mon Sep 17 00:00:00 2001
+From d7285063aef7c183656ec13df5930d8064eb4b1c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 15:44:39 +0200
 Subject: [PATCH] x86: irq_pipeline: skip irq_enter/exit from oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/apic.h | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)

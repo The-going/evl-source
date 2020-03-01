@@ -1,4 +1,4 @@
-From 2116d8901ea8ff4e22b6ea98fe81b45673bc471b Mon Sep 17 00:00:00 2001
+From 486ca95806ba37f3bc34441046ec8a7b61dc749d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 21:27:59 +0200
 Subject: [PATCH] printk: irq_pipeline: safe printk with IRQ pipelining
@@ -12,6 +12,8 @@ Deferral is obtained by following the NMI path in vprintk_func() when
 any of the above conditions is true. This relies on the ability for
 the oob stage to submit work requests to the in-band stage using the
 irq_work_queue() interface.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h | 13 +++++++++++++
  init/Kconfig                 |  2 +-
@@ -51,10 +53,10 @@ index 6eb44397ba00..cdd7656c96e6 100644
  
  #endif /* _LINUX_IRQ_PIPELINE_H */
 diff --git a/init/Kconfig b/init/Kconfig
-index 7bcf6cc43c7b..9309faae3456 100644
+index 58f5a5027279..53d22adfe2d1 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1433,7 +1433,7 @@ config PRINTK
+@@ -1400,7 +1400,7 @@ config PRINTK
  config PRINTK_NMI
  	def_bool y
  	depends on PRINTK

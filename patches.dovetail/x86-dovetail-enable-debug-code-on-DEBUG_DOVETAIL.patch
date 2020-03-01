@@ -1,17 +1,18 @@
-From 5f89fa2a0deb54f1d3ebc23fedb70e634c1d4ea9 Mon Sep 17 00:00:00 2001
+From 9d20cfd1df6031c3e483f131f3459b69f334ddb8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 16 Jul 2019 15:25:04 +0200
 Subject: [PATCH] x86: dovetail: enable debug code on DEBUG_DOVETAIL
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/process_64.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index 31e011f23a4e..dd7b4941eb42 100644
+index d2d9f8079d01..b156e3b334d6 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -512,7 +512,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+@@ -437,7 +437,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
  		     this_cpu_read(irq_count) != -1);
  

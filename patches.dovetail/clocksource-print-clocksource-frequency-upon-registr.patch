@@ -1,14 +1,15 @@
-From 2b4bbfcd9d79409980a0a65e86771c20a82b384e Mon Sep 17 00:00:00 2001
+From 55917002573fa32e8a31c7ef1485cc6a5ad97d8b Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Mon, 27 Jun 2016 13:45:34 +0200
 Subject: [PATCH] clocksource: print clocksource frequency upon registration
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/time/clocksource.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/time/clocksource.c b/kernel/time/clocksource.c
-index 3bcc19ceb07..e97b318b92e 100644
+index fff5f64981c6..49b55a38fea1 100644
 --- a/kernel/time/clocksource.c
 +++ b/kernel/time/clocksource.c
 @@ -899,8 +899,8 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq

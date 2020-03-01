@@ -1,9 +1,10 @@
-From 3885e238e67a01340af40eee0661113f810359a5 Mon Sep 17 00:00:00 2001
+From 70c9e0273f241635652ad3f3ae38d74b07cb3fd8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Jun 2019 16:26:19 +0200
 Subject: [PATCH] genirq: irq_pipeline: clarify stage switching in
  dispatch_oob_irq()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 31 +++++++++++++++++--------------
  1 file changed, 17 insertions(+), 14 deletions(-)

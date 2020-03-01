@@ -1,4 +1,4 @@
-From fce72e606043f33edf2f62f6b5c11a44b1f8c8a6 Mon Sep 17 00:00:00 2001
+From b0976a609f8f5c3272462e82493d16e7a759a3a6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 2 May 2019 21:48:13 +0200
 Subject: [PATCH] time: proxy: tell get_percpu_device() about the proxied
@@ -7,6 +7,8 @@ Subject: [PATCH] time: proxy: tell get_percpu_device() about the proxied
 We need to pass the address of the proxied real device to
 get_percpu_device(), so that any prep work which may depend on the
 characteristics of that device can be done in the user code.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/tick.h        |  5 +++--
  kernel/irq/irqptorture.c    |  3 ++-
@@ -16,7 +18,7 @@ characteristics of that device can be done in the user code.
  5 files changed, 53 insertions(+), 41 deletions(-)
 
 diff --git a/include/linux/tick.h b/include/linux/tick.h
-index a5c4d698107d..d9a7d3217d2a 100644
+index 08e3984a3844..80bf6110dbe2 100644
 --- a/include/linux/tick.h
 +++ b/include/linux/tick.h
 @@ -22,8 +22,9 @@ extern void tick_handover_do_timer(void);
@@ -46,7 +48,7 @@ index 1cf099709914..6171cb26c2b4 100644
  	struct clock_proxy_device *dev = raw_cpu_ptr(&torture_tick_device);
  
 diff --git a/kernel/time/clockevents.c b/kernel/time/clockevents.c
-index 6697eecb69df..3b9af41e1eec 100644
+index dc7b2fe45ce2..b6cee6d18451 100644
 --- a/kernel/time/clockevents.c
 +++ b/kernel/time/clockevents.c
 @@ -444,23 +444,37 @@ EXPORT_SYMBOL_GPL(clockevents_unbind_device);
@@ -103,7 +105,7 @@ index 6697eecb69df..3b9af41e1eec 100644
  
  void clockevents_unregister_proxy(struct clock_proxy_device *dev)
 diff --git a/kernel/time/tick-internal.h b/kernel/time/tick-internal.h
-index feb08956b27f..140e62f10a1a 100644
+index a213888b91e2..c5d283c9dc1e 100644
 --- a/kernel/time/tick-internal.h
 +++ b/kernel/time/tick-internal.h
 @@ -56,8 +56,10 @@ extern int clockevents_program_event(struct clock_event_device *dev,

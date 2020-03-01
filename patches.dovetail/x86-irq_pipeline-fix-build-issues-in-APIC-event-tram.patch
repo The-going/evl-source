@@ -1,14 +1,15 @@
-From 9a9d3714490c2bca57e6cf45db206cfd32924b5b Mon Sep 17 00:00:00 2001
+From cf0e877320e2761cf68c1d718b076a65313c9563 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 11:40:38 +0200
 Subject: [PATCH] x86: irq_pipeline: fix build issues in APIC event trampoline
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/irq_pipeline.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 4c437cd2a470..1b28bd4bd1f5 100644
+index f71eae8eee02..391e76bc2e33 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -79,6 +79,8 @@ void irq_pipeline_send_remote(unsigned int ipi,

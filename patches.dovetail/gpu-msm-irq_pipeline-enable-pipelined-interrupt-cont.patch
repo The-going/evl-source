@@ -1,8 +1,9 @@
-From 499340b9cf40d0157cf18fc0de8d454b3e11733a Mon Sep 17 00:00:00 2001
+From 070b6856ab7f8b4e9046bbc0a39f5a5e452a0ea8 Mon Sep 17 00:00:00 2001
 From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
 Date: Fri, 22 Mar 2019 06:34:00 +0100
 Subject: [PATCH] gpu: msm: irq_pipeline: enable pipelined interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c  | 1 +
  drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c | 1 +

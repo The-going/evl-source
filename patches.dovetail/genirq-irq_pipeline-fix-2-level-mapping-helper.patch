@@ -1,8 +1,9 @@
-From 134e34896b752f58fc2b452da69540330bc891bc Mon Sep 17 00:00:00 2001
+From 6e9fc0584ceeb5b6e1f65ec02301f6e5b5d5ebee Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Jul 2019 11:54:20 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix 2-level mapping helper
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)

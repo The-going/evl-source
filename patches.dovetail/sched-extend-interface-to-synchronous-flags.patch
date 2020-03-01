@@ -1,17 +1,18 @@
-From 6cc4eac57a393713928a1f7759ee38cffdfe71ae Mon Sep 17 00:00:00 2001
+From 9ba035e0aec45bb50e4d39c59a5c73afe0e46f02 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 14 Jul 2019 16:59:50 +0200
 Subject: [PATCH] sched: extend interface to synchronous flags
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/thread_info.h | 13 +++++++++++++
  1 file changed, 13 insertions(+)
 
 diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-index a92b4e58eba..fca31cf2339 100644
+index a02606bdf367..1d45f8ae93ec 100644
 --- a/include/linux/thread_info.h
 +++ b/include/linux/thread_info.h
-@@ -189,6 +189,19 @@ void clear_ti_local_flags(struct thread_info *ti, unsigned int mask)
+@@ -191,6 +191,19 @@ void clear_ti_local_flags(struct thread_info *ti, unsigned int mask)
  	ti_local_flags(ti) &= ~mask;
  }
  

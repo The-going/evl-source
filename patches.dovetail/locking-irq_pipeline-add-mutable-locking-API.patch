@@ -1,4 +1,4 @@
-From 1137f1e0e2823dd434baf1524aa691266b1e773e Mon Sep 17 00:00:00 2001
+From ae29d44f121d567b67a19f86d171d357b1657a42 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 Aug 2016 11:38:29 +0200
 Subject: [PATCH] locking: irq_pipeline: add mutable locking API
@@ -14,6 +14,8 @@ ones for short locked sections, optimizing the fast path when
 injecting external IRQs to the pipeline.
 
 We typically use this with the irqdesc lock.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_pipeline.h | 135 ++++++++++++++++++++++-
  include/linux/spinlock_types.h    |  21 ++++
@@ -238,7 +240,7 @@ index 7eb1b2aa8276..1efe90aa4c16 100644
  
  #define __HARD_SPIN_LOCK_UNLOCKED(__lock)	__RAW_SPIN_LOCK_UNLOCKED(__lock)
 diff --git a/kernel/locking/Makefile b/kernel/locking/Makefile
-index 6fe2f333aecb..3cdcae79731c 100644
+index 45452facff3b..b875192f9774 100644
 --- a/kernel/locking/Makefile
 +++ b/kernel/locking/Makefile
 @@ -25,6 +25,7 @@ obj-$(CONFIG_RT_MUTEXES) += rtmutex.o

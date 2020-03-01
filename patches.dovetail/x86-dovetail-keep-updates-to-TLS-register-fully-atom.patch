@@ -1,4 +1,4 @@
-From 976ca77c6581f958fd588987902a6cbc4ddbea3a Mon Sep 17 00:00:00 2001
+From 9fd7c9cfd32b525841415df5a648b24321720b16 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 23 May 2019 18:49:02 +0200
 Subject: [PATCH] x86: dovetail: keep updates to TLS register fully atomic
@@ -10,15 +10,17 @@ switching back later to the inband context.
 
 To fix this, hard disable preemption around ARCH_SET_FS and
 ARCH_SET_GS operations.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/process_64.c | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index ad990d84977e..31e011f23a4e 100644
+index 79f6b2a59427..d2d9f8079d01 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -704,6 +704,7 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
+@@ -618,6 +618,7 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
  
  long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
  {
@@ -26,7 +28,7 @@ index ad990d84977e..31e011f23a4e 100644
  	int ret = 0;
  
  	switch (option) {
-@@ -711,7 +712,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+@@ -625,7 +626,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
  		if (unlikely(arg2 >= TASK_SIZE_MAX))
  			return -EPERM;
  
@@ -35,7 +37,7 @@ index ad990d84977e..31e011f23a4e 100644
  		/*
  		 * ARCH_SET_GS has always overwritten the index
  		 * and the base. Zero is the most sensible value
-@@ -732,7 +733,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+@@ -646,7 +647,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
  			task->thread.gsindex = 0;
  			x86_gsbase_write_task(task, arg2);
  		}
@@ -44,7 +46,7 @@ index ad990d84977e..31e011f23a4e 100644
  		break;
  	}
  	case ARCH_SET_FS: {
-@@ -743,7 +744,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+@@ -657,7 +658,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
  		if (unlikely(arg2 >= TASK_SIZE_MAX))
  			return -EPERM;
  
@@ -53,7 +55,7 @@ index ad990d84977e..31e011f23a4e 100644
  		/*
  		 * Set the selector to 0 for the same reason
  		 * as %gs above.
-@@ -761,7 +762,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+@@ -675,7 +676,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
  			task->thread.fsindex = 0;
  			x86_fsbase_write_task(task, arg2);
  		}

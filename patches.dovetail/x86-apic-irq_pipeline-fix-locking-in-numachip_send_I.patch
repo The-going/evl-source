@@ -1,4 +1,4 @@
-From feaf7d36c0a30c74b13877d958fde5ca96179452 Mon Sep 17 00:00:00 2001
+From aa799d685ca96fa9e39d29209dd73bfe58ba76e8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 11:29:30 +0200
 Subject: [PATCH] x86/apic: irq_pipeline: fix locking in
@@ -13,12 +13,14 @@ from the oob stage.
 We want __default_send_IPI_dest_field() to be called with hard IRQs
 off though, since the oob stage must not re-enter this routine while
 some inband caller is still there.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/apic/apic_numachip.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/kernel/apic/apic_numachip.c b/arch/x86/kernel/apic/apic_numachip.c
-index 0247281d9265..28293cd80eeb 100644
+index 7cd977356605..040ec0bd868e 100644
 --- a/arch/x86/kernel/apic/apic_numachip.c
 +++ b/arch/x86/kernel/apic/apic_numachip.c
 @@ -96,7 +96,7 @@ static void numachip_send_IPI_one(int cpu, int vector)

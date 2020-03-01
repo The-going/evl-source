@@ -1,4 +1,4 @@
-From 508b0b498cbfd70155f62c94fc0998fb70a84e88 Mon Sep 17 00:00:00 2001
+From b444e850761306c9ab2eccb78c88f6cd80a6df94 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 21:08:30 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix double-ack in irqflow re-entry
@@ -11,6 +11,8 @@ interrupt log is synchronized on any given CPU.
 Make sure not to (re-)run any mask_ack() sequence during this second
 run, extending this to any operation which only makes sense from the
 initial event handling phase (e.g. checking irq_may_run()).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/hardirq.h |  5 ++++
  kernel/irq/chip.c       | 69 ++++++++++++++++++++++++++++---------------------
@@ -33,7 +35,7 @@ index ec5757babe95..3350a2bc8a4f 100644
  {
  	return irqs_pipelined() && in_pipeline();
 diff --git a/kernel/irq/chip.c b/kernel/irq/chip.c
-index ffcec88262a4..307b7b8de2c7 100644
+index e50ce9deaa5f..e0467ee8ebee 100644
 --- a/kernel/irq/chip.c
 +++ b/kernel/irq/chip.c
 @@ -526,7 +526,8 @@ static bool irq_may_run(struct irq_desc *desc)

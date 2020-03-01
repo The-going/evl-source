@@ -1,0 +1,30 @@
+From c51ab97107f2383306cfa461ca1d521166332638 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 31 Dec 2019 12:24:08 +0100
+Subject: [PATCH] x86/build: evl: drop pointless include directives
+
+These directives would also cause compilation errors in arch/x86/kvm
+when building in-tree due to pulling the wrong header file
+(i.e. "irq.h").
+---
+ arch/x86/Makefile | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index c322dccef441..94df0868804b 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -198,10 +198,6 @@ sha256_ni_instr :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,-DCONFIG_AS_SHA2
+ KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+ KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+ 
+-ifeq ($(CONFIG_EVL),y)
+-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
+-endif
+-
+ KBUILD_LDFLAGS := -m elf_$(UTS_MACHINE)
+ 
+ #
+-- 
+2.16.4
+

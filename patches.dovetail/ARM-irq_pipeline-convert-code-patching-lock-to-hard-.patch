@@ -1,8 +1,9 @@
-From 3e771fdc0e9b1971f1fab8d97efc04d8318963a9 Mon Sep 17 00:00:00 2001
+From 38f8812784c28e8e95fd18a2a1e999f44f704420 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 17:55:09 +0200
 Subject: [PATCH] ARM: irq_pipeline: convert code patching lock to hard form
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/kernel/patch.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+From 49bc49a1dbc6548eea01a2fa7b6c82441a423947 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 15 Jan 2020 10:56:49 +0100
+Subject: [PATCH] time: proxy: deny entering deep idle if broadcast is needed
+
+If proxying the hardware timer for high-precision tick delivery to the
+out-of-band stage, the whole broadcast dance is a no-go. Deny deep
+idle.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ kernel/time/tick-broadcast.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/kernel/time/tick-broadcast.c b/kernel/time/tick-broadcast.c
+index e51778c312f1..295b2814de2a 100644
+--- a/kernel/time/tick-broadcast.c
++++ b/kernel/time/tick-broadcast.c
+@@ -722,6 +722,14 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+ 
+ 	dev = this_cpu_ptr(&tick_cpu_device)->evtdev;
+ 
++	/*
++	 * If proxying the hardware timer for high-precision tick
++	 * delivery to the out-of-band stage, the whole broadcast
++	 * dance is a no-go. Deny entering deep idle.
++	 */
++	if (dev->features & CLOCK_EVT_FEAT_PROXY)
++		return -EBUSY;
++
+ 	raw_spin_lock(&tick_broadcast_lock);
+ 	bc = tick_broadcast_device.evtdev;
+ 	cpu = smp_processor_id();
+-- 
+2.16.4
+

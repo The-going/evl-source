@@ -1,0 +1,26 @@
+From f7adcf68a1a8a795742cfa0edea8fb9372a24809 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 20 Jan 2020 16:50:32 +0100
+Subject: [PATCH] x86/tsc: set vDSO access type
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/x86/kernel/tsc.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
+index 07ee274ba8a9..fea509540cf0 100644
+--- a/arch/x86/kernel/tsc.c
++++ b/arch/x86/kernel/tsc.c
+@@ -1380,6 +1380,8 @@ static int __init init_tsc_clocksource(void)
+ 	if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC_S3))
+ 		clocksource_tsc.flags |= CLOCK_SOURCE_SUSPEND_NONSTOP;
+ 
++	clocksource_tsc.vdso_type = CLOCKSOURCE_VDSO_ARCHITECTED;
++
+ 	/*
+ 	 * When TSC frequency is known (retrieved via MSR or CPUID), we skip
+ 	 * the refined calibration and directly register it as a clocksource.
+-- 
+2.16.4
+

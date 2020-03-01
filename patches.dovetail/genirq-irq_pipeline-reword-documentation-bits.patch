@@ -1,8 +1,9 @@
-From 4a55fee79ac1175442c089e11fd85b3d8d2096a2 Mon Sep 17 00:00:00 2001
+From 7e4c4891207f16bff2183a57631fd5a583a649b3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Jun 2019 16:24:04 +0200
 Subject: [PATCH] genirq: irq_pipeline: reword documentation bits
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h | 42 +++++++++++++++++++++---------------------
  1 file changed, 21 insertions(+), 21 deletions(-)

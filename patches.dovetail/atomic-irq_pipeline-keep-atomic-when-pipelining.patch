@@ -1,4 +1,4 @@
-From 1c9f4156f39367ab90b4fdc4eec055fc05693a90 Mon Sep 17 00:00:00 2001
+From 12fea72ab8daecf66a5fcb077af61953313bceef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:51:32 +0200
 Subject: [PATCH] atomic: irq_pipeline: keep atomic when pipelining
@@ -6,6 +6,8 @@ Subject: [PATCH] atomic: irq_pipeline: keep atomic when pipelining
 We want the atomic ops to be usable with variables referenced from the
 oob stage. For this, we must keep IRQs hard disabled to protect the
 critical sections when manipulating those variables.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/atomic.h        | 12 ++++++------
  include/asm-generic/cmpxchg-local.h |  8 ++++----

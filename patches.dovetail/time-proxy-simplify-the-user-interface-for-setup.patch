@@ -1,4 +1,4 @@
-From e7efd97508c91565d4dfaf7361db23c1ec3d047e Mon Sep 17 00:00:00 2001
+From eb9e8f6d3f01d65078466968cfe2bbecc7c9324a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 3 May 2019 09:24:21 +0200
 Subject: [PATCH] time: proxy: simplify the user interface for setup
@@ -12,6 +12,8 @@ pre-init the proxy descriptor with the real device settings before
 calling the user setup handler instead of running post-init code
 afterwards. This definitely makes the picture much clearer on the
 user's end about which proxy settings will be used eventually.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/clockchips.h  |  3 +-
  include/linux/tick.h        |  3 +-
@@ -37,7 +39,7 @@ index 3ea6ccd30859..dd980dca81e7 100644
  
  void tick_notify_proxy(void);
 diff --git a/include/linux/tick.h b/include/linux/tick.h
-index d9a7d3217d2a..524b2250b7b9 100644
+index 80bf6110dbe2..fb2a2664d5d8 100644
 --- a/include/linux/tick.h
 +++ b/include/linux/tick.h
 @@ -22,8 +22,7 @@ extern void tick_handover_do_timer(void);
@@ -93,7 +95,7 @@ index 6171cb26c2b4..4ba0f28b9211 100644
  
  static void stop_tick_takeover_test(void)
 diff --git a/kernel/time/clockevents.c b/kernel/time/clockevents.c
-index 3b9af41e1eec..3e50dfc58b19 100644
+index b6cee6d18451..fbe9ef4c6930 100644
 --- a/kernel/time/clockevents.c
 +++ b/kernel/time/clockevents.c
 @@ -444,36 +444,23 @@ EXPORT_SYMBOL_GPL(clockevents_unbind_device);
@@ -153,7 +155,7 @@ index 3b9af41e1eec..3e50dfc58b19 100644
  
  void clockevents_unregister_proxy(struct clock_proxy_device *dev)
 diff --git a/kernel/time/tick-internal.h b/kernel/time/tick-internal.h
-index 140e62f10a1a..7b2b958e5eec 100644
+index c5d283c9dc1e..2c6c0f4ab199 100644
 --- a/kernel/time/tick-internal.h
 +++ b/kernel/time/tick-internal.h
 @@ -56,11 +56,9 @@ extern int clockevents_program_event(struct clock_event_device *dev,

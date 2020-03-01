@@ -1,16 +1,18 @@
-From 1425f5c96663b543370f01bced47b5949a55eadf Mon Sep 17 00:00:00 2001
+From 402596b51ddb1d63fdeafdb9a15601098bcdaf5c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Aug 2016 18:19:53 +0200
 Subject: [PATCH] sched/cputime: irq_pipeline: do not account for stolen time
 
 The CPU time spent by an out-of-band handler for processing a timer
 tick should not be charged to the preempted regular task.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/sched/cputime.c | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
-index 2305ce89a26c..c7e83ff55261 100644
+index d43318a489f2..9286fba03584 100644
 --- a/kernel/sched/cputime.c
 +++ b/kernel/sched/cputime.c
 @@ -245,6 +245,10 @@ static __always_inline u64 steal_account_process_time(u64 maxtime)

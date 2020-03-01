@@ -1,9 +1,10 @@
-From 8a2e7efbf839af6bee17f79db9b4770dd4176158 Mon Sep 17 00:00:00 2001
+From 804c8742b77a7286276981b0d5c5d642913dbba5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 4 Apr 2019 12:29:37 +0200
 Subject: [PATCH] mfd: tps65217: irq_pipeline: enable pipelined interrupt
  control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/mfd/tps65217.c | 1 +
  1 file changed, 1 insertion(+)

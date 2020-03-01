@@ -1,4 +1,4 @@
-From 37155504d7942eb3b5af9b1f27e05e2d3e0cb079 Mon Sep 17 00:00:00 2001
+From 0645848944caca64917699b910ab907009eecb8a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 14 Oct 2019 20:55:39 +0200
 Subject: [PATCH] genirq: irq_pipeline: prevent infinite recursion in
@@ -20,6 +20,8 @@ dovetail_resume_inband()
 |	       check_inband_stage() /* inband call over oob! */
 |	           printk() <-+
 |_____________________________|
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 21 ++++++++++-----------
  1 file changed, 10 insertions(+), 11 deletions(-)

@@ -1,8 +1,9 @@
-From ea418e656313967d93408f544cbbc9c91bea7724 Mon Sep 17 00:00:00 2001
+From 2a1acdd847aa85f8dc323a9efeb33ae1b4e60e0b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 2 Apr 2019 16:14:17 +0200
 Subject: [PATCH] dovetail: introduce dovetail_mm_state()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 7 +++++++
  1 file changed, 7 insertions(+)

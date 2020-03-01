@@ -1,9 +1,10 @@
-From 654a2380df8f2b2b9a04a63e763f05ba54b79903 Mon Sep 17 00:00:00 2001
+From 14d3ff8674e73b818b7ddfe3f46051df56f0397f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 May 2017 15:47:44 +0200
 Subject: [PATCH] preempt: irq_pipeline: consider hard irq state in preemptible
  check
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/preempt.h | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

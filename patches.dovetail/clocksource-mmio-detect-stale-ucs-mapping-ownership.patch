@@ -1,4 +1,4 @@
-From cb80584b07b8ed248f893d4dd66b343f2c548137 Mon Sep 17 00:00:00 2001
+From fece50e942e980895e11b841f2f7c42e75ade925 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 31 May 2019 21:02:05 +0200
 Subject: [PATCH] clocksource: mmio: detect stale ucs mapping ownership
@@ -13,17 +13,48 @@ based on the mm address. Any random process which is given the
 recycled mm_struct could therefore be reusing the stale ucs mapping,
 eventually causing invalid accesses as a result of calling
 clock_gettime().
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
- drivers/clocksource/mmio.c | 102 +++++++++++++++++++++++++++++----------------
- 1 file changed, 66 insertions(+), 36 deletions(-)
+ drivers/clocksource/mmio.c | 143 +++++++++++++++++++++++++++------------------
+ 1 file changed, 86 insertions(+), 57 deletions(-)
 
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index a9920b5c98c4..28710ccdfccf 100644
+index a3ce72c473d1..f7f3b05905bb 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
-@@ -140,11 +140,42 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
+@@ -57,14 +57,14 @@ u64 clocksource_mmio_readw_down(struct clocksource *c)
+ }
  
- static void clksrc_vmopen(struct vm_area_struct *vma)
+ static inline struct clocksource_user_mmio *
+-to_user_mmio_clksrc(struct clocksource *c)
++to_mmio_ucs(struct clocksource *c)
+ {
+ 	return container_of(c, struct clocksource_user_mmio, mmio.clksrc);
+ }
+ 
+ u64 clocksource_dual_mmio_readl_up(struct clocksource *c)
+ {
+-	struct clocksource_user_mmio *ucs = to_user_mmio_clksrc(c);
++	struct clocksource_user_mmio *ucs = to_mmio_ucs(c);
+ 	u32 upper, old_upper, lower;
+ 
+ 	upper = readl_relaxed(ucs->reg_upper);
+@@ -79,7 +79,7 @@ u64 clocksource_dual_mmio_readl_up(struct clocksource *c)
+ 
+ u64 clocksource_dual_mmio_readw_up(struct clocksource *c)
+ {
+-	struct clocksource_user_mmio *ucs = to_user_mmio_clksrc(c);
++	struct clocksource_user_mmio *ucs = to_mmio_ucs(c);
+ 	u16 upper, old_upper, lower;
+ 
+ 	upper = readw_relaxed(ucs->reg_upper);
+@@ -138,16 +138,47 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
+ 	return err;
+ }
+ 
+-static void clksrc_vmopen(struct vm_area_struct *vma)
++static void mmio_ucs_vmopen(struct vm_area_struct *vma)
  {
 -	struct clocksource_user_mapping *mapping;
 +	struct clocksource_user_mapping *mapping, *clone;
@@ -65,8 +96,29 @@ index a9920b5c98c4..28710ccdfccf 100644
 +	}
  }
  
- static void clksrc_vmclose(struct vm_area_struct *vma)
-@@ -182,56 +213,57 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
+-static void clksrc_vmclose(struct vm_area_struct *vma)
++static void mmio_ucs_vmclose(struct vm_area_struct *vma)
+ {
+ 	struct clocksource_user_mapping *mapping;
+ 
+@@ -161,12 +192,12 @@ static void clksrc_vmclose(struct vm_area_struct *vma)
+ 	}
+ }
+ 
+-static const struct vm_operations_struct clksrc_vmops = {
+-	.open = clksrc_vmopen,
+-	.close = clksrc_vmclose,
++static const struct vm_operations_struct mmio_ucs_vmops = {
++	.open = mmio_ucs_vmopen,
++	.close = mmio_ucs_vmclose,
+ };
+ 
+-static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
++static int mmio_ucs_mmap(struct file *file, struct vm_area_struct *vma)
+ {
+ 	unsigned long addr, upper_pfn, lower_pfn;
+ 	struct clocksource_user_mapping *mapping, *tmp;
+@@ -182,66 +213,67 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
  		return -EINVAL;
  
  	vma->vm_private_data = NULL;
@@ -91,7 +143,7 @@ index a9920b5c98c4..28710ccdfccf 100644
 +	atomic_set(&mapping->refs, 1);
 +
 +	vma->vm_private_data = mapping;
-+	vma->vm_ops = &clksrc_vmops;
++	vma->vm_ops = &mmio_ucs_vmops;
  	prot = pgprot_noncached(vma->vm_page_prot);
  	addr = vma->vm_start;
  
@@ -147,6 +199,18 @@ index a9920b5c98c4..28710ccdfccf 100644
  }
  
  static long
+-user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
++mmio_ucs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+ 	struct clocksource_user_mapping *mapping;
+ 	struct clksrc_user_mmio_info __user *u;
++	unsigned long upper_pfn, lower_pfn;
+ 	struct clksrc_user_mmio_info info;
+ 	struct clocksource_user_mmio *ucs;
+-	unsigned long upper_pfn, lower_pfn;
+ 	unsigned int bits_upper;
+ 	void __user *map_base;
+ 	unsigned long h_key;
 @@ -256,31 +288,29 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		return -ENOTTY;
  	}
@@ -188,6 +252,66 @@ index a9920b5c98c4..28710ccdfccf 100644
  	} while (IS_ERR(map_base) && PTR_ERR(map_base) == -EBUSY);
  
  	if (IS_ERR(map_base))
+@@ -300,7 +330,7 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+ 	return copy_to_user(u, &info, sizeof(*u));
+ }
+ 
+-static int user_mmio_clksrc_open(struct inode *inode, struct file *file)
++static int mmio_ucs_open(struct inode *inode, struct file *file)
+ {
+ 	struct clocksource_user_mmio *ucs;
+ 
+@@ -313,12 +343,11 @@ static int user_mmio_clksrc_open(struct inode *inode, struct file *file)
+ 	return 0;
+ }
+ 
+-static const struct file_operations user_mmio_clksrc_fops = {
++static const struct file_operations mmio_ucs_fops = {
+ 	.owner		= THIS_MODULE,
+-	.unlocked_ioctl = user_mmio_clksrc_ioctl,
+-	.open		= user_mmio_clksrc_open,
+-	.mmap		= user_mmio_clksrc_mmap,
+-
++	.unlocked_ioctl = mmio_ucs_ioctl,
++	.open		= mmio_ucs_open,
++	.mmap		= mmio_ucs_mmap,
+ };
+ 
+ static int __init
+@@ -328,14 +357,14 @@ ucs_create_cdev(struct class *class, struct clocksource_user_mmio *ucs)
+ 
+ 	ucs->dev = device_create(class, NULL,
+ 				MKDEV(MAJOR(user_mmio_devt), ucs->id),
+-				ucs, "user_mmio_clksrc/%d", ucs->id);
++				ucs, "ucs/%d", ucs->id);
+ 	if (IS_ERR(ucs->dev))
+ 		return PTR_ERR(ucs->dev);
+ 
+ 	spin_lock_init(&ucs->lock);
+ 	hash_init(ucs->mappings);
+ 
+-	cdev_init(&ucs->cdev, &user_mmio_clksrc_fops);
++	cdev_init(&ucs->cdev, &mmio_ucs_fops);
+ 	ucs->cdev.kobj.parent = &ucs->dev->kobj;
+ 
+ 	err = cdev_add(&ucs->cdev, ucs->dev->devt, 1);
+@@ -483,14 +512,14 @@ static int __init mmio_clksrc_chr_dev_init(void)
+ 	struct class *class;
+ 	int err;
+ 
+-	class = class_create(THIS_MODULE, "user_mmio_clkcsrc");
++	class = class_create(THIS_MODULE, "mmio_ucs");
+ 	if (IS_ERR(class)) {
+ 		pr_err("couldn't create user mmio clocksources class\n");
+ 		return PTR_ERR(class);
+ 	}
+ 
+ 	err = alloc_chrdev_region(&user_mmio_devt, 0, CLKSRC_USER_MMIO_MAX,
+-				  "user_mmio_clksrc");
++				  "mmio_ucs");
+ 	if (err < 0) {
+ 		pr_err("failed to allocate user mmio clocksources character devivces region\n");
+ 		goto err_class_destroy;
 -- 
 2.16.4
 

@@ -1,8 +1,9 @@
-From 8a301576450dd7b3ec431bd96c4f78a4121988be Mon Sep 17 00:00:00 2001
+From acc04a336f7421fb9728e70fbbf5749b8b5478f8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 26 Apr 2019 10:14:36 +0200
 Subject: [PATCH] locking: irq_pipeline: add license info
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_pipeline.h | 5 +++++
  1 file changed, 5 insertions(+)

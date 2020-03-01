@@ -1,4 +1,4 @@
-From defd4be6d5f47a4fb272269d7f3865374c08620d Mon Sep 17 00:00:00 2001
+From f04beaf42af952e5385a3b71d845d863685daa08 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 16 Oct 2019 10:15:02 +0200
 Subject: [PATCH] sched: dovetail: detect inband->oob transition epilogue
@@ -12,6 +12,8 @@ to figure out which stage we are currently running on.
 To solve this, test _TLF_OFFSTAGE in order to determine whether we are
 coming from dovetail_context_switch() for an inband->oob transition
 (set), or from the regular context_switch() otherwise.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/dovetail.c | 28 ++++++++++++++++------------
  1 file changed, 16 insertions(+), 12 deletions(-)

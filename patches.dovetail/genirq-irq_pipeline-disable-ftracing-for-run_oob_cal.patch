@@ -1,4 +1,4 @@
-From 49667e928d7f0a7d1694774ed0656e3520ac57a0 Mon Sep 17 00:00:00 2001
+From 3b2cc791d0d86398fe7660f6f6b9067dc9a6a0fe Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 May 2019 18:02:02 +0200
 Subject: [PATCH] genirq: irq_pipeline: disable ftracing for run_oob_call()
@@ -9,6 +9,8 @@ avoidance logic big time when tracing functions.
 
 Since this call can be traced at the call site instead to work around
 this issue, let's annotate this with 'notrace'.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,4 +1,4 @@
-From d16217bfb01b7a10767f2b8998a5e52783642281 Mon Sep 17 00:00:00 2001
+From 06a5a9e31d7905555f064e6b62e559541af7612b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 11 May 2019 15:41:29 +0200
 Subject: [PATCH] sched: dovetail: add switch prepare/finish handlers
@@ -11,15 +11,17 @@ Split arch_dovetail_context_resume() into
 arch_dovetail_prepare_switch() and arch_dovetail_finish_switch(),
 passing them the stage transition information we received on entry to
 dovetail_context_switch().
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/sched/core.c | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index c8c1226a5e28..493e17652faf 100644
+index 5cd7dcf8286b..0c3d4f856b30 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8026,6 +8026,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8036,6 +8036,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  {
  	struct task_struct *next, *prev, *last;
  	struct mm_struct *prev_mm, *next_mm;
@@ -27,7 +29,7 @@ index c8c1226a5e28..493e17652faf 100644
  
  	if (leave_inband) {
  		struct task_struct *tsk = current;
-@@ -8041,6 +8042,8 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8051,6 +8052,8 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  			oob_notify_kvm();
  	}
  
@@ -36,7 +38,7 @@ index c8c1226a5e28..493e17652faf 100644
  	next = in->task;
  	prev = out->task;
  	prev_mm = out->active_mm;
-@@ -8073,8 +8076,6 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8083,8 +8086,6 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  	if (check_hard_irqs_disabled())
  		hard_irqs_disabled();
  
@@ -45,7 +47,7 @@ index c8c1226a5e28..493e17652faf 100644
  	/*
  	 * If we entered this routine for switching to an out-of-band
  	 * task but don't have _TLF_OOB set for the current context
-@@ -8089,10 +8090,12 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8099,10 +8100,12 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  				!(preempt_count() & STAGE_MASK));
  			preempt_count_sub(STAGE_OFFSET);
  		}

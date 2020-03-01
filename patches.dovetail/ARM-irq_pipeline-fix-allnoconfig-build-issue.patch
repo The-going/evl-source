@@ -1,14 +1,15 @@
-From d0d1b0307e8689244f99e4965c1160991ca6b924 Mon Sep 17 00:00:00 2001
+From 40a532d8015e962cc2c4d278316c1d1a046d63d3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 18:52:15 +0200
 Subject: [PATCH] ARM: irq_pipeline: fix allnoconfig build issue
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/mm/fault.c | 7 +++++++
  1 file changed, 7 insertions(+)
 
 diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index d04432db8645..4c960c0be7e0 100644
+index f4fa74133d22..70b977a16e6c 100644
 --- a/arch/arm/mm/fault.c
 +++ b/arch/arm/mm/fault.c
 @@ -179,6 +179,13 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)

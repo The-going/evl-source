@@ -1,15 +1,16 @@
-From d5aa74970ca0204cdc706fefff499cd1eed0b685 Mon Sep 17 00:00:00 2001
+From b6ad984c080cf5b2210766762f60f1d9018e9700 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 4 Apr 2019 12:28:34 +0200
 Subject: [PATCH] ARM: OMAP2: timer: irq_pipeline: enable pipelined clock
  events
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/mach-omap2/timer.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/mach-omap2/timer.c b/arch/arm/mach-omap2/timer.c
-index 07bea84c5d6e..69c3a6d94933 100644
+index 0d0a731cb476..13beee9defc6 100644
 --- a/arch/arm/mach-omap2/timer.c
 +++ b/arch/arm/mach-omap2/timer.c
 @@ -87,7 +87,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)

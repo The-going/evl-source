@@ -1,8 +1,9 @@
-From fc38707476144c8605d415e110ab1db47cf57066 Mon Sep 17 00:00:00 2001
+From 73c1581c6eb573b2c4d92da1da44f2755b54df62 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 17:16:22 +0100
 Subject: [PATCH] ARM: dovetail: route syscalls and traps to co-kernel
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/include/asm/dovetail.h      | 15 +++++++++++++
  arch/arm/include/uapi/asm/dovetail.h |  7 ++++++
@@ -159,7 +160,7 @@ index 255003634ace..e4a587b5c3ec 100644
  	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
  
 diff --git a/arch/arm/kernel/ptrace.c b/arch/arm/kernel/ptrace.c
-index 324352787aea..0c484dcae91b 100644
+index b606cded90cd..0ff532a33800 100644
 --- a/arch/arm/kernel/ptrace.c
 +++ b/arch/arm/kernel/ptrace.c
 @@ -206,6 +206,7 @@ void ptrace_break(struct pt_regs *regs)

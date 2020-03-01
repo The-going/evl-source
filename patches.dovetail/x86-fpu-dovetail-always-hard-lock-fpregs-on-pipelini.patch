@@ -1,4 +1,4 @@
-From 9a54f1e0c22b6a295561722810d473713e63da1c Mon Sep 17 00:00:00 2001
+From 222910280a576d192e1a98ffab5fa34a2ddc9bee Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 9 Jun 2019 16:28:28 +0200
 Subject: [PATCH] x86/fpu: dovetail: always hard lock fpregs on pipelining
@@ -7,6 +7,8 @@ As soon as Dovetailing is enabled in fpu__clear() which requires hard
 locking to take place, we have to turn on hard locking for fpregs
 access too in order to prevent mismatches between real vs virtual
 interrupt states.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/fpu/api.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

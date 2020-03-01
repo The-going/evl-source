@@ -1,8 +1,9 @@
-From ab22d84d2488b7bc90bf1dabbfd9b342aea5a290 Mon Sep 17 00:00:00 2001
+From c33cad4186f700632e2391492c63ba72d9d3cd5e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 18 Jan 2019 16:48:36 +0100
 Subject: [PATCH] iio: irq_pipeline: enable pipelined interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/iio/industrialio-trigger.c | 1 +
  1 file changed, 1 insertion(+)

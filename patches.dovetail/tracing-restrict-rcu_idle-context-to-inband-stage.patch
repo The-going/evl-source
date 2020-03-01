@@ -1,14 +1,15 @@
-From c2762a9a258b859d1aa6b50b4bdc53cc7d8d1a62 Mon Sep 17 00:00:00 2001
+From 0cd3230917acd409587d9752e247a8425f408462 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 12 Aug 2019 18:43:55 +0200
 Subject: [PATCH] tracing: restrict rcu_idle context to inband stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/tracepoint.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/tracepoint.h b/include/linux/tracepoint.h
-index 1fb11daa5c5..fd43fa65f20 100644
+index 1fb11daa5c53..fd43fa65f20a 100644
 --- a/include/linux/tracepoint.h
 +++ b/include/linux/tracepoint.h
 @@ -210,7 +210,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)

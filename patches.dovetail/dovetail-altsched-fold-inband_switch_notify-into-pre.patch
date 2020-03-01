@@ -1,9 +1,10 @@
-From b12ec4a39c9a0a4b1713e063f455d30071bbdb70 Mon Sep 17 00:00:00 2001
+From a312c84e960e8aabaa5a6cd09ff809aefc036a17 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Jun 2019 10:31:02 +0200
 Subject: [PATCH] dovetail: altsched: fold inband_switch_notify() into
  prepare_inband_switch()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)

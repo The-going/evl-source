@@ -1,8 +1,10 @@
-From 17f70f5d6f761e66649b5f5ce0a28ebdd996ce0d Mon Sep 17 00:00:00 2001
+From d5e1840b4656e5fb525476dd3bcba2d92414e8d1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 24 Jul 2018 21:42:33 +0200
-Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
+Subject: [PATCH] clocksource/dw_apb_timer: export to applications via generic
+ vDSO
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/Kconfig        |  1 +
  drivers/clocksource/dw_apb_timer.c | 40 +++++++++++++++++---------------------
@@ -10,14 +12,14 @@ Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
  3 files changed, 20 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 34973beea912..1cd25fba6e2c 100644
+index d71ef240b320..433f9b65649f 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -62,6 +62,7 @@ config DIGICOLOR_TIMER
+@@ -57,6 +57,7 @@ config DIGICOLOR_TIMER
  
  config DW_APB_TIMER
  	bool "DW APB timer driver" if COMPILE_TEST
-+	select CLKSRC_VDSO_MAPPED
++	select GENERIC_CLOCKSOURCE_VDSO
  	help
  	  Enables the support for the dw_apb timer.
  

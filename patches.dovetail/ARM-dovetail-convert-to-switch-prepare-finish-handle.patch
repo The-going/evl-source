@@ -1,8 +1,9 @@
-From 4573107a69052ffb5c8a20a24b4bfe18e0c41cda Mon Sep 17 00:00:00 2001
+From aa26e50157eeb4cf987eeb1ea62f916f4e2a57a2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 11 May 2019 15:48:00 +0200
 Subject: [PATCH] ARM: dovetail: convert to switch prepare/finish handlers
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/include/asm/dovetail.h | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)

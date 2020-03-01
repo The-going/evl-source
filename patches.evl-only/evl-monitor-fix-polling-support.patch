@@ -1,4 +1,4 @@
-From 823eb7bc36c88d29023d1de8026700ea968fa816 Mon Sep 17 00:00:00 2001
+From 998b6d6fe20dc05d541253a94d9fe5fbedc8e8e3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 17 Jun 2019 15:44:12 +0200
 Subject: [PATCH] evl/monitor: fix polling support
@@ -16,10 +16,10 @@ Requires a couple of ABI changes.
  8 files changed, 121 insertions(+), 72 deletions(-)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index f67f6b822a3d..295deda127ff 100644
+index 0d14a563951f..882530cf6df0 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -987,7 +987,7 @@ static __poll_t lineevent_oob_poll(struct file *filep,
+@@ -1106,7 +1106,7 @@ static __poll_t lineevent_oob_poll(struct file *filep,
  	unsigned long flags;
  	__poll_t ready = 0;
  

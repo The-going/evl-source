@@ -1,8 +1,9 @@
-From 1b69b332f56956f034ede4c423f318a1b7fd4c10 Mon Sep 17 00:00:00 2001
+From 37953fc92b181d302b1f99d59db292f73242fbcc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 12:42:47 +0200
 Subject: [PATCH] x86/thread: export offset of synchronous status
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/asm-offsets.c | 1 +
  1 file changed, 1 insertion(+)

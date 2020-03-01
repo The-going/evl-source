@@ -1,9 +1,10 @@
-From 8b0db4051b4252fc0d22e0f12fe7edb5d27e59d9 Mon Sep 17 00:00:00 2001
+From e8ce15c8078537bf8d21f5fcd304b10777df93c1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 19:37:40 +0200
 Subject: [PATCH] locking: irq_pipeline: make debug optional for mutable
  spinlocks
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_pipeline.h | 11 ++++-------
  kernel/locking/pipeline.c         | 22 +++++++---------------

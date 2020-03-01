@@ -1,14 +1,15 @@
-From 737ad3e63fdaf1ef1e4f5ff22d90642b98c03d28 Mon Sep 17 00:00:00 2001
+From fe3515f05d2371f70380608582c012cb54eaeb56 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 12:59:00 +0200
 Subject: [PATCH] x86: drop useless enter_irq_pipeline()
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/kernel/irq_pipeline.c | 2 --
  1 file changed, 2 deletions(-)
 
 diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
-index 2a734a57514..44827d4fef6 100644
+index 08d7943067b0..174336dbf3d9 100644
 --- a/arch/x86/kernel/irq_pipeline.c
 +++ b/arch/x86/kernel/irq_pipeline.c
 @@ -191,8 +191,6 @@ __visible unsigned int __irq_entry handle_arch_irq_pipelined(struct pt_regs *reg

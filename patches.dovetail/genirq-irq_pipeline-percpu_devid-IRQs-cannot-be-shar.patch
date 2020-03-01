@@ -1,16 +1,18 @@
-From d67c67191f52277f5d1bf4d9984bf846c9b44e2e Mon Sep 17 00:00:00 2001
+From 4f52f26d5c8e3032c590f6413125799458d705f1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 22 Jul 2019 20:55:33 +0200
 Subject: [PATCH] genirq: irq_pipeline: percpu_devid IRQs cannot be shared
 
 Use this invariant to implement a faster path when dispatching those
 events to the out-of-band stage.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 24 +++++++++++++++++-------
  1 file changed, 17 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 94bddebe7ec..07dbedff571 100644
+index 94bddebe7ec2..07dbedff571e 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -870,15 +870,25 @@ static void do_oob_irq(struct irq_desc *desc)

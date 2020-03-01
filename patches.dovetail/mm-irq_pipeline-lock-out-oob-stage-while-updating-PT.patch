@@ -1,4 +1,4 @@
-From 1eb1f37919d649f618f5e631ac7c629b19ff8120 Mon Sep 17 00:00:00 2001
+From df19bf875bbae2007b70b28986235ebf676d1db8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:57:40 +0200
 Subject: [PATCH] mm: irq_pipeline: lock out oob stage while updating PTE range
@@ -10,12 +10,14 @@ it won't race with the hardware.
 We don't want any oob code to preempt the in-band context until the
 updated protbits are written back, so we have to hard disable IRQs
 around this section.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  mm/mprotect.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mm/mprotect.c b/mm/mprotect.c
-index bf38dfbbb4b4..bc8be5b48a31 100644
+index 7a8e84f86831..78ca356c09c6 100644
 --- a/mm/mprotect.c
 +++ b/mm/mprotect.c
 @@ -41,7 +41,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,

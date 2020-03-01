@@ -1,8 +1,9 @@
-From 0e007a07d688c80d0ff46f7438cdaf4f3be6a3e8 Mon Sep 17 00:00:00 2001
+From 2636c658cc3eb031cb4ee8d6a4664be86b2e73cc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 10:44:41 +0200
 Subject: [PATCH] KVM: dovetail: fix build w/ CONFIG_KVM disabled
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 5 +++++
  1 file changed, 5 insertions(+)

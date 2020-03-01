@@ -1,8 +1,9 @@
-From 7be367f1dc543985a046b94fa219908de39d3385 Mon Sep 17 00:00:00 2001
+From e7607a508f076acaf0ea1e45694879ce84d6dafd Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 19:52:33 +0200
 Subject: [PATCH] dovetail: fix naming conflict w/ iSCSI
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/dovetail.c | 20 ++++++++++----------
  1 file changed, 10 insertions(+), 10 deletions(-)

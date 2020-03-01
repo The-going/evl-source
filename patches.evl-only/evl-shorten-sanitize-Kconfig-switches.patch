@@ -1,4 +1,4 @@
-From ccd4cf1bd59b3c33238b7449a82c511f1a7401d8 Mon Sep 17 00:00:00 2001
+From 716c7c2329e085c06bf6d4adf68de185ab120d74 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -42,10 +42,10 @@ Subject: [PATCH] evl: shorten, sanitize Kconfig switches
  35 files changed, 146 insertions(+), 164 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index c7e4bee430ce..5586d6484e03 100644
+index 698aab542d46..af67ef74f5b2 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -285,7 +285,7 @@ config PGTABLE_LEVELS
+@@ -283,7 +283,7 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -54,7 +54,7 @@ index c7e4bee430ce..5586d6484e03 100644
  
  menu "System Type"
  
-@@ -584,7 +584,7 @@ config ARCH_MULTI_V6_V7
+@@ -582,7 +582,7 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID
@@ -77,10 +77,10 @@ index 52b3e06ea216..b563b393c7c9 100644
  endif
  
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 2d2fd7c8765f..29a05a471ceb 100644
+index c767f1c15fce..d372603d3005 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -132,7 +132,7 @@ config ARM64
+@@ -131,7 +131,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
@@ -89,7 +89,7 @@ index 2d2fd7c8765f..29a05a471ceb 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1581,7 +1581,7 @@ config STACKPROTECTOR_PER_TASK
+@@ -1627,7 +1627,7 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -99,7 +99,7 @@ index 2d2fd7c8765f..29a05a471ceb 100644
  menu "Boot options"
  
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index c3ef1476453b..268fc92aa61e 100644
+index fb988e5b25b7..933fc15c0afd 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
 @@ -91,7 +91,7 @@ endif
@@ -467,7 +467,7 @@ index 968b5efccd90..6730247e8da3 100644
  source "kernel/evenless/Kconfig"
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 6674ba7ee260..7979bc07ac25 100644
+index 52a4d74bcaea..375d4e45fb9d 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -103,7 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o

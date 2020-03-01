@@ -1,4 +1,4 @@
-From bcbc594025b2401816924b5b6530f0d800e1477d Mon Sep 17 00:00:00 2001
+From 38bf9e8714116ef3214c519c1347f24a69c222ac Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 10:06:51 +0200
 Subject: [PATCH] x86/mm: dovetail: keep local TLB and loaded mm generation in
@@ -16,12 +16,14 @@ this section with hard IRQs disabled.
 Actual flush operations can still take place later in a non-protected
 section, the inband TLB flush management should be able to catch up
 later if need be.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/mm/tlb.c | 19 ++++++++++++++-----
  1 file changed, 14 insertions(+), 5 deletions(-)
 
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index f1e19914f9d8..330c1817a969 100644
+index f66f2aad7aa9..af56ddfe366b 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
 @@ -535,16 +535,23 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,

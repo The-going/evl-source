@@ -1,4 +1,4 @@
-From 16f1484df1db12b61fa638a7e20381054f160c83 Mon Sep 17 00:00:00 2001
+From 91945eaf501bdf59278dab49781e0af18d8f4c83 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 17 Jul 2019 11:02:19 +0200
 Subject: [PATCH] gpiolib: evl: convert to evl_{enter, leave}_irq()
@@ -9,10 +9,10 @@ Subject: [PATCH] gpiolib: evl: convert to evl_{enter, leave}_irq()
  2 files changed, 5 insertions(+)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index 295deda127ff..746ed095901f 100644
+index 882530cf6df0..8479865ca650 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -961,6 +961,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1080,6 +1080,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
  		return IRQ_NONE;
  
@@ -21,7 +21,7 @@ index 295deda127ff..746ed095901f 100644
  	raw_spin_lock_irqsave(&le->oob_state.lock, flags);
  
  	/*
-@@ -977,6 +979,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1096,6 +1098,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  
  	raw_spin_unlock_irqrestore(&le->oob_state.lock, flags);
  

@@ -1,17 +1,18 @@
-From dd81dc1917052909361005ec56bad74dea3ed76a Mon Sep 17 00:00:00 2001
+From 3ab12c2eb79d9dc4215155211b9a7c86f160e6b7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 25 May 2018 15:45:44 +0200
 Subject: [PATCH] arm64: uaccess: enable PAN control from oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/include/asm/uaccess.h | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index 097d6bfac0b7..ee245097cb62 100644
+index 32fc8061aa76..0d3d330c6cfc 100644
 --- a/arch/arm64/include/asm/uaccess.h
 +++ b/arch/arm64/include/asm/uaccess.h
-@@ -104,7 +104,7 @@ static inline void __uaccess_ttbr0_disable(void)
+@@ -109,7 +109,7 @@ static inline void __uaccess_ttbr0_disable(void)
  {
  	unsigned long flags, ttbr;
  
@@ -20,7 +21,7 @@ index 097d6bfac0b7..ee245097cb62 100644
  	ttbr = read_sysreg(ttbr1_el1);
  	ttbr &= ~TTBR_ASID_MASK;
  	/* reserved_ttbr0 placed before swapper_pg_dir */
-@@ -113,7 +113,7 @@ static inline void __uaccess_ttbr0_disable(void)
+@@ -118,7 +118,7 @@ static inline void __uaccess_ttbr0_disable(void)
  	/* Set reserved ASID */
  	write_sysreg(ttbr, ttbr1_el1);
  	isb();
@@ -29,7 +30,7 @@ index 097d6bfac0b7..ee245097cb62 100644
  }
  
  static inline void __uaccess_ttbr0_enable(void)
-@@ -125,7 +125,7 @@ static inline void __uaccess_ttbr0_enable(void)
+@@ -130,7 +130,7 @@ static inline void __uaccess_ttbr0_enable(void)
  	 * variable and the MSR. A context switch could trigger an ASID
  	 * roll-over and an update of 'ttbr0'.
  	 */
@@ -38,7 +39,7 @@ index 097d6bfac0b7..ee245097cb62 100644
  	ttbr0 = READ_ONCE(current_thread_info()->ttbr0);
  
  	/* Restore active ASID */
-@@ -138,7 +138,7 @@ static inline void __uaccess_ttbr0_enable(void)
+@@ -143,7 +143,7 @@ static inline void __uaccess_ttbr0_enable(void)
  	/* Restore user page table */
  	write_sysreg(ttbr0, ttbr0_el1);
  	isb();

@@ -1,18 +1,19 @@
-From 53ac755fa7a03aa89ad9735e27ea5e913e1f9d8d Mon Sep 17 00:00:00 2001
+From 0f339214a69b59a391de2aca2255a8d9b1edf4a7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 17:09:23 +0200
 Subject: [PATCH] x86: dovetail: enable context switching from the oob stage
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/include/asm/mmu_context.h |  7 +++++++
  arch/x86/mm/tlb.c                  | 11 +++++++++--
  2 files changed, 16 insertions(+), 2 deletions(-)
 
 diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 9f25e1400cd5..2321aad637a2 100644
+index 3de1f73c371e..596a45c747f3 100644
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -214,6 +214,13 @@ extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+@@ -216,6 +216,13 @@ extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
  			       struct task_struct *tsk);
  #define switch_mm_irqs_off switch_mm_irqs_off
  
@@ -27,7 +28,7 @@ index 9f25e1400cd5..2321aad637a2 100644
  do {						\
  	paravirt_activate_mm((prev), (next));	\
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 91f6db92554c..f1e19914f9d8 100644
+index e6a9edc5baaf..f66f2aad7aa9 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
 @@ -154,10 +154,12 @@ EXPORT_SYMBOL_GPL(leave_mm);

@@ -1,4 +1,4 @@
-From aefe7da5cb2f7b851f7b1ea1327b1dc69ad007b4 Mon Sep 17 00:00:00 2001
+From a3913c1dadfcd65049139d993625178c2355b118 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Feb 2017 12:24:31 +0100
 Subject: [PATCH] mm: dovetail: catch might_fault() calls from atomic oob
@@ -7,15 +7,17 @@ Subject: [PATCH] mm: dovetail: catch might_fault() calls from atomic oob
 Making access to user memory which might fault from the oob stage
 while hw IRQs are off is a serious problem. Catch any attempt from the
 __might_fault() helper.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  mm/memory.c | 9 +++++++++
  1 file changed, 9 insertions(+)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 08336031162e..298594747eed 100644
+index ff03045f7313..63faeda548c8 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -4434,6 +4434,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
+@@ -4580,6 +4580,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
  #if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
  void __might_fault(const char *file, int line)
  {

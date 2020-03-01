@@ -1,0 +1,27 @@
+From d3eb170f5b6aa9588989782154176569b6bdebef Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 31 Dec 2019 12:26:15 +0100
+Subject: [PATCH] arm/build: evl: drop pointless include directives
+
+---
+ arch/arm/Makefile | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index a68789988823..db857d07114f 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -271,10 +271,6 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
+ endif
+ endif
+ 
+-ifeq ($(CONFIG_EVL),y)
+-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
+-endif
+-
+ export	TEXT_OFFSET GZFLAGS MMUEXT
+ 
+ core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
+-- 
+2.16.4
+

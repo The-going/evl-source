@@ -1,8 +1,9 @@
-From 9d76185c09d2845d8cbe36e00552a35cc571d107 Mon Sep 17 00:00:00 2001
+From 845502145981ad5c75b453a7f748663960ab8838 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 23 Oct 2019 20:20:26 +0200
 Subject: [PATCH] locking: irq_pipeline: fix hard spin trylock
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/spinlock_pipeline.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

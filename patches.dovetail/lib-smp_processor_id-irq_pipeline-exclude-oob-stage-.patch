@@ -1,4 +1,4 @@
-From b587374b7e23d6945ce15e96f7f3ea59237649a9 Mon Sep 17 00:00:00 2001
+From 203a167f6816f42dbd2b318ac4240f8e97591749 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:53:52 +0200
 Subject: [PATCH] lib/smp_processor_id: irq_pipeline: exclude oob stage from
@@ -20,12 +20,14 @@ To prevent this, we may check for hard disabled IRQ state first, which
 obviously denotes a migration-safe context, and always evaluates to
 true during the early boot phase. Then, the current stage is
 considered to branch out immediately if running over the oob stage.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  lib/smp_processor_id.c | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/lib/smp_processor_id.c b/lib/smp_processor_id.c
-index 157d9e31f6c2..dede111435ec 100644
+index bd9571653288..e6b479d462b9 100644
 --- a/lib/smp_processor_id.c
 +++ b/lib/smp_processor_id.c
 @@ -7,12 +7,16 @@

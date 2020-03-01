@@ -1,4 +1,4 @@
-From 878d782030377fc63c0303640239db9ba5a3f219 Mon Sep 17 00:00:00 2001
+From 86392a4ef1ae0c151aea9290ca0beb1d8d42f227 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 20 May 2019 18:27:05 +0200
 Subject: [PATCH] x86/mm: irq_pipeline: align virtual state logic with
@@ -7,12 +7,14 @@ Subject: [PATCH] x86/mm: irq_pipeline: align virtual state logic with
 TLB management expects interrupts to be enabled for the inband stage,
 issuing lockdep_assert_irqs_enabled() to enforce this. Convert hard
 enabling to dual hard+virtual enabling where expected.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/mm/fault.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 38b8146bc1c9..0b086a92c0e0 100644
+index e16acc05987f..8985b1d81a4d 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
 @@ -894,7 +894,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,

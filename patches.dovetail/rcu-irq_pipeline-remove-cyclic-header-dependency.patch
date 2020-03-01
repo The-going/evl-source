@@ -1,14 +1,15 @@
-From 0a06daa35890383d54331d4921d02441479f84dc Mon Sep 17 00:00:00 2001
+From c8b192ddc1613bb80c6ef24f3c888853d39cb4ff Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 17:22:53 +0200
 Subject: [PATCH] rcu: irq_pipeline: remove cyclic header dependency
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/rcupdate.h | 1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-index c00baeee7103..2a3aa673f01b 100644
+index 5652a61632da..c9a5838e7733 100644
 --- a/include/linux/rcupdate.h
 +++ b/include/linux/rcupdate.h
 @@ -24,7 +24,6 @@

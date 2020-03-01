@@ -1,4 +1,4 @@
-From 056fd0b960acf31fa704856f3f2e1952a0638b53 Mon Sep 17 00:00:00 2001
+From b89a3b024c2d06732c47ca1196baeb63cf207f30 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 31 Oct 2019 18:31:28 +0100
 Subject: [PATCH] evl: introduce runqueue lock
@@ -933,7 +933,7 @@ index 39049f1d0047..64ed8f27fd66 100644
  	disable_inband_switch(curr);
  
 diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
-index d83a6443c8f9..d24e54528d53 100644
+index d83a6443c8f9..01c5eda0e029 100644
 --- a/kernel/evl/sched/core.c
 +++ b/kernel/evl/sched/core.c
 @@ -22,6 +22,7 @@
@@ -1410,7 +1410,7 @@ index d83a6443c8f9..d24e54528d53 100644
 +{
 +	if (irq_pipeline_debug_locking())
 +		spin_release(&this_rq->lock._lock.rlock.dep_map,
-+			1, _THIS_IP_);
++			_THIS_IP_);
 +#ifdef CONFIG_DEBUG_SPINLOCK
 +	this_rq->lock._lock.rlock.owner = next->altsched.task;
 +#endif

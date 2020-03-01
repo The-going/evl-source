@@ -1,4 +1,4 @@
-From e56dd99ab9514902c33c32d8163c950d0c575bb6 Mon Sep 17 00:00:00 2001
+From ef448029f86d7f7431c0dc3bdec13e7ab8944c49 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 15 Oct 2019 19:12:11 +0200
 Subject: [PATCH] genirq: irq_pipeline: fix inband switch back after IRQ
@@ -6,6 +6,8 @@ Subject: [PATCH] genirq: irq_pipeline: fix inband switch back after IRQ
 The previous IRQ pipeline data pointer is a per-CPU information, so we
 have to re-evaluate it after the IRQ handler has returned, since a CPU
 migration might have happened.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 10 +++-------
  1 file changed, 3 insertions(+), 7 deletions(-)

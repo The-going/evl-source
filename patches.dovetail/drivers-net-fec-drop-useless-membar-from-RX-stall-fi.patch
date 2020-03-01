@@ -1,14 +1,15 @@
-From e4e789baadf2b2ecc001c623e88aa5749e2f957a Mon Sep 17 00:00:00 2001
+From 6a45f0bd36783f9a2a8f4b03e249f6166c2e5422 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 27 May 2019 11:41:37 +0200
 Subject: [PATCH] drivers/net/fec: drop useless membar from RX stall fix
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/net/ethernet/freescale/fec_main.c | 1 -
  1 file changed, 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/freescale/fec_main.c b/drivers/net/ethernet/freescale/fec_main.c
-index 7daed49a2c96..630e1ea1841d 100644
+index fcf0924fd730..8b828e246ca5 100644
 --- a/drivers/net/ethernet/freescale/fec_main.c
 +++ b/drivers/net/ethernet/freescale/fec_main.c
 @@ -1626,7 +1626,6 @@ static int unmask_events(struct net_device *ndev, unsigned int events)

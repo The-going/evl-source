@@ -1,14 +1,15 @@
-From 162341c21f41aaf48319f7e58f51666ade8b2060 Mon Sep 17 00:00:00 2001
+From d6013ffd393edb541a5e1c77c6b27429c96b313c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 10:07:11 +0200
 Subject: [PATCH] signal: dovetail: announce signal receipt
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/signal.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/signal.c b/kernel/signal.c
-index 534fec266a33..c86d09955b5e 100644
+index bcd46f547db3..560efa95e0e0 100644
 --- a/kernel/signal.c
 +++ b/kernel/signal.c
 @@ -754,6 +754,10 @@ static int dequeue_synchronous_signal(kernel_siginfo_t *info)

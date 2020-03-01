@@ -1,10 +1,12 @@
-From e600000e2f803483836ae0bb1de51807ff4389a9 Mon Sep 17 00:00:00 2001
+From 2cc8fd89868d6abf39b98c1c789806bd389b995b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 17 Jul 2017 09:35:14 +0200
 Subject: [PATCH] hrtimer: dovetail: announce clock set event
 
 The co-kernel needs to be told when the real-time epoch changes, in
 order to adjust its own timers.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 4 ++++
  kernel/dovetail.c        | 4 ++++
@@ -49,7 +51,7 @@ index 6da6429bdf5e..05ba868cda1e 100644
  {
  	check_inband_stage();
 diff --git a/kernel/time/hrtimer.c b/kernel/time/hrtimer.c
-index 0d4dc241c0fb..9cadeb898bec 100644
+index 8de90ea31280..dc0f7f682a9b 100644
 --- a/kernel/time/hrtimer.c
 +++ b/kernel/time/hrtimer.c
 @@ -872,6 +872,7 @@ void clock_was_set(void)

@@ -1,8 +1,9 @@
-From e3d6cd22a0fb0241eaa76411ee83bcace5c488ff Mon Sep 17 00:00:00 2001
+From 73df5b013d224599ce8ebcd6eef03971f4c44ba3 Mon Sep 17 00:00:00 2001
 From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
 Date: Mon, 8 Apr 2019 23:46:57 +0200
 Subject: [PATCH] soc: qcom: enable pipelined interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/soc/qcom/smp2p.c | 1 +
  1 file changed, 1 insertion(+)

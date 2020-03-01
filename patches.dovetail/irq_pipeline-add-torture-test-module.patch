@@ -1,8 +1,9 @@
-From 49b6084b394b41237ae5a9744e89d1aaf02887f8 Mon Sep 17 00:00:00 2001
+From 7b392d292b1ac8b00674312eb8ca9066fcd9de30 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Mar 2017 16:52:52 +0100
 Subject: [PATCH] irq_pipeline: add torture test module
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/Makefile      |   1 +
  kernel/irq/irqptorture.c | 283 +++++++++++++++++++++++++++++++++++++++++++++++
@@ -312,10 +313,10 @@ index 000000000000..9b410cebcbd5
 +}
 +late_initcall(irqp_torture_init);
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d542923fcd6a..1a71df2fdcfe 100644
+index 58ade7828b57..1977fd70cc43 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -824,6 +824,18 @@ config DEBUG_IRQ_PIPELINE
+@@ -804,6 +804,18 @@ config DEBUG_IRQ_PIPELINE
  
  	  If unsure, say N.
  
@@ -331,9 +332,9 @@ index d542923fcd6a..1a71df2fdcfe 100644
 +	  Say Y here if you want the IRQ pipeline torture tests to run
 +	  when the kernel starts. Say N if you are unsure.
 +
- menu "Debug Lockups and Hangs"
+ menu "Debug Oops, Lockups and Hangs"
  
- config LOCKUP_DETECTOR
+ config PANIC_ON_OOPS
 -- 
 2.16.4
 

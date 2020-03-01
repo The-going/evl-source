@@ -1,4 +1,4 @@
-From 1c0bdf6a47193238970264ddfa9ea9b88b5768e3 Mon Sep 17 00:00:00 2001
+From cdee7c5e4a5e5049aed6bf9f6926be15e48a7558 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 18:07:58 +0100
 Subject: [PATCH] ARM/mm: cache-l2x0: irq_pipeline: allow for disabling
@@ -26,12 +26,14 @@ The patch conditionally changes this setting as follows:
 We do know that disabling WA on SMP may be architecturally wrong on
 ARM, but this happens to work on i.MX6 hardware with early L2 cache
 controllers.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/mm/cache-l2x0.c | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
 
 diff --git a/arch/arm/mm/cache-l2x0.c b/arch/arm/mm/cache-l2x0.c
-index 5b251c8ecd45..b5de9aa92b29 100644
+index 12c26eb88afb..8cacaaaab03e 100644
 --- a/arch/arm/mm/cache-l2x0.c
 +++ b/arch/arm/mm/cache-l2x0.c
 @@ -48,6 +48,16 @@ struct l2x0_regs l2x0_saved_regs;

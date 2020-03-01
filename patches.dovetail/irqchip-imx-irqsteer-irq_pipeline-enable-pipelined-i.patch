@@ -1,9 +1,10 @@
-From 7f886417e4deedaad858691963c460e3bc259379 Mon Sep 17 00:00:00 2001
+From 674f76bd2931c1b669d8687fd4ab25c74b1955fe Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 26 May 2019 17:55:08 +0200
 Subject: [PATCH] irqchip/imx-irqsteer: irq_pipeline: enable pipelined
  interrupt control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/irqchip/irq-imx-irqsteer.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)

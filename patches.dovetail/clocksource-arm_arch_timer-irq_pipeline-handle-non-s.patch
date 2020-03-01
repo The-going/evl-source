@@ -1,4 +1,4 @@
-From b5696edc7289a4d42edb3cd07804af0bace82621 Mon Sep 17 00:00:00 2001
+From 23d47150e849f6746cd2d909515d5f218c82e745 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 3 Jun 2019 11:29:20 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: handle non-secure
@@ -18,12 +18,14 @@ Assume that the non-secure PPI event overrides the secure one when
 present, fixing up clock_event_device.irq accordingly. This is mostly
 a work-around: we may need to reconsider how the tick source is
 tracked for switching it to out-of-band mode at some point.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/clocksource/arm_arch_timer.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index fa9db9cdcabe..756fbd2c4294 100644
+index 9d8adc990dcd..81c3b7b4988b 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
 @@ -877,6 +877,7 @@ static int arch_timer_starting_cpu(unsigned int cpu)

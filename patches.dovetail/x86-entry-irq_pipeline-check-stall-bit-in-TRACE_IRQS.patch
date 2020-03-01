@@ -1,18 +1,19 @@
-From 0b1500e228a7a02a720ba92a721323c1bc19c906 Mon Sep 17 00:00:00 2001
+From 2e222c3ea0ad43a25dccc3d6400c42fabf849cb5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 12 Aug 2019 17:14:52 +0200
 Subject: [PATCH] x86/entry: irq_pipeline: check stall bit in
  TRACE_IRQS_ON_DEBUG
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/entry/entry_64.S | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index fcee162ab17..d0c02eeedad 100644
+index d19776b30e1a..09ec5f74386d 100644
 --- a/arch/x86/entry/entry_64.S
 +++ b/arch/x86/entry/entry_64.S
-@@ -87,7 +87,7 @@ END(native_usergs_sysret64)
+@@ -87,7 +87,7 @@ SYM_CODE_END(native_usergs_sysret64)
  
  .macro TRACE_IRQS_ON_DEBUG
  	call	debug_stack_set_zero

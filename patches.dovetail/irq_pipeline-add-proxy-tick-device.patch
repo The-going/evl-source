@@ -1,4 +1,4 @@
-From 22f3d53bb3ceeb014a94e4c00d35b472076b29f3 Mon Sep 17 00:00:00 2001
+From 6bc3b0e1a99e22d352b73887bcb5af5b116a8399 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 6 Apr 2017 17:52:17 +0200
 Subject: [PATCH] irq_pipeline: add proxy tick device
@@ -11,6 +11,8 @@ Once the proxy is installed, an oob layer can take control of the
 underlying real device for carrying out its own timing duties,
 handling the timing requests from the in-band kernel sent to the proxy
 device too.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/clockchips.h  |  53 ++++-
  include/linux/tick.h        |  16 ++
@@ -120,7 +122,7 @@ index 8ae9a95ebf5b..7b9f434a15fd 100644
  
  static inline void clockevents_suspend(void) { }
 diff --git a/include/linux/tick.h b/include/linux/tick.h
-index f92a10b5e112..0616356788cb 100644
+index 7896f792d3b0..04cd3afe490a 100644
 --- a/include/linux/tick.h
 +++ b/include/linux/tick.h
 @@ -20,6 +20,22 @@ extern void tick_suspend_local(void);

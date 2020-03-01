@@ -1,14 +1,15 @@
-From b7304b238d37606f67ad52c25e85346850b38dd4 Mon Sep 17 00:00:00 2001
+From 3793855a035cf875eeb7ff3eaabbf8b82ef52dfa Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 11 Jul 2019 21:32:28 +0200
 Subject: [PATCH] dovetail: postpone check for mayday signal
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index 8ddda27db0e..f56568cf7bc 100644
+index 8ddda27db0e6..f56568cf7bc3 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -56,6 +56,9 @@ static __always_inline void enter_irq_pipeline(struct pt_regs *regs)

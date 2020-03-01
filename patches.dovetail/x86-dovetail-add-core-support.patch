@@ -1,8 +1,9 @@
-From 64ab6d257f084380ac41cf8a9a4801360b880610 Mon Sep 17 00:00:00 2001
+From 0b993fa8d741889ab103341748125ed9bdf47a51 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 17:08:45 +0200
 Subject: [PATCH] x86: dovetail: add core support
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/x86/Kconfig                   |  3 +++
  arch/x86/include/asm/dovetail.h    | 16 ++++++++++++++++
@@ -13,7 +14,7 @@ Subject: [PATCH] x86: dovetail: add core support
  create mode 100644 arch/x86/include/asm/dovetail.h
 
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 1a19d1753b1b..5bdd60d6c334 100644
+index 56841d3d2b72..a8c51f58b5a5 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
 @@ -28,6 +28,7 @@ config X86_64
@@ -24,7 +25,7 @@ index 1a19d1753b1b..5bdd60d6c334 100644
  	select MODULES_USE_ELF_RELA
  	select NEED_DMA_MAP_STATE
  	select SWIOTLB
-@@ -191,6 +192,7 @@ config X86
+@@ -192,6 +193,7 @@ config X86
  	select HAVE_MOD_ARCH_SPECIFIC
  	select HAVE_MOVE_PMD
  	select HAVE_NMI
@@ -63,10 +64,10 @@ index 000000000000..0cd94cae9c19
 +
 +#endif /* _ASM_X86_DOVETAIL_H */
 diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 6540d929d1ed..3d80ebf398d0 100644
+index ff9cf98c4634..a0d0c11cf150 100644
 --- a/arch/x86/include/asm/processor.h
 +++ b/arch/x86/include/asm/processor.h
-@@ -515,8 +515,12 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
+@@ -564,8 +564,12 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
   */
  #define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
  #define TS_OOB			0x0004	/* Thread is running out-of-band */
@@ -77,10 +78,10 @@ index 6540d929d1ed..3d80ebf398d0 100644
 +#define _TLF_DOVETAIL		TS_DOVETAIL
 +#define _TLF_OFFSTAGE		TS_OFFSTAGE
  
- /*
-  * Set IOPL bits in EFLAGS from given mask
+ static inline void
+ native_load_sp0(unsigned long sp0)
 diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index f9453536f9bb..40590cdb4b78 100644
+index d779366ce3f8..c08f394f03af 100644
 --- a/arch/x86/include/asm/thread_info.h
 +++ b/arch/x86/include/asm/thread_info.h
 @@ -52,10 +52,12 @@

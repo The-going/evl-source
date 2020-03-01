@@ -1,4 +1,4 @@
-From e58ac532910acd16607ccb9287b5d9097f18c581 Mon Sep 17 00:00:00 2001
+From 2b7f5c98b1f303fcd30375fd6723b8851f7fe3b1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Apr 2019 18:13:14 +0200
 Subject: [PATCH] time: proxy: rework registration/unregistration interface
@@ -6,6 +6,8 @@ Subject: [PATCH] time: proxy: rework registration/unregistration interface
 Integrate the proxy logic deeper into the clock event framework, which
 fixes some conflicts with the broadcast device, paving the way to the
 x86 port.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/clockchips.h  |  48 +++--
  include/linux/tick.h        |  14 +-
@@ -119,7 +121,7 @@ index 7b9f434a15fd..3ea6ccd30859 100644
  
  #else /* !CONFIG_GENERIC_CLOCKEVENTS: */
 diff --git a/include/linux/tick.h b/include/linux/tick.h
-index 0616356788cb..d15d3ddbbba6 100644
+index 04cd3afe490a..08e3984a3844 100644
 --- a/include/linux/tick.h
 +++ b/include/linux/tick.h
 @@ -22,19 +22,11 @@ extern void tick_handover_do_timer(void);

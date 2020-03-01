@@ -1,4 +1,4 @@
-From 8d8d3186f76e52224b92a34da44fbe01f097a824 Mon Sep 17 00:00:00 2001
+From 174cda2145772d4b0294fae048159f4d1527f3b4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 13 Oct 2019 17:54:03 +0200
 Subject: [PATCH] genirq: irq_pipeline: disable inband checks after LOCKDEP
@@ -13,6 +13,8 @@ local_irq_restore() while the oob stage is stalled).
 
 Disable check_inband_stage() if LOCKDEP has disabled its own bug
 detection upon error.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/irq/pipeline.c | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)

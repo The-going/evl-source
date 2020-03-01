@@ -1,4 +1,4 @@
-From 5e091ae252cec0ae4f2af62b9621e538b2a54ad5 Mon Sep 17 00:00:00 2001
+From e1935e8cedb9a794b97483cb5feacadf00315707 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 Mar 2017 17:38:16 +0100
 Subject: [PATCH] stop_machine: irq_pipeline: ensure atomic stop-context
@@ -15,6 +15,8 @@ completed.
 When interrupt pipelining is enabled, we have to provide the same
 guarantee by restoring hard interrupt disabling where virtualizing the
 interrupt disable flag would defeat it.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/stop_machine.h | 3 +++
  kernel/stop_machine.c        | 2 ++
@@ -43,18 +45,18 @@ index f9a0c6189852..132752acfa82 100644
  	return ret;
  }
 diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index 998d50ee2d9b..d93f9c9d63d1 100644
+index 1fe34a9fabc2..09efc7f22418 100644
 --- a/kernel/stop_machine.c
 +++ b/kernel/stop_machine.c
-@@ -237,6 +237,7 @@ static int multi_cpu_stop(void *data)
- 		}
+@@ -238,6 +238,7 @@ static int multi_cpu_stop(void *data)
+ 		rcu_momentary_dyntick_idle();
  	} while (curstate != MULTI_STOP_EXIT);
  
 +	hard_irq_enable();
  	local_irq_restore(flags);
  	return err;
  }
-@@ -618,6 +619,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
+@@ -619,6 +620,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
  		local_irq_save(flags);
  		hard_irq_disable();
  		ret = (*fn)(data);

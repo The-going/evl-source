@@ -1,4 +1,4 @@
-From aff834330a61b5b1b3fae780a1203ccbd0bff3eb Mon Sep 17 00:00:00 2001
+From 887daa44ae318eaf2e856d827c3a485e246b8e86 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 6 May 2017 18:28:49 +0200
 Subject: [PATCH] timekeeping: irq_pipeline: add NMI-safe ktime_get_real_fast()
@@ -11,6 +11,8 @@ implementation.
 Provide a basic implementation substracting a safe copy of the
 wallclock-to-monotonic offset from the monotonic time returned by
 ktime_get_mono_fast_ns() which is NMI-safe too.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/timekeeping.h |  1 +
  include/vdso/helpers.h      |  2 ++

@@ -1,4 +1,4 @@
-From 0b1df6174bf36f1c86088f145f126f192ee14d43 Mon Sep 17 00:00:00 2001
+From b10ada21ecbc37de949e2d7023f591847c99934c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 17:59:25 +0100
 Subject: [PATCH] ARM: vfp: irq_pipeline: protect against stage preemption
@@ -6,6 +6,8 @@ Subject: [PATCH] ARM: vfp: irq_pipeline: protect against stage preemption
 The VFP support code can run over in-band and out-of-band contexts
 safely, provided callers are properly serialized by disabling
 interrupts in the CPU for protecting the critical sections.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/vfp/entry.S     |  3 +++
  arch/arm/vfp/vfphw.S     |  2 ++

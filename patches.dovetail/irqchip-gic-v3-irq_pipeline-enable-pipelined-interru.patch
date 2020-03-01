@@ -1,18 +1,19 @@
-From 5e8590d5f78b47668d98faf676c166a017c11732 Mon Sep 17 00:00:00 2001
+From 900dc4deee546ca117f55fa4236cf3912882a506 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 25 Aug 2017 08:49:26 +0200
 Subject: [PATCH] irqchip/gic-v3: irq_pipeline: enable pipelined interrupt
  control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/irqchip/irq-gic-v3.c | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/irqchip/irq-gic-v3.c b/drivers/irqchip/irq-gic-v3.c
-index 422664ac5f53..55e9672d6935 100644
+index d6218012097b..deafab33c8cf 100644
 --- a/drivers/irqchip/irq-gic-v3.c
 +++ b/drivers/irqchip/irq-gic-v3.c
-@@ -1215,7 +1215,8 @@ static struct irq_chip gic_chip = {
+@@ -1224,7 +1224,8 @@ static struct irq_chip gic_chip = {
  	.irq_nmi_teardown	= gic_irq_nmi_teardown,
  	.flags			= IRQCHIP_SET_TYPE_MASKED |
  				  IRQCHIP_SKIP_SET_WAKE |
@@ -22,7 +23,7 @@ index 422664ac5f53..55e9672d6935 100644
  };
  
  static struct irq_chip gic_eoimode1_chip = {
-@@ -1232,7 +1233,8 @@ static struct irq_chip gic_eoimode1_chip = {
+@@ -1241,7 +1242,8 @@ static struct irq_chip gic_eoimode1_chip = {
  	.irq_nmi_teardown	= gic_irq_nmi_teardown,
  	.flags			= IRQCHIP_SET_TYPE_MASKED |
  				  IRQCHIP_SKIP_SET_WAKE |

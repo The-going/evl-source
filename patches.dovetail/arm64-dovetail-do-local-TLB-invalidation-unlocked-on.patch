@@ -1,4 +1,4 @@
-From 8e1fbee96bd3901e48ad242929479f2558e0dc29 Mon Sep 17 00:00:00 2001
+From 83c75a1ffaf9a56d4eb12173c0b0c1e6ca33ae6c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 27 Jul 2019 19:15:21 +0200
 Subject: [PATCH] arm64: dovetail: do local TLB invalidation unlocked on mm
@@ -8,12 +8,14 @@ TLB invalidation is a potentially long operation on some hardware when
 caches are under pressure. We may safely run such invalidation for the
 current CPU unlocked before leaving the mm context switching code,
 reducing the spinning time of other CPUs proportionally.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm64/mm/context.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/mm/context.c b/arch/arm64/mm/context.c
-index 8e11bfdd76c..addb7d14e58 100644
+index 8e11bfdd76cf..addb7d14e589 100644
 --- a/arch/arm64/mm/context.c
 +++ b/arch/arm64/mm/context.c
 @@ -184,6 +184,7 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)

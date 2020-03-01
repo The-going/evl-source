@@ -1,4 +1,4 @@
-From 4883bc192459b8224954890cf5340cb915d19629 Mon Sep 17 00:00:00 2001
+From 3cc377ade9b09b7747e9c0484acba14c533d8d02 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 17 Oct 2019 11:19:12 +0200
 Subject: [PATCH] sched: dovetail: send SCHEDULE event for incoming dovetailed
@@ -7,6 +7,8 @@ Subject: [PATCH] sched: dovetail: send SCHEDULE event for incoming dovetailed
 There is no point in sending INBAND_SCHEDULE_TASK solely because the
 previous task is dovetailed, the only requirement is to send such
 event before switching in a dovetailed task.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/dovetail.h | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)

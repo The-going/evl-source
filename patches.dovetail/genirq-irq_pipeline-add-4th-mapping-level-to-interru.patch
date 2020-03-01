@@ -1,4 +1,4 @@
-From 7081cf3859bc39e805714ffe6ddd9f9dda523f4f Mon Sep 17 00:00:00 2001
+From 0aeb28095e0db5858798c8ce1905fd20d778ec94 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 13 Dec 2019 13:12:25 +0100
 Subject: [PATCH] genirq: irq_pipeline: add 4th mapping level to interrupt log
@@ -7,6 +7,8 @@ Some configurations may define more than 256K interrupt vectors
 (e.g. CONFIG_MAXSMP/x86), which is the limit for the current 3-level
 mapping used for logging IRQs. Add a 4th mapping level to support
 configurations up to 16M vectors for 64bit architectures.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irqstage.h |   4 +-
  kernel/irq/pipeline.c    | 191 ++++++++++++++++++++++++++++++++++++-----------

@@ -1,4 +1,4 @@
-From 5e23a709afb897133b5a9bdd2e55bd6524e9f1e2 Mon Sep 17 00:00:00 2001
+From 8ae9aeb341bb330fdba1f81732455f7b0467aa93 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 14 Jul 2019 22:21:34 +0200
 Subject: [PATCH] dovetail: altsched: allow preemption of inband context switch
@@ -15,6 +15,8 @@ tasks to preempt eventually. The dovetail_context_switch() machinery
 already works in a way which guarantees that any in-band context
 preempted in a middle of a switch can safely resume from this
 location.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/dovetail.c   | 10 ++++------
  kernel/sched/core.c | 14 ++++++++++++++
@@ -64,10 +66,10 @@ index 12784a3b0d78..ebc6519f4fd3 100644
  }
  
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 0600614c8b94..1ce34cde28a8 100644
+index 4029edb5cebd..c5fd6bcee496 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3378,6 +3378,20 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -3379,6 +3379,20 @@ context_switch(struct rq *rq, struct task_struct *prev,
  		 */
  		switch_mm_irqs_off(prev->active_mm, next->mm, next);
  

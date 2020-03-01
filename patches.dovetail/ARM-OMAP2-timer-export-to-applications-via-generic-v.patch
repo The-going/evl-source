@@ -1,27 +1,28 @@
-From f096647440432628ffb439ed39c029e90a4f3037 Mon Sep 17 00:00:00 2001
+From be5950dec9a1458dbbd0c08619e70a7832444476 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 4 Apr 2019 15:57:00 +0200
-Subject: [PATCH] ARM: OMAP2: timer: convert to user mmio clocksource
+Subject: [PATCH] ARM: OMAP2: timer: export to applications via generic vDSO
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  arch/arm/mach-omap2/Kconfig |  1 +
  arch/arm/mach-omap2/timer.c | 38 +++++++++++++++++++++-----------------
  2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/arch/arm/mach-omap2/Kconfig b/arch/arm/mach-omap2/Kconfig
-index fdb6743760a2..cf6ad49657dd 100644
+index ad08d470a2ca..39ddfab9eb51 100644
 --- a/arch/arm/mach-omap2/Kconfig
 +++ b/arch/arm/mach-omap2/Kconfig
 @@ -97,6 +97,7 @@ config ARCH_OMAP2PLUS
  	select ARCH_HAS_HOLES_MEMORYMODEL
  	select ARCH_OMAP
  	select CLKSRC_MMIO
-+	select CLKSRC_VDSO_MAPPED
++	select GENERIC_CLOCKSOURCE_VDSO
  	select GENERIC_IRQ_CHIP
  	select GPIOLIB
  	select MACH_OMAP_GENERIC
 diff --git a/arch/arm/mach-omap2/timer.c b/arch/arm/mach-omap2/timer.c
-index 69c3a6d94933..bc7d177759c3 100644
+index 13beee9defc6..6debbe219d79 100644
 --- a/arch/arm/mach-omap2/timer.c
 +++ b/arch/arm/mach-omap2/timer.c
 @@ -413,17 +413,14 @@ static bool use_gptimer_clksrc __initdata;

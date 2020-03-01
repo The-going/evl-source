@@ -1,4 +1,4 @@
-From c01d887dac6fcf4516dfaee8d4174779b9a0c7c3 Mon Sep 17 00:00:00 2001
+From 9aa27ba2a0825d9e01f897630b117aeca2569e74 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 10 Jul 2019 17:46:13 +0200
 Subject: [PATCH] genirq: irq_pipeline: synchronize pipeline on last pending
@@ -22,13 +22,15 @@ interrupt level is back to normal in the irqchip.
 
 Define enter_irq_pipeline() and leave_irq_pipeline() as generic
 services for performing the necessary actions.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/irq_pipeline.h | 48 ++++++++++++++++++++++++++++++++++++++++++++
  kernel/irq/pipeline.c        | 47 +------------------------------------------
  2 files changed, 49 insertions(+), 46 deletions(-)
 
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index b936d0049ba..8ddda27db0e 100644
+index b936d0049bae..8ddda27db0e6 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -33,6 +33,54 @@ int irq_inject_pipeline(unsigned int irq);
@@ -87,7 +89,7 @@ index b936d0049ba..8ddda27db0e 100644
  
  void arch_do_IRQ_pipelined(struct irq_desc *desc);
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 6785cfd83ac..9f2abbdde22 100644
+index 6785cfd83ac3..9f2abbdde223 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -10,7 +10,6 @@

@@ -1,4 +1,4 @@
-From 1cfa1fa043b6bb191437153c6f8f654b2f14fe83 Mon Sep 17 00:00:00 2001
+From 9f31348cd0816682b3524ce1563f2675d40c0fdb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 19:36:14 +0200
 Subject: [PATCH] sched: dovetail: add stage debug check to common scheduling
@@ -12,6 +12,8 @@ Likewise, all wake_up*() calls must be issued from the in-band stage,
 so check the current stage from the common task wakeup helper too.
 
 This code is compiled in with CONFIG_DEBUG_IRQ_PIPELINE.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/linux/kernel.h | 8 ++++++--
  kernel/sched/core.c    | 2 ++
@@ -19,7 +21,7 @@ This code is compiled in with CONFIG_DEBUG_IRQ_PIPELINE.
  3 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index d83d403dac2e..449b9101d64d 100644
+index 3adcb39fa6f5..8d4230ebee90 100644
 --- a/include/linux/kernel.h
 +++ b/include/linux/kernel.h
 @@ -14,6 +14,7 @@
@@ -46,10 +48,10 @@ index d83d403dac2e..449b9101d64d 100644
  
  #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 2b9b710f61b1..83241229b043 100644
+index 8f0b08b26204..80677d56712d 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3878,6 +3878,8 @@ static inline void schedule_debug(struct task_struct *prev, bool preempt)
+@@ -3879,6 +3879,8 @@ static inline void schedule_debug(struct task_struct *prev, bool preempt)
  		panic("corrupted stack end detected inside scheduler\n");
  #endif
  
@@ -59,7 +61,7 @@ index 2b9b710f61b1..83241229b043 100644
  	if (!preempt && prev->state && prev->non_block_count) {
  		printk(KERN_ERR "BUG: scheduling in a non-blocking section: %s/%d/%i\n",
 diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index c1e566a114ca..c0b0b6e17f69 100644
+index ba059fbfc53a..9338b3de6326 100644
 --- a/kernel/sched/wait.c
 +++ b/kernel/sched/wait.c
 @@ -70,6 +70,8 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,

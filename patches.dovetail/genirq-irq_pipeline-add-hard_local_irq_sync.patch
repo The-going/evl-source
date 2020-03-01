@@ -1,4 +1,4 @@
-From 8d04675e96b16ed95f448705e7369dafaa28eb4f Mon Sep 17 00:00:00 2001
+From 8a6a8d1a1ee04e3bbf65f122c5e5c9b33c4fc436 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 16 Jul 2019 10:02:30 +0200
 Subject: [PATCH] genirq: irq_pipeline: add hard_local_irq_sync()
@@ -10,12 +10,14 @@ with hard irqs off once done.
 
 We need this for inserting a preemptible spot into the in-band context
 switching code.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  include/asm-generic/irq_pipeline.h | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/include/asm-generic/irq_pipeline.h b/include/asm-generic/irq_pipeline.h
-index 4263f7044f9..98619b08e4f 100644
+index 4263f7044f95..98619b08e4fb 100644
 --- a/include/asm-generic/irq_pipeline.h
 +++ b/include/asm-generic/irq_pipeline.h
 @@ -30,6 +30,7 @@ unsigned long inband_irqs_disabled(void);

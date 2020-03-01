@@ -1,9 +1,10 @@
-From a92eca783b65e1e880ff4593b73b5f444d4c2d5c Mon Sep 17 00:00:00 2001
+From af71e55f19c55cace347cef0c726dd9217cf11d9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 3 Feb 2019 18:52:44 +0100
 Subject: [PATCH] spmi: pmic-arb: irq_pipeline: enable pipelined interrupt
  control
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  drivers/spmi/spmi-pmic-arb.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)

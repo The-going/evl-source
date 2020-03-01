@@ -1,8 +1,9 @@
-From dacd85368a243c488af66757c7ba39bffd8356c2 Mon Sep 17 00:00:00 2001
+From 5501c4ef53ebf22122aca9f84cc6f263318a8c22 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 09:03:44 +0200
 Subject: [PATCH] PM / hibernate: irq_pipeline: make safe when pipelining
 
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  kernel/power/hibernate.c | 3 +++
  1 file changed, 3 insertions(+)

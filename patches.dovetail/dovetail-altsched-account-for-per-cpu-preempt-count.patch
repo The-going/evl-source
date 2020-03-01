@@ -1,4 +1,4 @@
-From 5d77167e41c4a23cf3908e9005b8dc542d8031dc Mon Sep 17 00:00:00 2001
+From 14c9c9e2249118757986b1aca87f12fc46d7d308 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 9 May 2019 10:54:49 +0200
 Subject: [PATCH] dovetail: altsched: account for per-cpu preempt count
@@ -15,6 +15,8 @@ At this chance, dovetail_context_switch() is extended in order to deal
 with the outgoing context and stage level tracking (only for
 architectures with per-task preempt count), which the out-of-band
 scheduler does not need to do anymore.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
 ---
  Documentation/dovetail.rst | 28 +++++++++-------------------
  arch/Kconfig               |  3 +++
@@ -63,7 +65,7 @@ index 34ed15c2a88c..fd8af6ce28d3 100644
     register file previously saved by the kernel scheduler in
     :c:func:`switch_to` at step 1.
 diff --git a/arch/Kconfig b/arch/Kconfig
-index 5f8a5d84dbbe..1a4733f30cd4 100644
+index 48b5e103bdb0..42052dbd2af2 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
 @@ -201,6 +201,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
@@ -148,10 +150,10 @@ index 61556b95cb70..fe952794b4d4 100644
  
  	if (inband)
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 11c13cd0c0b2..c8c1226a5e28 100644
+index cac8fbf298c3..5cd7dcf8286b 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8020,12 +8020,27 @@ void dovetail_resume_inband(void)
+@@ -8030,12 +8030,27 @@ void dovetail_resume_inband(void)
  }
  EXPORT_SYMBOL_GPL(dovetail_resume_inband);
  
@@ -181,7 +183,7 @@ index 11c13cd0c0b2..c8c1226a5e28 100644
  	next = in->task;
  	prev = out->task;
  	prev_mm = out->active_mm;
-@@ -8059,6 +8074,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8069,6 +8084,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
  		hard_irqs_disabled();
  
  	arch_dovetail_context_resume();
