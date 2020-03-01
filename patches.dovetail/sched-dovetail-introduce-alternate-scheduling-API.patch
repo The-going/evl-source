@@ -1,4 +1,4 @@
-From aa53b9558ece83b5d8e2f5fb54e6eea2d93f54d8 Mon Sep 17 00:00:00 2001
+From f56e11aff191ba6657682f61ddc2ac6c9c72262b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:32:33 +0200
 Subject: [PATCH] sched: dovetail: introduce alternate scheduling API
@@ -369,7 +369,7 @@ index 05bc5c0d7357..6da6429bdf5e 100644
  {
  	check_inband_stage();
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index d37da201fc57..eefd48963a38 100644
+index 99de4e8c4f5a..1167002d9257 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -2531,7 +2531,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
@@ -477,7 +477,7 @@ index d37da201fc57..eefd48963a38 100644
  		preempt_latency_stop(1);
  		preempt_enable_no_resched_notrace();
  
-@@ -7937,6 +7961,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+@@ -7938,6 +7962,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
  
  #endif	/* CONFIG_CGROUP_SCHED */
  

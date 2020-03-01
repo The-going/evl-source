@@ -335,3 +335,4 @@
 	patches.evl-only/evl-sem-fix-count-leakage-in-non-blocking-case.patch
 	patches.evl-only/evl-proxy-return-EBADF-on-invalid-target-fd.patch
 	patches.evl-only/uapi-evl-fptest-try-harder-not-to-shadow-local-varia.patch
+	patches.evl-only/evl-thread-fix-inverted-single-step-bit-flip.patch

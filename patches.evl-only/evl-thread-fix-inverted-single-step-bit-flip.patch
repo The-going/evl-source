@@ -1,0 +1,34 @@
+From 2e13c04b843ab3538a56b54fbeb3724d10b89847 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 20 Nov 2019 13:01:07 +0100
+Subject: [PATCH] evl/thread: fix inverted single-step bit flip
+
+---
+ kernel/evl/thread.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 357234462d61..6dd105c808c7 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -466,7 +466,7 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
+ 
+ 	assert_evl_lock(&curr->lock);
+ 	assert_evl_lock(&rq->lock);
+-	
++
+ 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
+ 
+ 	oldstate = curr->state;
+@@ -1608,7 +1608,7 @@ static void handle_sigwake_event(struct task_struct *p)
+ 			sigismember(&pending, SIGSTOP)
+ 			|| sigismember(&pending, SIGINT))
+ 			evl_spin_lock(&thread->rq->lock);
+-			thread->state &= ~T_SSTEP;
++			thread->state |= T_SSTEP;
+ 			evl_spin_unlock(&thread->rq->lock);
+ 	}
+ 
+-- 
+2.16.4
+
