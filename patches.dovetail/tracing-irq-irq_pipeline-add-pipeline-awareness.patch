@@ -1,4 +1,4 @@
-From bb3d3d5c9bf648331f9d2947a4b267e0041ff634 Mon Sep 17 00:00:00 2001
+From af3e6d292711d7350032c871ddc6fe81ef8febeb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
@@ -12,7 +12,7 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 2c92b3d9ea30..4257d1f11a78 100644
+index 1c80521fd436..c8d1a914d9d8 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -2322,12 +2322,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
@@ -32,10 +32,10 @@ index 2c92b3d9ea30..4257d1f11a78 100644
  		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
  }
 diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
-index 1974ce818ddb..24de204c7e0c 100644
+index 005f08629b8b..32e3e5a66bb9 100644
 --- a/kernel/trace/trace.h
 +++ b/kernel/trace/trace.h
-@@ -122,11 +122,14 @@ struct kretprobe_trace_entry_head {
+@@ -121,11 +121,14 @@ struct kretprobe_trace_entry_head {
  /*
   * trace_flag_type is an enumeration that holds different
   * states when a trace occurs. These are:
@@ -51,7 +51,7 @@ index 1974ce818ddb..24de204c7e0c 100644
   */
  enum trace_flag_type {
  	TRACE_FLAG_IRQS_OFF		= 0x01,
-@@ -136,6 +139,8 @@ enum trace_flag_type {
+@@ -135,6 +138,8 @@ enum trace_flag_type {
  	TRACE_FLAG_SOFTIRQ		= 0x10,
  	TRACE_FLAG_PREEMPT_RESCHED	= 0x20,
  	TRACE_FLAG_NMI			= 0x40,

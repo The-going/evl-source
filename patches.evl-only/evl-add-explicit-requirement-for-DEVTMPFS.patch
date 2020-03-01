@@ -1,0 +1,27 @@
+From 96e4c3a87e98b0d39caf0f18868a7b63cd39f1b0 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 22 Jun 2019 19:26:00 +0200
+Subject: [PATCH] evl: add explicit requirement for DEVTMPFS
+
+We create devices on the fly as part of the procedure for
+instantiating new EVL elements, expecting them to appear dynamically
+in the /dev filesystem hierarchy.
+---
+ kernel/Kconfig.evl | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/kernel/Kconfig.evl b/kernel/Kconfig.evl
+index b9ab8aeb5403..668e5d56f949 100644
+--- a/kernel/Kconfig.evl
++++ b/kernel/Kconfig.evl
+@@ -7,6 +7,7 @@ menuconfig EVL
+ 	bool "EVL real-time core"
+ 	depends on HAVE_ARCH_EVL
+ 	select DOVETAIL
++	select DEVTMPFS
+ 	help
+ 
+ 	  The EVL core is a real-time component of the Linux kernel,
+-- 
+2.16.4
+

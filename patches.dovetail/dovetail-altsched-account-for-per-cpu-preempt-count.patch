@@ -1,4 +1,4 @@
-From eeb25eb495643cc79223950b177e10ee661466b1 Mon Sep 17 00:00:00 2001
+From 403ce63e019d10b4c44022ac09b099fddf9f3d00 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 9 May 2019 10:54:49 +0200
 Subject: [PATCH] dovetail: altsched: account for per-cpu preempt count
@@ -148,10 +148,10 @@ index 61556b95cb70..fe952794b4d4 100644
  
  	if (inband)
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 6bd97eff031a..18f328587946 100644
+index 36b7a7a4057d..c5c50d28f717 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -7155,12 +7155,27 @@ void dovetail_resume_inband(void)
+@@ -7156,12 +7156,27 @@ void dovetail_resume_inband(void)
  }
  EXPORT_SYMBOL_GPL(dovetail_resume_inband);
  
@@ -181,7 +181,7 @@ index 6bd97eff031a..18f328587946 100644
  	next = in->task;
  	prev = out->task;
  	prev_mm = out->active_mm;
-@@ -7194,6 +7209,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -7195,6 +7210,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
  		hard_irqs_disabled();
  
  	arch_dovetail_context_resume();

@@ -1,0 +1,25 @@
+From 2d4ab13831a9c6f2e04addb02c81caef9a8bc9b7 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Jun 2019 15:51:11 +0200
+Subject: [PATCH] evl/trace: rename worst case latency event
+
+---
+ include/trace/events/evl.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index bd42f8f9fba6..33449630afae 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -858,7 +858,7 @@ TRACE_EVENT(evl_latspot,
+ 	TP_fast_assign(
+ 		__entry->latmax_ns = latmax_ns;
+ 	),
+-	TP_printk("** latency spot: %d.%.3d us **",
++	TP_printk("** latency peak: %d.%.3d us **",
+ 		  __entry->latmax_ns / 1000,
+ 		  __entry->latmax_ns % 1000)
+ );
+-- 
+2.16.4
+

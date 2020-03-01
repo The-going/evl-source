@@ -1,4 +1,4 @@
-From 83e22d5519bb4cb67fba57a3d2b6c192db5ac573 Mon Sep 17 00:00:00 2001
+From 2d8a82f68dd950aebf90e1c6af62a567eebe3fb4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 24 Jul 2018 21:42:33 +0200
 Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
@@ -10,10 +10,10 @@ Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
  3 files changed, 20 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index e86374f417a..4c43eedc3fd 100644
+index 820fa9a159f3..46a8f33cc87c 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -56,6 +56,7 @@ config DIGICOLOR_TIMER
+@@ -57,6 +57,7 @@ config DIGICOLOR_TIMER
  
  config DW_APB_TIMER
  	bool "DW APB timer driver" if COMPILE_TEST
@@ -22,7 +22,7 @@ index e86374f417a..4c43eedc3fd 100644
  	  Enables the support for the dw_apb timer.
  
 diff --git a/drivers/clocksource/dw_apb_timer.c b/drivers/clocksource/dw_apb_timer.c
-index 1f5f734e491..454775ac662 100644
+index 1f5f734e4919..454775ac662d 100644
 --- a/drivers/clocksource/dw_apb_timer.c
 +++ b/drivers/clocksource/dw_apb_timer.c
 @@ -46,7 +46,7 @@ ced_to_dw_apb_ced(struct clock_event_device *evt)
@@ -102,7 +102,7 @@ index 1f5f734e491..454775ac662 100644
  
  /**
 diff --git a/include/linux/dw_apb_timer.h b/include/linux/dw_apb_timer.h
-index 4334106f44c..45690c196e4 100644
+index 4334106f44c3..45690c196e4c 100644
 --- a/include/linux/dw_apb_timer.h
 +++ b/include/linux/dw_apb_timer.h
 @@ -34,7 +34,7 @@ struct dw_apb_clock_event_device {

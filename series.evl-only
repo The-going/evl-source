@@ -169,3 +169,38 @@
 	patches.evl-only/gpiolib-evl-silence-spurious-compiler-warning.patch
 	patches.evl-only/evl-tick-trace-cycles-used-in-programming-next-event.patch
 	patches.evl-only/evl-timer-always-display-timer-name-when-tracing.patch
+	patches.evl-only/uapi-evl-fix-thread-state-labels.patch
+	patches.evl-only/evl-timer-always-inline-timer-insertion-code.patch
+	patches.evl-only/evl-proxy-use-lightweight-write-race-detection.patch
+	patches.evl-only/evl-sched-privatize-evl_pick_thread.patch
+	patches.evl-only/evl-wait-inline-wake-up-helpers.patch
+	patches.evl-only/evl-lock-inline-locking-helpers.patch
+	patches.evl-only/evl-tick-clearify-update-comment.patch
+	patches.evl-only/evl-poll-__evl_signal_poll_events-should-not-resched.patch
+	patches.evl-only/evl-monitor-send-POLLIN-on-exit-of-signaled-monitor.patch
+	patches.evl-only/evl-thread-fix-build-w-o-runtime-stats.patch
+	patches.evl-only/evl-timer-define-name-prop-unconditionally.patch
+	patches.evl-only/evl-clock-fix-tracepoints-for-clock-name.patch
+	patches.evl-only/evl-trace-rename-worst-case-latency-event.patch
+	patches.evl-only/uapi-evl-export-ABI-level.patch
+	patches.evl-only/evl-monitor-plan-for-extending-the-range-of-supporte.patch
+	patches.evl-only/evl-monitor-add-event-mask-protocol.patch
+	patches.evl-only/evl-thread-stop-leaking-syscall-restart-bit-on-inban.patch
+	patches.evl-only/evl-thread-drop-check-for-T_MOVED-status-bit.patch
+	patches.evl-only/evl-thread-grant-some-privileged-capabilities-while-.patch
+	patches.evl-only/evl-monitor-fix-event-tracking-for-gates.patch
+	patches.evl-only/evl-monitor-fix-notification-on-targeted-signal.patch
+	patches.evl-only/evl-poll-drop-evl_clear_poll_events.patch
+	patches.evl-only/evl-monitor-finalize-polling-support.patch
+	patches.evl-only/evl-poll-return-EBADF-on-bad-fd-specification.patch
+	patches.evl-only/evl-monitor-fix-polling-support.patch
+	patches.evl-only/evl-monitor-honor-O_NONBLOCK.patch
+	patches.evl-only/evl-poll-better-align-with-epoll-interface.patch
+	patches.evl-only/evl-monitor-POLLERR-on-polling-a-gated-event.patch
+	patches.evl-only/evl-poll-always-signal-POLLIN-POLLRDNORM-combined.patch
+	patches.evl-only/evl-poll-return-POLLNVAL-on-closed-fd.patch
+	patches.evl-only/evl-factory-inherit-clone-device-ownership.patch
+	patches.evl-only/drivers-evl-hectic-emit-tracepoint-on-detecting-fpu-.patch
+	patches.evl-only/evl-thread-clarify-comment.patch
+	patches.evl-only/evl-add-explicit-requirement-for-DEVTMPFS.patch
+	patches.evl-only/evl-thread-fix-leaking-ready-state-in-evl_switch_inb.patch

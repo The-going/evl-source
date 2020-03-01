@@ -1,4 +1,4 @@
-From 36b6ada9576a0acd15c7a8a99c629c4cfc3e1455 Mon Sep 17 00:00:00 2001
+From 90513a8c166b361fb132136e3c040ead0b9d60b2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -321,10 +321,10 @@ index df9f454d7b7e..d9771dda64f2 100644
 -#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 +#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 27d8fe4b4015..2fbbae462bf5 100644
+index aa4589585627..d7e454b8f2bd 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -86,7 +86,7 @@ endif
+@@ -87,7 +87,7 @@ endif
  CHECKFLAGS	+= -D__aarch64__
  
  ifeq ($(CONFIG_EVL),y)
@@ -1933,7 +1933,7 @@ index 6730247e8da3..9d8256629839 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 322c1c3ddef7..14f8019939d4 100644
+index d944e677c779..7497b096a98d 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o

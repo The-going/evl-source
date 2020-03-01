@@ -1,4 +1,4 @@
-From 8a0962349bb9d4a9dc0a5a04104b386c662e7215 Mon Sep 17 00:00:00 2001
+From 8adeb2912b7d3c9a9e73da3f56b8e7a66e6cc556 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 7 Dec 2015 11:49:50 +0100
 Subject: [PATCH] ARM: introduce raw console device
@@ -81,10 +81,10 @@ index b36738cd5ea3..bcbbc740cad0 100644
  static inline __printf(1, 2) __cold
  void raw_printk(const char *s, ...) { }
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 1e5bbdcc26ed..010cf6e93375 100644
+index 81898578e166..86f8865cf043 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2107,21 +2107,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2108,21 +2108,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  static struct console *raw_console;
  static DEFINE_RAW_SPINLOCK(raw_console_lock);
  

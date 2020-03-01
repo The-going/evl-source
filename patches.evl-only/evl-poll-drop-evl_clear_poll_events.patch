@@ -1,0 +1,203 @@
+From 062096190f6bf3611b768aa3f1de852f881f7ff2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 16 Jun 2019 16:55:34 +0200
+Subject: [PATCH] evl/poll: drop evl_clear_poll_events()
+
+Callers of the out-of-band polling interface are subject to spurious
+wakeups by design, which means that they have to handle the case where
+a signaled condition goes stale before execution resumes. On the other
+hand, we certainly don't want to miss a wake up event in case the
+condition is met again in the meantime (i.e. transient
+true->false->true event), therefore making provisions for clearing
+such event is asking for trouble.
+
+Since the caller has to check for spurious wake ups, we should wake it
+up as soon as a false->true transition is observed. Therefore,
+evl_clear_poll_events() is deemed useless and even error-prone: drop
+it.
+---
+ drivers/gpio/gpiolib.c | 13 +++++--------
+ include/evl/poll.h     | 13 -------------
+ kernel/evl/clock.c     |  2 --
+ kernel/evl/poll.c      | 15 ---------------
+ kernel/evl/xbuf.c      | 27 ---------------------------
+ 5 files changed, 5 insertions(+), 65 deletions(-)
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 6cfe8e86c410..58d3797c2aeb 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -1015,15 +1015,12 @@ static ssize_t lineevent_oob_read(struct file *filep,
+ 		raw_spin_lock_irqsave(&le->oob_state.lock, flags);
+ 
+ 		ret = kfifo_get(&le->events, &ge);
+-		if (!ret) {
+-			evl_clear_poll_events(&le->oob_state.poll_head,
+-					POLLIN|POLLRDNORM);
+-			/*
+-			 * This works around a false positive enabling
+-			 * -Wmaybe-uninitialized w/ gcc 8.3.1.
+-			 */
++		/*
++		 * Silly work around to address a false positive
++		 * enabling -Wmaybe-uninitialized w/ gcc 8.3.1.
++		 */
++		if (!ret)
+ 			ret = 0;
+-		}
+ 
+ 		raw_spin_unlock_irqrestore(&le->oob_state.lock, flags);
+ 
+diff --git a/include/evl/poll.h b/include/evl/poll.h
+index 70f1c40f989e..8de44e236bde 100644
+--- a/include/evl/poll.h
++++ b/include/evl/poll.h
+@@ -44,9 +44,6 @@ void evl_poll_watch(struct evl_poll_head *head,
+ void __evl_signal_poll_events(struct evl_poll_head *head,
+ 			      int events);
+ 
+-void __evl_clear_poll_events(struct evl_poll_head *head,
+-			     int events);
+-
+ static inline void
+ evl_signal_poll_events(struct evl_poll_head *head,
+ 		       int events)
+@@ -57,16 +54,6 @@ evl_signal_poll_events(struct evl_poll_head *head,
+ 
+ }
+ 
+-static inline void
+-evl_clear_poll_events(struct evl_poll_head *head,
+-		      int events)
+-{
+-	/* Quick check. We'll redo under lock */
+-	if (!list_empty(&head->watchpoints))
+-		__evl_clear_poll_events(head, events);
+-
+-}
+-
+ void evl_drop_poll_table(struct evl_thread *thread);
+ 
+ void evl_drop_watchpoints(struct list_head *drop_list);
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 9e154369e801..c2b2a21987f7 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -677,8 +677,6 @@ static ssize_t timerfd_oob_read(struct file *filp,
+ 	if (evl_timer_is_periodic(&timerfd->timer))
+ 		ticks += (u32)evl_get_timer_overruns(&timerfd->timer);
+ 
+-	evl_clear_poll_events(&timerfd->poll_head, POLLIN);
+-
+ 	if (raw_put_user(ticks, u_ticks))
+ 		return -EFAULT;
+ 
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index 422bee35b0c7..1b5009a9b266 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -99,21 +99,6 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
+ }
+ EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
+ 
+-void __evl_clear_poll_events(struct evl_poll_head *head,
+-			int events)
+-{
+-	struct evl_poll_watchpoint *wpt;
+-	unsigned long flags;
+-
+-	evl_spin_lock_irqsave(&head->lock, flags);
+-
+-	list_for_each_entry(wpt, &head->watchpoints, wait.next)
+-		wpt->events_received &= ~events;
+-
+-	evl_spin_unlock_irqrestore(&head->lock, flags);
+-}
+-EXPORT_SYMBOL_GPL(__evl_clear_poll_events);
+-
+ void evl_drop_poll_table(struct evl_thread *thread)
+ {
+ 	struct evl_poll_watchpoint *table;
+diff --git a/kernel/evl/xbuf.c b/kernel/evl/xbuf.c
+index 29f5ff2b6c45..f950928e5a02 100644
+--- a/kernel/evl/xbuf.c
++++ b/kernel/evl/xbuf.c
+@@ -38,7 +38,6 @@ struct xbuf_ring {
+ 	void (*unblock_output)(struct xbuf_ring *ring);
+ 	bool (*in_output_contention)(struct xbuf_ring *ring);
+ 	void (*signal_pollable)(struct xbuf_ring *ring, int events);
+-	void (*clear_pollable)(struct xbuf_ring *ring, int events);
+ };
+ 
+ struct xbuf_inbound {		/* oob_write->read */
+@@ -181,10 +180,6 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 		ring->rdrsvd -= len;
+ 		ring->fillsz -= len;
+ 
+-		if (ring->fillsz == 0)
+-			/* -> non-readable */
+-			ring->clear_pollable(ring, POLLIN|POLLRDNORM);
+-
+ 		/*
+ 		 * Wake up the thread heading the output wait queue if
+ 		 * we freed enough room to post its message.
+@@ -291,10 +286,6 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 			/* -> readable */
+ 			ring->signal_pollable(ring, POLLIN|POLLRDNORM);
+ 
+-		if (ring->fillsz == ring->bufsz)
+-			/* non-writable */
+-			ring->clear_pollable(ring, POLLOUT|POLLWRNORM);
+-
+ 		ring->signal_input(ring);
+ 		goto out;
+ 	wait:
+@@ -383,14 +374,6 @@ static void inbound_signal_pollable(struct xbuf_ring *ring, int events)
+ 		evl_signal_poll_events(&xbuf->poll_head, events);
+ }
+ 
+-static void inbound_clear_pollable(struct xbuf_ring *ring, int events)
+-{
+-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+-
+-	if (events & POLLOUT)
+-		evl_clear_poll_events(&xbuf->poll_head, events);
+-}
+-
+ static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
+ 			size_t count, loff_t *ppos)
+ {
+@@ -515,14 +498,6 @@ static void outbound_signal_pollable(struct xbuf_ring *ring, int events)
+ 		evl_signal_poll_events(&xbuf->poll_head, events);
+ }
+ 
+-static void outbound_clear_pollable(struct xbuf_ring *ring, int events)
+-{
+-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+-
+-	if (events & POLLIN)
+-		evl_clear_poll_events(&xbuf->poll_head, events);
+-}
+-
+ static ssize_t xbuf_oob_read(struct file *filp,
+ 			char __user *u_buf, size_t count)
+ {
+@@ -700,7 +675,6 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
+ 	xbuf->ibnd.ring.unblock_output = inbound_unblock_output;
+ 	xbuf->ibnd.ring.in_output_contention = inbound_output_contention;
+ 	xbuf->ibnd.ring.signal_pollable = inbound_signal_pollable;
+-	xbuf->ibnd.ring.clear_pollable = inbound_clear_pollable;
+ 
+ 	/* Outbound traffic: write() -> oob_read(). */
+ 	evl_init_flag(&xbuf->obnd.i_event);
+@@ -714,7 +688,6 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
+ 	xbuf->obnd.ring.unblock_output = outbound_unblock_output;
+ 	xbuf->obnd.ring.in_output_contention = outbound_output_contention;
+ 	xbuf->obnd.ring.signal_pollable = outbound_signal_pollable;
+-	xbuf->obnd.ring.clear_pollable = outbound_clear_pollable;
+ 
+ 	evl_init_poll_head(&xbuf->poll_head);
+ 
+-- 
+2.16.4
+

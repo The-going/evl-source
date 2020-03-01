@@ -1,0 +1,33 @@
+From b695ad9ae74d3634c8f51edd8ae74a21ba479cdd Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 4 Jun 2019 12:11:28 +0200
+Subject: [PATCH] evl/poll: __evl_signal_poll_events() should not reschedule
+
+Sending pollable signals is most likely done from a context which
+cannot immediately reschedule, but will certainly do so later on
+(e.g. IRQ handler). There is no point in triggering a reschedule in
+this overwhelmingly frequent case.
+
+Rare callers which might want to reschedule immediately after the
+events are posted must do so by calling evl_schedule() explicitly
+(none in tree yet).
+---
+ kernel/evl/poll.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index b2a82e04766a..422bee35b0c7 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -96,8 +96,6 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
+ 	}
+ 
+ 	evl_spin_unlock_irqrestore(&head->lock, flags);
+-
+-	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
+ 
+-- 
+2.16.4
+

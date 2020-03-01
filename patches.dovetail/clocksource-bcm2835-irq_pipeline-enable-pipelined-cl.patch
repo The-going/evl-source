@@ -1,0 +1,45 @@
+From 090a37fb4fb270aac6bc96ee06b7991abaaa2ff8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 3 Jun 2019 10:28:53 +0200
+Subject: [PATCH] clocksource/bcm2835: irq_pipeline: enable pipelined clock
+ events
+
+---
+ drivers/clocksource/bcm2835_timer.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/clocksource/bcm2835_timer.c b/drivers/clocksource/bcm2835_timer.c
+index 2b196cbfadb6..6387f2ce98ea 100644
+--- a/drivers/clocksource/bcm2835_timer.c
++++ b/drivers/clocksource/bcm2835_timer.c
+@@ -54,13 +54,11 @@ static int bcm2835_time_set_next_event(unsigned long event,
+ static irqreturn_t bcm2835_time_interrupt(int irq, void *dev_id)
+ {
+ 	struct bcm2835_timer *timer = dev_id;
+-	void (*event_handler)(struct clock_event_device *);
++
+ 	if (readl_relaxed(timer->control) & timer->match_mask) {
+ 		writel_relaxed(timer->match_mask, timer->control);
+ 
+-		event_handler = READ_ONCE(timer->evt.event_handler);
+-		if (event_handler)
+-			event_handler(&timer->evt);
++		clockevents_handle_event(&timer->evt);
+ 		return IRQ_HANDLED;
+ 	} else {
+ 		return IRQ_NONE;
+@@ -110,9 +108,10 @@ static int __init bcm2835_timer_init(struct device_node *node)
+ 	timer->match_mask = BIT(DEFAULT_TIMER);
+ 	timer->evt.name = node->name;
+ 	timer->evt.rating = 300;
+-	timer->evt.features = CLOCK_EVT_FEAT_ONESHOT;
++	timer->evt.features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PIPELINE;
+ 	timer->evt.set_next_event = bcm2835_time_set_next_event;
+ 	timer->evt.cpumask = cpumask_of(0);
++	timer->evt.irq = irq;
+ 	timer->act.name = node->name;
+ 	timer->act.flags = IRQF_TIMER | IRQF_SHARED;
+ 	timer->act.dev_id = timer;
+-- 
+2.16.4
+

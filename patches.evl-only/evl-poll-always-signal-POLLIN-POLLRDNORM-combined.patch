@@ -1,0 +1,50 @@
+From fe8ada5def4261f0255b2892ca5f9f18a27d66d9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 20 Jun 2019 14:58:08 +0200
+Subject: [PATCH] evl/poll: always signal POLLIN|POLLRDNORM combined
+
+---
+ kernel/evl/clock.c   | 2 +-
+ kernel/evl/monitor.c | 6 ++++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 58fa2aa1d4b5..1a470e6fa9c9 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -598,7 +598,7 @@ static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
+ 
+ 	timerfd = container_of(timer, struct evl_timerfd, timer);
+ 	timerfd->ticked = true;
+-	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
++	evl_signal_poll_events(&timerfd->poll_head, POLLIN|POLLRDNORM);
+ 	evl_flush_wait(&timerfd->readers, 0);
+ }
+ 
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index ba2205ccdeff..16189445ac58 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -281,7 +281,8 @@ static int exit_monitor(struct evl_monitor *gate)
+ 
+ 		/* Wake up threads polling the condition too. */
+ 		list_for_each_entry(event, &polled, next)
+-			evl_signal_poll_events(&event->poll_head, POLLIN);
++			evl_signal_poll_events(&event->poll_head,
++					POLLIN|POLLRDNORM);
+ 	}
+ 
+ 	__exit_monitor(gate, curr);
+@@ -420,7 +421,8 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
+ 	}
+ 
+ 	if (pollable)
+-		evl_signal_poll_events(&event->poll_head, POLLIN|POLLRDNORM);
++		evl_signal_poll_events(&event->poll_head,
++				POLLIN|POLLRDNORM);
+ 
+ 	evl_schedule();
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,38 @@
+From 9a54f1e0c22b6a295561722810d473713e63da1c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 9 Jun 2019 16:28:28 +0200
+Subject: [PATCH] x86/fpu: dovetail: always hard lock fpregs on pipelining
+
+As soon as Dovetailing is enabled in fpu__clear() which requires hard
+locking to take place, we have to turn on hard locking for fpregs
+access too in order to prevent mismatches between real vs virtual
+interrupt states.
+---
+ arch/x86/include/asm/fpu/api.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/include/asm/fpu/api.h b/arch/x86/include/asm/fpu/api.h
+index be5352560ea1..b33731917a0e 100644
+--- a/arch/x86/include/asm/fpu/api.h
++++ b/arch/x86/include/asm/fpu/api.h
+@@ -32,7 +32,7 @@ extern void fpregs_mark_activate(void);
+  */
+ static inline unsigned long fpregs_lock(void)
+ {
+-	if (IS_ENABLED(CONFIG_DOVETAIL)) {
++	if (IS_ENABLED(CONFIG_IRQ_PIPELINE)) {
+ 		return hard_preempt_disable();
+ 	} else {
+ 		preempt_disable();
+@@ -43,7 +43,7 @@ static inline unsigned long fpregs_lock(void)
+ 
+ static inline void fpregs_unlock(unsigned long flags)
+ {
+-	if (IS_ENABLED(CONFIG_DOVETAIL)) {
++	if (IS_ENABLED(CONFIG_IRQ_PIPELINE)) {
+ 		hard_preempt_enable(flags);
+ 	} else {
+ 		local_bh_enable();
+-- 
+2.16.4
+

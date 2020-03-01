@@ -1,4 +1,4 @@
-From f320501be4a0b913ab431e79241663abf6e36e1e Mon Sep 17 00:00:00 2001
+From 1193d79511bbc890521ccd705233fa4ee6501cda Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:04:43 +0200
 Subject: [PATCH] dovetail: add core support
@@ -615,7 +615,7 @@ index 000000000000..adc6922d64e1
 +	  running a secondary kernel side-by-side with Linux (aka
 +	  "dual kernel" configuration).
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 33824f0385b3..d62e48828c3f 100644
+index a8d923b5481b..9dda1ef03013 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -98,6 +98,7 @@ obj-$(CONFIG_TRACE_CLOCK) += trace/
@@ -909,10 +909,10 @@ index 7c80e1048298..6e2da91c3f51 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 003743a61eed..a7ef0333750d 100644
+index 9ae8a46989ae..30ce5615895a 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -855,6 +855,16 @@ config IRQ_PIPELINE_TORTURE_TEST
+@@ -856,6 +856,16 @@ config IRQ_PIPELINE_TORTURE_TEST
  	  Say Y here if you want the IRQ pipeline torture tests to run
  	  when the kernel starts. Say N if you are unsure.
  

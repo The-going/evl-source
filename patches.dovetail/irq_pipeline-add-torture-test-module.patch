@@ -1,4 +1,4 @@
-From 98d0c0c1542a9a72d92c4bba205ea290b3d4b7a1 Mon Sep 17 00:00:00 2001
+From 7877d54374c490730e72176e53c22a49a8b94e97 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Mar 2017 16:52:52 +0100
 Subject: [PATCH] irq_pipeline: add torture test module
@@ -312,10 +312,10 @@ index 000000000000..9b410cebcbd5
 +}
 +late_initcall(irqp_torture_init);
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 665a8d6211a4..003743a61eed 100644
+index 00a3a0069587..9ae8a46989ae 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -843,6 +843,18 @@ config DEBUG_IRQ_PIPELINE
+@@ -844,6 +844,18 @@ config DEBUG_IRQ_PIPELINE
  
  	  If unsure, say N.
  

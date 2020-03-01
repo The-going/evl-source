@@ -1,0 +1,26 @@
+From 43c8b73b0610d56fa8f74423a61d7be738d1a495 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 16 Jun 2019 12:05:32 +0200
+Subject: [PATCH] evl/monitor: fix notification on targeted signal
+
+---
+ kernel/evl/monitor.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 9f983c1b4d59..f392883fc82b 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -81,7 +81,8 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
+ 	 */
+ 	if (target->wchan == &event->wait_queue.wchan) {
+ 		target->info |= T_SIGNAL;
+-		event->state->flags |= EVL_MONITOR_TARGETED;
++		event->state->flags |= (EVL_MONITOR_TARGETED|
++					EVL_MONITOR_SIGNALED);
+ 		ret = 0;
+ 	}
+ 
+-- 
+2.16.4
+

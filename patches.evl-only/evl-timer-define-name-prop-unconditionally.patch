@@ -1,0 +1,193 @@
+From 2a59c7b5eba64085a1d74caf244cbd8443f734c8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Jun 2019 15:39:40 +0200
+Subject: [PATCH] evl/timer: define name prop unconditionally
+
+---
+ include/evl/timer.h        | 49 ++++++++++++----------------------------------
+ include/trace/events/evl.h | 18 +++++++++--------
+ kernel/evl/timer.c         |  5 +----
+ 3 files changed, 23 insertions(+), 49 deletions(-)
+
+diff --git a/include/evl/timer.h b/include/evl/timer.h
+index 63e55fa6ce13..ae9ce2332ab9 100644
+--- a/include/evl/timer.h
++++ b/include/evl/timer.h
+@@ -140,35 +140,21 @@ evl_this_cpu_timers(struct evl_clock *clock)
+ 
+ struct evl_timer {
+ 	struct evl_clock *clock;
+-	/* Link in timers list. */
+ 	struct evl_tnode node;
+ 	struct list_head adjlink;
+-	/* Timer status. */
+ 	int status;
+-	/* Periodic interval (clock ticks, 0 == one shot). */
+-	ktime_t interval;
+-	/* First tick date in periodic mode. */
++	ktime_t interval;	/* 0 == oneshot */
+ 	ktime_t start_date;
+-	/* Position of next periodic release point. */
+-	u64 pexpect_ticks;
+-	/* Count of timer ticks in periodic mode. */
++	u64 pexpect_ticks;	/* periodic release date */
+ 	u64 periodic_ticks;
+ #ifdef CONFIG_SMP
+-	/* Runqueue the timer is affine to. */
+ 	struct evl_rq *rq;
+ #endif
+-	/* Per-cpu base. */
+ 	struct evl_timerbase *base;
+-	/* Timeout handler. */
+ 	void (*handler)(struct evl_timer *timer);
+-#ifdef CONFIG_EVL_RUNSTATS
+-	/* Timer name to be displayed. */
+ 	const char *name;
+-	/* Timer holder in timebase. */
+-	struct list_head next_stat;
+-	/* Number of timer schedules. */
++#ifdef CONFIG_EVL_RUNSTATS
+ 	struct evl_counter scheduled;
+-	/* Number of timer events. */
+ 	struct evl_counter fired;
+ #endif /* CONFIG_EVL_RUNSTATS */
+ };
+@@ -261,14 +247,14 @@ void __evl_init_timer(struct evl_timer *timer,
+ void evl_set_timer_gravity(struct evl_timer *timer,
+ 			int gravity);
+ 
+-#ifdef CONFIG_EVL_RUNSTATS
+-
+ #define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
+ 	do {								\
+ 		__evl_init_timer(__timer, __clock, __handler, __rq, __flags); \
+ 		evl_set_timer_name(__timer, #__handler);		\
+ 	} while (0)
+ 
++#ifdef CONFIG_EVL_RUNSTATS
++
+ static inline
+ void evl_reset_timer_stats(struct evl_timer *timer)
+ {
+@@ -288,22 +274,8 @@ void evl_account_timer_fired(struct evl_timer *timer)
+ 	evl_inc_counter(&timer->fired);
+ }
+ 
+-static inline
+-void evl_set_timer_name(struct evl_timer *timer, const char *name)
+-{
+-	timer->name = name;
+-}
+-
+-static inline
+-const char *evl_get_timer_name(struct evl_timer *timer)
+-{
+-	return timer->name;
+-}
+-
+ #else /* !CONFIG_EVL_RUNSTATS */
+ 
+-#define evl_init_timer	__evl_init_timer
+-
+ static inline
+ void evl_reset_timer_stats(struct evl_timer *timer) { }
+ 
+@@ -313,17 +285,20 @@ void evl_account_timer_scheduled(struct evl_timer *timer) { }
+ static inline
+ void evl_account_timer_fired(struct evl_timer *timer) { }
+ 
++#endif /* !CONFIG_EVL_RUNSTATS */
++
+ static inline
+-void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
++void evl_set_timer_name(struct evl_timer *timer, const char *name)
++{
++	timer->name = name;
++}
+ 
+ static inline
+ const char *evl_get_timer_name(struct evl_timer *timer)
+ {
+-	return "<timer>";
++	return timer->name;
+ }
+ 
+-#endif /* !CONFIG_EVL_RUNSTATS */
+-
+ #define evl_init_core_timer(__timer, __handler)				\
+ 	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
+ 		EVL_TIMER_IGRAVITY)
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 9d245c6f7415..b6172a7ab75d 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -642,16 +642,18 @@ TRACE_EVENT(evl_timer_bolt,
+ 		__field(struct evl_timer *, timer)
+ 		__field(struct evl_clock *, clock)
+ 		__field(unsigned int, cpu)
++		__string(timer_name, timer->name)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->timer = timer;
+ 		__entry->clock = clock;
+ 		__entry->cpu = cpu;
++		__assign_str(timer_name, timer->name);
+ 	),
+ 
+ 	TP_printk("timer=%s clock=%s, cpu=%u",
+-		evl_get_timer_name(__entry->timer),
++		  __get_str(timer_name),
+ 		__entry->clock->name, __entry->cpu)
+ );
+ 
+@@ -664,22 +666,22 @@ TRACE_EVENT(evl_timer_shot,
+ 		__field(u32, nsecs)
+ 		__field(s64, delta)
+ 		__field(u64, cycles)
+-		__field(struct evl_timer *, timer)
++		__string(name, timer->name)
+ 	),
+ 
+ 	TP_fast_assign(
+-		__entry->timer = timer;
+ 		__entry->cycles = cycles;
+ 		__entry->delta = delta;
+ 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
+ 					    NSEC_PER_SEC, &__entry->nsecs);
++		__assign_str(name, timer->name);
+ 	),
+ 
+-	TP_printk("%s tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
+-		evl_get_timer_name(__entry->timer),
+-		(unsigned long long)__entry->secs,
+-		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
+-		__entry->cycles)
++	TP_printk("%s at %Lu.%06u (delay: %Ld us, %Lu cycles)",
++		  __get_str(name),
++		  (unsigned long long)__entry->secs,
++		  __entry->nsecs / 1000, div_s64(__entry->delta, 1000),
++		  __entry->cycles)
+ );
+ 
+ DEFINE_EVENT(wq_event, evl_wait,
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index d6ac666d5b11..7ff0b513f1e8 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -344,11 +344,8 @@ void __evl_init_timer(struct evl_timer *timer,
+ #endif
+ 	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
+ 	timer->clock = clock;
+-
+-#ifdef CONFIG_EVL_RUNSTATS
+-	timer->name = "anon";
++	timer->name = "<timer>";
+ 	evl_reset_timer_stats(timer);
+-#endif /* CONFIG_EVL_RUNSTATS */
+ }
+ EXPORT_SYMBOL_GPL(__evl_init_timer);
+ 
+-- 
+2.16.4
+

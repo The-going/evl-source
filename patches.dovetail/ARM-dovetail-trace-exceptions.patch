@@ -1,0 +1,206 @@
+From 4f3f2c6b31e41013810231b54cb238ed474a61e5 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 May 2019 15:46:32 +0200
+Subject: [PATCH] ARM: dovetail: trace exceptions
+
+---
+ arch/arm/include/asm/trace/exceptions.h | 62 +++++++++++++++++++++++++++++++++
+ arch/arm/mm/fault.c                     | 33 ++++++++++++------
+ 2 files changed, 84 insertions(+), 11 deletions(-)
+ create mode 100644 arch/arm/include/asm/trace/exceptions.h
+
+diff --git a/arch/arm/include/asm/trace/exceptions.h b/arch/arm/include/asm/trace/exceptions.h
+new file mode 100644
+index 000000000000..bdb666b3da4e
+--- /dev/null
++++ b/arch/arm/include/asm/trace/exceptions.h
+@@ -0,0 +1,62 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM exceptions
++
++#if !defined(_TRACE_EXCEPTIONS_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_EXCEPTIONS_H
++
++#include <linux/tracepoint.h>
++#include <asm/ptrace.h>
++#include <asm/dovetail.h>
++
++#define __trace_trap(__sym)	{ __sym, #__sym }
++
++#define trace_trap_symbolic(__trapnr)				\
++	__print_symbolic(__trapnr,				\
++			__trace_trap(ARM_TRAP_ACCESS),		\
++			__trace_trap(ARM_TRAP_SECTION),		\
++			__trace_trap(ARM_TRAP_DABT),		\
++			__trace_trap(ARM_TRAP_PABT),		\
++			__trace_trap(ARM_TRAP_BREAK),		\
++			__trace_trap(ARM_TRAP_FPU),		\
++			__trace_trap(ARM_TRAP_VFP),		\
++			__trace_trap(ARM_TRAP_UNDEFINSTR),	\
++			__trace_trap(ARM_TRAP_ALIGNMENT))
++
++DECLARE_EVENT_CLASS(ARM_trap_event,
++	TP_PROTO(int trapnr, struct pt_regs *regs),
++	TP_ARGS(trapnr, regs),
++
++	TP_STRUCT__entry(
++		__field(int, trapnr)
++		__field(struct pt_regs *, regs)
++		),
++
++	TP_fast_assign(
++		__entry->trapnr = trapnr;
++		__entry->regs = regs;
++		),
++
++	TP_printk("%s mode trap: %s",
++		user_mode(__entry->regs) ? "user" : "kernel",
++		trace_trap_symbolic(__entry->trapnr))
++);
++
++DEFINE_EVENT(ARM_trap_event, ARM_trap_entry,
++	TP_PROTO(int trapnr, struct pt_regs *regs),
++	TP_ARGS(trapnr, regs)
++);
++
++DEFINE_EVENT(ARM_trap_event, ARM_trap_exit,
++	TP_PROTO(int trapnr, struct pt_regs *regs),
++	TP_ARGS(trapnr, regs)
++);
++
++#undef TRACE_INCLUDE_PATH
++#undef TRACE_INCLUDE_FILE
++#define TRACE_INCLUDE_PATH asm/trace
++#define TRACE_INCLUDE_FILE exceptions
++#endif /*  _TRACE_EXCEPTIONS_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index a261bba60e63..9b4e5eab36b4 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -27,6 +27,8 @@
+ #include <asm/system_info.h>
+ #include <asm/tlbflush.h>
+ #include <asm/dovetail.h>
++#define CREATE_TRACE_POINTS
++#include <asm/trace/exceptions.h>
+ 
+ #include "fault.h"
+ 
+@@ -51,11 +53,13 @@
+  * helpers. From the main kernel's point of view, there is no change.
+  */
+ static inline
+-unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
++unsigned long __fault_entry(int exception, struct pt_regs *regs)
+ {
+ 	unsigned long flags;
+ 	int nosync = 1;
+ 
++	trace_ARM_trap_entry(exception, regs);
++
+ 	/*
+ 	 * CAUTION: The co-kernel might demote the current context to
+ 	 * the in-band stage as a result of handling this trap,
+@@ -73,7 +77,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+ 	return irqs_merge_flags(flags, nosync);
+ }
+ 
+-static inline void fault_exit(unsigned long combo)
++static inline void fault_exit(int exception, struct pt_regs *regs,
++			unsigned long combo)
+ {
+ 	unsigned long flags;
+ 	int nosync;
+@@ -100,17 +105,21 @@ static inline void fault_exit(unsigned long combo)
+ 			hard_local_irq_enable();
+ 	} else if (hard_irqs_disabled_flags(flags))
+ 		hard_local_irq_disable();
++
++	trace_ARM_trap_exit(exception, regs);
+ }
+ 
+ #else	/* !CONFIG_IRQ_PIPELINE */
+ 
+ static inline
+-unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
++unsigned long __fault_entry(int exception, struct pt_regs *regs)
+ {
+ 	return 0;
+ }
+ 
+-static inline void fault_exit(unsigned long combo) { }
++static inline void fault_exit(int exception, struct pt_regs *regs,
++			unsigned long combo)
++{ }
+ 
+ #endif	/* !CONFIG_IRQ_PIPELINE */
+ 
+@@ -205,12 +214,14 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
+ 	pr_cont("\n");
+ }
+ #else					/* CONFIG_MMU */
+-unsigned long fault_entry(unsigned int exception, struct pt_regs *regs)
++unsigned long fault_entry(int exception, struct pt_regs *regs)
+ {
+ 	return 0;
+ }
+ 
+-static inline void fault_exit(unsigned long combo) { }
++static inline void fault_exit(int exception, struct pt_regs *regs,
++			unsigned long combo)
++{ }
+ 
+ void show_pte(struct mm_struct *mm, unsigned long addr)
+ { }
+@@ -291,7 +302,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	if (user_mode(regs)) {
+ 		irqflags = fault_entry(ARM_TRAP_ACCESS, regs);
+ 		__do_user_fault(tsk, addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
+-		fault_exit(irqflags);
++		fault_exit(ARM_TRAP_ACCESS, regs, irqflags);
+ 	} else
+ 		/*
+ 		 * irq_pipeline: kernel faults are either quickly
+@@ -501,7 +512,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ no_context:
+ 	__do_kernel_fault(mm, addr, fsr, regs);
+ out:
+-	fault_exit(irqflags);
++	fault_exit(ARM_TRAP_ACCESS, regs, irqflags);
+ 
+ 	return 0;
+ }
+@@ -616,7 +627,7 @@ do_sect_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 
+ 	irqflags = fault_entry(ARM_TRAP_SECTION, regs);
+ 	do_bad_area(addr, fsr, regs);
+-	fault_exit(irqflags);
++	fault_exit(ARM_TRAP_SECTION, regs, irqflags);
+ 	return 0;
+ }
+ #endif /* CONFIG_ARM_LPAE */
+@@ -676,7 +687,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 
+ 	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+ 		       fsr, 0);
+-	fault_exit(irqflags);
++	fault_exit(ARM_TRAP_DABT, regs, irqflags);
+ }
+ 
+ void __init
+@@ -707,7 +718,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+ 
+ 	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+ 		       ifsr, 0);
+-	fault_exit(irqflags);
++	fault_exit(ARM_TRAP_PABT, regs, irqflags);
+ }
+ 
+ /*
+-- 
+2.16.4
+

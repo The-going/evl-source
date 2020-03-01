@@ -1,4 +1,4 @@
-From 80dc0d408dd73189131eb86299a0cc329fa5a2d1 Mon Sep 17 00:00:00 2001
+From f0a1d5930b2d343921103ab102b5e5f3196a3b3b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:51:32 +0200
 Subject: [PATCH] atomic: irq_pipeline: keep atomic when pipelining
@@ -14,10 +14,10 @@ critical sections when manipulating those variables.
  4 files changed, 30 insertions(+), 30 deletions(-)
 
 diff --git a/include/asm-generic/atomic.h b/include/asm-generic/atomic.h
-index 13324aa828e..69f7fb072d6 100644
+index 286867f593d2..e10b5059572d 100644
 --- a/include/asm-generic/atomic.h
 +++ b/include/asm-generic/atomic.h
-@@ -80,9 +80,9 @@ static inline void atomic_##op(int i, atomic_t *v)			\
+@@ -76,9 +76,9 @@ static inline void atomic_##op(int i, atomic_t *v)			\
  {									\
  	unsigned long flags;						\
  									\
@@ -29,7 +29,7 @@ index 13324aa828e..69f7fb072d6 100644
  }
  
  #define ATOMIC_OP_RETURN(op, c_op)					\
-@@ -91,9 +91,9 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
+@@ -87,9 +87,9 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
  	unsigned long flags;						\
  	int ret;							\
  									\
@@ -41,7 +41,7 @@ index 13324aa828e..69f7fb072d6 100644
  									\
  	return ret;							\
  }
-@@ -104,10 +104,10 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+@@ -100,10 +100,10 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
  	unsigned long flags;						\
  	int ret;							\
  									\
@@ -55,7 +55,7 @@ index 13324aa828e..69f7fb072d6 100644
  	return ret;							\
  }
 diff --git a/include/asm-generic/cmpxchg-local.h b/include/asm-generic/cmpxchg-local.h
-index f17f14f84d0..67d712ff0f0 100644
+index f17f14f84d09..67d712ff0f01 100644
 --- a/include/asm-generic/cmpxchg-local.h
 +++ b/include/asm-generic/cmpxchg-local.h
 @@ -23,7 +23,7 @@ static inline unsigned long __cmpxchg_local_generic(volatile void *ptr,
@@ -91,7 +91,7 @@ index f17f14f84d0..67d712ff0f0 100644
  }
  
 diff --git a/include/asm-generic/cmpxchg.h b/include/asm-generic/cmpxchg.h
-index 9a24510cd8c..475206bd5c8 100644
+index 9a24510cd8c1..475206bd5c85 100644
 --- a/include/asm-generic/cmpxchg.h
 +++ b/include/asm-generic/cmpxchg.h
 @@ -32,10 +32,10 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
@@ -147,10 +147,10 @@ index 9a24510cd8c..475206bd5c8 100644
  #endif /* __xchg_u64 */
  #endif /* CONFIG_64BIT */
 diff --git a/lib/atomic64.c b/lib/atomic64.c
-index 1d91e31ecee..c61a07d498d 100644
+index 7e6905751522..505bb2ae9fc7 100644
 --- a/lib/atomic64.c
 +++ b/lib/atomic64.c
-@@ -29,15 +29,15 @@
+@@ -25,15 +25,15 @@
   * Ensure each lock is in a separate cacheline.
   */
  static union {
@@ -169,7 +169,7 @@ index 1d91e31ecee..c61a07d498d 100644
  {
  	unsigned long addr = (unsigned long) v;
  
-@@ -49,7 +49,7 @@ static inline raw_spinlock_t *lock_addr(const atomic64_t *v)
+@@ -45,7 +45,7 @@ static inline raw_spinlock_t *lock_addr(const atomic64_t *v)
  long long atomic64_read(const atomic64_t *v)
  {
  	unsigned long flags;
@@ -178,7 +178,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;
  
  	raw_spin_lock_irqsave(lock, flags);
-@@ -62,7 +62,7 @@ EXPORT_SYMBOL(atomic64_read);
+@@ -58,7 +58,7 @@ EXPORT_SYMBOL(atomic64_read);
  void atomic64_set(atomic64_t *v, long long i)
  {
  	unsigned long flags;
@@ -187,7 +187,7 @@ index 1d91e31ecee..c61a07d498d 100644
  
  	raw_spin_lock_irqsave(lock, flags);
  	v->counter = i;
-@@ -74,7 +74,7 @@ EXPORT_SYMBOL(atomic64_set);
+@@ -70,7 +70,7 @@ EXPORT_SYMBOL(atomic64_set);
  void atomic64_##op(long long a, atomic64_t *v)				\
  {									\
  	unsigned long flags;						\
@@ -196,7 +196,7 @@ index 1d91e31ecee..c61a07d498d 100644
  									\
  	raw_spin_lock_irqsave(lock, flags);				\
  	v->counter c_op a;						\
-@@ -86,7 +86,7 @@ EXPORT_SYMBOL(atomic64_##op);
+@@ -82,7 +82,7 @@ EXPORT_SYMBOL(atomic64_##op);
  long long atomic64_##op##_return(long long a, atomic64_t *v)		\
  {									\
  	unsigned long flags;						\
@@ -205,7 +205,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;							\
  									\
  	raw_spin_lock_irqsave(lock, flags);				\
-@@ -100,7 +100,7 @@ EXPORT_SYMBOL(atomic64_##op##_return);
+@@ -96,7 +96,7 @@ EXPORT_SYMBOL(atomic64_##op##_return);
  long long atomic64_fetch_##op(long long a, atomic64_t *v)		\
  {									\
  	unsigned long flags;						\
@@ -214,7 +214,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;							\
  									\
  	raw_spin_lock_irqsave(lock, flags);				\
-@@ -137,7 +137,7 @@ ATOMIC64_OPS(xor, ^=)
+@@ -133,7 +133,7 @@ ATOMIC64_OPS(xor, ^=)
  long long atomic64_dec_if_positive(atomic64_t *v)
  {
  	unsigned long flags;
@@ -223,7 +223,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;
  
  	raw_spin_lock_irqsave(lock, flags);
-@@ -152,7 +152,7 @@ EXPORT_SYMBOL(atomic64_dec_if_positive);
+@@ -148,7 +148,7 @@ EXPORT_SYMBOL(atomic64_dec_if_positive);
  long long atomic64_cmpxchg(atomic64_t *v, long long o, long long n)
  {
  	unsigned long flags;
@@ -232,7 +232,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;
  
  	raw_spin_lock_irqsave(lock, flags);
-@@ -167,7 +167,7 @@ EXPORT_SYMBOL(atomic64_cmpxchg);
+@@ -163,7 +163,7 @@ EXPORT_SYMBOL(atomic64_cmpxchg);
  long long atomic64_xchg(atomic64_t *v, long long new)
  {
  	unsigned long flags;
@@ -241,7 +241,7 @@ index 1d91e31ecee..c61a07d498d 100644
  	long long val;
  
  	raw_spin_lock_irqsave(lock, flags);
-@@ -181,7 +181,7 @@ EXPORT_SYMBOL(atomic64_xchg);
+@@ -177,7 +177,7 @@ EXPORT_SYMBOL(atomic64_xchg);
  long long atomic64_fetch_add_unless(atomic64_t *v, long long a, long long u)
  {
  	unsigned long flags;

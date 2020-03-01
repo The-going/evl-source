@@ -1,0 +1,24 @@
+From 8b654fd2c3841974ab83985ba1e51459196c0220 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 20 Jun 2019 14:53:39 +0200
+Subject: [PATCH] evl/monitor: POLLERR on polling a gated event
+
+---
+ kernel/evl/monitor.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 8cc428e36c56..ba2205ccdeff 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -684,6 +684,7 @@ static __poll_t monitor_oob_poll(struct file *filp,
+ 			 * release. Therefore, polling such event will
+ 			 * block indefinitely.
+ 			 */
++			ret = POLLERR;
+ 			break;
+ 		}
+ 		break;
+-- 
+2.16.4
+

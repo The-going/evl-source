@@ -1,0 +1,102 @@
+From dc4734eb67785e4c8eb0038bb174dc622263b8eb Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 31 May 2019 14:18:31 +0200
+Subject: [PATCH] evl/wait: inline wake up helpers
+
+---
+ include/evl/wait.h | 30 +++++++++++++++++++++++++++++-
+ kernel/evl/wait.c  | 30 ------------------------------
+ 2 files changed, 29 insertions(+), 31 deletions(-)
+
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index ab701701f1ec..3fa5f98c068d 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -16,6 +16,7 @@
+ #include <evl/clock.h>
+ #include <evl/thread.h>
+ #include <evl/sched.h>
++#include <trace/events/evl.h>
+ #include <uapi/evl/thread.h>
+ 
+ #define EVL_WAIT_FIFO    0
+@@ -135,7 +136,34 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
+ 	return evl_wake_up(wq, NULL);
+ }
+ 
+-void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason);
++/* nklock held, irqs off */
++static __always_inline
++void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
++{
++	struct evl_thread *waiter, *tmp;
++
++	trace_evl_wait_flush(wq);
++
++	list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next)
++		evl_wakeup_thread(waiter, T_PEND, reason);
++}
++
++static __always_inline
++void evl_flush_wait(struct evl_wait_queue *wq, int reason)
++{
++	unsigned long flags;
++
++	xnlock_get_irqsave(&nklock, flags);
++	evl_flush_wait_locked(wq, reason);
++	xnlock_put_irqrestore(&nklock, flags);
++}
++
++static inline
++void evl_abort_wait(struct evl_thread *thread,
++		struct evl_wait_channel *wchan)
++{
++	list_del(&thread->wait_next);
++}
+ 
+ void evl_flush_wait(struct evl_wait_queue *wq, int reason);
+ 
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index 056a8dfc2a82..c7661fefc40c 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -72,36 +72,6 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ }
+ EXPORT_SYMBOL_GPL(evl_wake_up);
+ 
+-/* nklock held, irqs off */
+-void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
+-{
+-	struct evl_thread *waiter, *tmp;
+-
+-	trace_evl_wait_flush(wq);
+-
+-	list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next)
+-		evl_wakeup_thread(waiter, T_PEND, reason);
+-}
+-EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
+-
+-void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+-{
+-	unsigned long flags;
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-	evl_flush_wait_locked(wq, reason);
+-	xnlock_put_irqrestore(&nklock, flags);
+-}
+-EXPORT_SYMBOL_GPL(evl_flush_wait);
+-
+-/* nklock held, irqs off */
+-void evl_abort_wait(struct evl_thread *thread,
+-		struct evl_wait_channel *wchan)
+-{
+-	list_del(&thread->wait_next);
+-}
+-EXPORT_SYMBOL_GPL(evl_abort_wait);
+-
+ static inline struct evl_wait_queue *
+ wchan_to_wait_queue(struct evl_wait_channel *wchan)
+ {
+-- 
+2.16.4
+

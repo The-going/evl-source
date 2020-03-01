@@ -1,4 +1,4 @@
-From 85f72ea1efb72237fc57387303eebfe6a58889b6 Mon Sep 17 00:00:00 2001
+From 23214caeaa8762dc9c6f5aa182329b6822c7db86 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 May 2019 15:57:54 +0200
 Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
@@ -11,7 +11,7 @@ Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
  4 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 6bc7a9b30401..4f49a0ac76b4 100644
+index 16eaca2551d8..07696095b55c 100644
 --- a/arch/x86/entry/common.c
 +++ b/arch/x86/entry/common.c
 @@ -207,6 +207,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
@@ -76,10 +76,10 @@ index 7125e4fbb0bd..0dd9bf4be160 100644
  	BLANK();
  	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index f8e1af380cdf..02c3fe02d4fa 100644
+index 250e4c4ac6d9..6dadc2d57ffe 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -521,6 +521,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+@@ -522,6 +522,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
  		     this_cpu_read(irq_count) != -1);
  

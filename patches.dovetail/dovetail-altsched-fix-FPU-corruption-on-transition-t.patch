@@ -1,0 +1,44 @@
+From ab506cebbf70354bd352b4d6de1f892d7fa4e8a7 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 22 Jun 2019 15:36:24 +0200
+Subject: [PATCH] dovetail: altsched: fix FPU corruption on transition to oob
+
+A task which resumes on the out-of-band stage as a result of calling
+dovetail_leave_inband() won't traverse any common scheduling tail such
+as dovetail_context_switch() or the inband path to resume in user
+mode.
+
+Therefore, we must allow the arch-specific code involved in alternate
+scheduling to perform any required fixups when resuming on the oob
+stage from dovetail_leave_inband(), such as reloading the FPU context
+for the task.
+---
+ kernel/sched/core.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 55d295f34916..4ed1a616dddc 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -7129,8 +7129,17 @@ int dovetail_leave_inband(void)
+ 	set_current_state(TASK_INTERRUPTIBLE);
+ 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+ 	sched_submit_work(p);
+-	if (likely(__schedule(false)))
++	/*
++	 * The current task is scheduled out from the inband stage,
++	 * before resuming on the oob stage. Since this code stands
++	 * for the scheduling tail of the oob scheduler,
++	 * arch_dovetail_switch_finish() is called to perform
++	 * architecture-specific fixups (e.g. fpu context reload).
++	 */
++	if (likely(__schedule(false))) {
++		arch_dovetail_switch_finish(false);
+ 		return 0;
++	}
+ 
+ 	clear_thread_local_flags(_TLF_OFFSTAGE);
+ 	pd->task_inflight = NULL;
+-- 
+2.16.4
+

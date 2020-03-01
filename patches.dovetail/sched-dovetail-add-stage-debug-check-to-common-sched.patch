@@ -1,4 +1,4 @@
-From b51703293ede985b7cd29a2ad7da9febd7ee9082 Mon Sep 17 00:00:00 2001
+From 21d0cd6c6c9470ee344ed54434b692cf3ed461d9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 19:36:14 +0200
 Subject: [PATCH] sched: dovetail: add stage debug check to common scheduling
@@ -46,10 +46,10 @@ index 74b1ee9027f5..73b4701beaab 100644
  
  #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index f74ddf5bc911..42cbcda02e54 100644
+index bae22f25987d..62326bbe00b9 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3271,6 +3271,8 @@ static inline void schedule_debug(struct task_struct *prev)
+@@ -3272,6 +3272,8 @@ static inline void schedule_debug(struct task_struct *prev)
  		panic("corrupted stack end detected inside scheduler\n");
  #endif
  
@@ -59,10 +59,10 @@ index f74ddf5bc911..42cbcda02e54 100644
  		__schedule_bug(prev);
  		preempt_count_set(PREEMPT_DISABLED);
 diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 6eb1f8efd221..4930d13f8d55 100644
+index fa0f9adfb752..7f5cc7eb17b8 100644
 --- a/kernel/sched/wait.c
 +++ b/kernel/sched/wait.c
-@@ -69,6 +69,8 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
+@@ -70,6 +70,8 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
  	wait_queue_entry_t *curr, *next;
  	int cnt = 0;
  

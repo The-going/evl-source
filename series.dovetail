@@ -171,3 +171,22 @@
 	patches.dovetail/x86-irq_pipeline-fix-allyesconfig-build-issues.patch
 	patches.dovetail/locking-irq_pipeline-fix-allnoconfig-build-issue.patch
 	patches.dovetail/ARM-irq_pipeline-fix-allnoconfig-build-issue.patch
+	patches.dovetail/KVM-dovetail-fix-build-w-CONFIG_KVM-disabled.patch
+	patches.dovetail/genirq-irq_pipeline-relocate-trace-statements.patch
+	patches.dovetail/ARM-dovetail-trace-exceptions.patch
+	patches.dovetail/ARM-dovetail-notify-co-kernel-about-und_usr.patch
+	patches.dovetail/dovetail-document-assumptions-in-oob_trap_notify.patch
+	patches.dovetail/arm64-dovetail-document-oob_trap_notify-assumptions-.patch
+	patches.dovetail/ARM-dovetail-document-oob_trap_notify-assumptions-in.patch
+	patches.dovetail/ARM-irq_pipeline-convert-code-patching-lock-to-hard-.patch
+	patches.dovetail/genirq-irq_pipeline-fix-double-ack-in-irqflow-re-ent.patch
+	patches.dovetail/clocksource-mmio-detect-stale-ucs-mapping-ownership.patch
+	patches.dovetail/clocksource-mmio-rename-user_mmio_clksrc-as-mmio_ucs.patch
+	patches.dovetail/genirq-irq_pipeline-irq_settings_set-clr_oob-are-ide.patch
+	patches.dovetail/clocksource-bcm2835-irq_pipeline-enable-pipelined-cl.patch
+	patches.dovetail/clocksource-arm_arch_timer-irq_pipeline-handle-non-s.patch
+	patches.dovetail/x86-irq_pipeline-fix-interrupt-state-for-timer-detec.patch
+	patches.dovetail/x86-xen-irq_pipeline-disable-Xen-support-if-pipelini.patch
+	patches.dovetail/x86-fpu-dovetail-always-hard-lock-fpregs-on-pipelini.patch
+	patches.dovetail/x86-irq_pipeline-handle-IRQ-cleanup-events-properly.patch
+	patches.dovetail/dovetail-altsched-fix-FPU-corruption-on-transition-t.patch

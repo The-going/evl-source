@@ -1,4 +1,4 @@
-From 2b3ee47a12c432a2f6fa26912a493fc48de5aa3b Mon Sep 17 00:00:00 2001
+From 89b923a1022d83139b56f648a4590bba57e41a3b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 5 Dec 2015 18:36:25 +0100
 Subject: [PATCH] printk: introduce raw console channel
@@ -57,7 +57,7 @@ index cefd374c47b1..b36738cd5ea3 100644
  asmlinkage __printf(5, 0)
  int vprintk_emit(int facility, int level,
 diff --git a/init/Kconfig b/init/Kconfig
-index 8b9ffe236e4f..603d12891d86 100644
+index 0e2344389501..781bf3ceb9e9 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -1324,6 +1324,18 @@ config PRINTK_NMI
@@ -80,10 +80,10 @@ index 8b9ffe236e4f..603d12891d86 100644
  	bool "BUG() support" if EXPERT
  	default y
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index a6e06fe38e41..1e5bbdcc26ed 100644
+index 1888f6a3b694..81898578e166 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2103,6 +2103,66 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2104,6 +2104,66 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  }
  #endif
  
@@ -150,7 +150,7 @@ index a6e06fe38e41..1e5bbdcc26ed 100644
  static int __add_preferred_console(char *name, int idx, char *options,
  				   char *brl_options)
  {
-@@ -2726,6 +2786,9 @@ void register_console(struct console *newcon)
+@@ -2727,6 +2787,9 @@ void register_console(struct console *newcon)
  	if (!(newcon->flags & CON_ENABLED))
  		return;
  
@@ -160,7 +160,7 @@ index a6e06fe38e41..1e5bbdcc26ed 100644
  	/*
  	 * If we have a bootconsole, and are switching to a real console,
  	 * don't print everything out again, since when the boot console, and
-@@ -2809,6 +2872,8 @@ int unregister_console(struct console *console)
+@@ -2810,6 +2873,8 @@ int unregister_console(struct console *console)
  		(console->flags & CON_BOOT) ? "boot" : "" ,
  		console->name, console->index);
  

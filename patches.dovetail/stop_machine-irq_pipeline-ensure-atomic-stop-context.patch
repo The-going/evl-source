@@ -1,4 +1,4 @@
-From 66f1047149fec88c1019c514a6b248d7bea344ad Mon Sep 17 00:00:00 2001
+From 16000b70a781fa82d1443953914e968f79b33dc9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 Mar 2017 17:38:16 +0100
 Subject: [PATCH] stop_machine: irq_pipeline: ensure atomic stop-context
@@ -21,7 +21,7 @@ interrupt disable flag would defeat it.
  2 files changed, 5 insertions(+)
 
 diff --git a/include/linux/stop_machine.h b/include/linux/stop_machine.h
-index 6d3635c86db..32819305b00 100644
+index 6d3635c86dbe..32819305b008 100644
 --- a/include/linux/stop_machine.h
 +++ b/include/linux/stop_machine.h
 @@ -6,6 +6,7 @@
@@ -43,10 +43,10 @@ index 6d3635c86db..32819305b00 100644
  	return ret;
  }
 diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index 067cb83f37e..e2cc69db137 100644
+index 2b5a6754646f..773519599277 100644
 --- a/kernel/stop_machine.c
 +++ b/kernel/stop_machine.c
-@@ -227,6 +227,7 @@ static int multi_cpu_stop(void *data)
+@@ -226,6 +226,7 @@ static int multi_cpu_stop(void *data)
  		}
  	} while (curstate != MULTI_STOP_EXIT);
  
@@ -54,7 +54,7 @@ index 067cb83f37e..e2cc69db137 100644
  	local_irq_restore(flags);
  	return err;
  }
-@@ -606,6 +607,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
+@@ -605,6 +606,7 @@ int stop_machine_cpuslocked(cpu_stop_fn_t fn, void *data,
  		local_irq_save(flags);
  		hard_irq_disable();
  		ret = (*fn)(data);

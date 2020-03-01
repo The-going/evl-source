@@ -1,4 +1,4 @@
-From 32050d3ac8119cfe02325dfef41e420b0f5ef9df Mon Sep 17 00:00:00 2001
+From e3d6cd22a0fb0241eaa76411ee83bcace5c488ff Mon Sep 17 00:00:00 2001
 From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
 Date: Mon, 8 Apr 2019 23:46:57 +0200
 Subject: [PATCH] soc: qcom: enable pipelined interrupt control
@@ -8,10 +8,10 @@ Subject: [PATCH] soc: qcom: enable pipelined interrupt control
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/soc/qcom/smp2p.c b/drivers/soc/qcom/smp2p.c
-index c22503cd1edf..4c46c5276e83 100644
+index c7300d54e444..517c0f689feb 100644
 --- a/drivers/soc/qcom/smp2p.c
 +++ b/drivers/soc/qcom/smp2p.c
-@@ -289,6 +289,7 @@ static struct irq_chip smp2p_irq_chip = {
+@@ -281,6 +281,7 @@ static struct irq_chip smp2p_irq_chip = {
  	.irq_mask       = smp2p_mask_irq,
  	.irq_unmask     = smp2p_unmask_irq,
  	.irq_set_type	= smp2p_set_irq_type,

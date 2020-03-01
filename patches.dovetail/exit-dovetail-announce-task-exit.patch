@@ -1,4 +1,4 @@
-From a009a703e579df5858e8cd0efe15f141e223d356 Mon Sep 17 00:00:00 2001
+From 778285675410e0cdb87112fd90e9511328f8ca42 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 10:05:09 +0200
 Subject: [PATCH] exit: dovetail: announce task exit
@@ -8,10 +8,10 @@ Subject: [PATCH] exit: dovetail: announce task exit
  1 file changed, 2 insertions(+)
 
 diff --git a/kernel/exit.c b/kernel/exit.c
-index 2166c2d92ddc..fade5379f376 100644
+index 1803efb2922f..367ea43d2d2f 100644
 --- a/kernel/exit.c
 +++ b/kernel/exit.c
-@@ -13,6 +13,7 @@
+@@ -14,6 +14,7 @@
  #include <linux/sched/task_stack.h>
  #include <linux/sched/cputime.h>
  #include <linux/interrupt.h>
@@ -19,7 +19,7 @@ index 2166c2d92ddc..fade5379f376 100644
  #include <linux/module.h>
  #include <linux/capability.h>
  #include <linux/completion.h>
-@@ -831,6 +832,7 @@ void __noreturn do_exit(long code)
+@@ -832,6 +833,7 @@ void __noreturn do_exit(long code)
  	 */
  	raw_spin_lock_irq(&tsk->pi_lock);
  	raw_spin_unlock_irq(&tsk->pi_lock);

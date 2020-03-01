@@ -1,0 +1,43 @@
+From 42e811c1bb87143b86431cd7ca00eceb0f5f98df Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 16 Jun 2019 18:40:14 +0200
+Subject: [PATCH] evl/poll: return -EBADF on bad fd specification
+
+---
+ kernel/evl/poll.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index 1b5009a9b266..6bc459826034 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -206,7 +206,7 @@ static int add_item(struct file *filp, struct poll_group *group,
+ 
+ 	efilp = evl_get_file(creq->fd);
+ 	if (efilp == NULL) {
+-		ret = -EINVAL;
++		ret = -EBADF;
+ 		goto fail_get;
+ 	}
+ 
+@@ -269,7 +269,7 @@ static int del_item(struct poll_group *group,
+ 	item = lookup_item(&group->item_index, creq->fd);
+ 	if (item == NULL) {
+ 		evl_unlock_kmutex(&group->item_lock);
+-		return -ENOENT;
++		return -EBADF;
+ 	}
+ 
+ 	rb_erase(&item->rb, &group->item_index);
+@@ -322,7 +322,7 @@ int mod_item(struct poll_group *group,
+ 	item = lookup_item(&group->item_index, creq->fd);
+ 	if (item == NULL) {
+ 		evl_unlock_kmutex(&group->item_lock);
+-		return -ENOENT;
++		return -EBADF;
+ 	}
+ 
+ 	item->events_polled = events;
+-- 
+2.16.4
+

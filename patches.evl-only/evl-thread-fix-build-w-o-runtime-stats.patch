@@ -1,0 +1,44 @@
+From c62be6c3ec22a65b0fb35833a649e1f71f938892 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Jun 2019 15:34:42 +0200
+Subject: [PATCH] evl/thread: fix build w/o runtime stats
+
+---
+ kernel/evl/thread.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index a3ae619d1f9e..d0133445218c 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -2343,6 +2343,8 @@ static ssize_t sched_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(sched);
+ 
++#ifdef CONFIG_EVL_RUNSTATS
++
+ static ssize_t stats_show(struct device *dev,
+ 			struct device_attribute *attr,
+ 			char *buf)
+@@ -2398,6 +2400,18 @@ static ssize_t stats_show(struct device *dev,
+ 
+ 	return ret;
+ }
++
++#else
++
++static ssize_t stats_show(struct device *dev,
++			struct device_attribute *attr,
++			char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "0 0 0 0 0\n");
++}
++
++#endif	/* !CONFIG_EVL_RUNSTATS */
++
+ static DEVICE_ATTR_RO(stats);
+ 
+ static ssize_t timeout_show(struct device *dev,
+-- 
+2.16.4
+

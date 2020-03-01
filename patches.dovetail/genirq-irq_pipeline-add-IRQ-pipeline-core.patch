@@ -1,4 +1,4 @@
-From 1c05b624f2511bfc449cb0efae291ba79f169419 Mon Sep 17 00:00:00 2001
+From d5efdafb4c32cd6cfc29867775d956077874280f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 20 Jul 2016 15:06:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
@@ -1797,10 +1797,10 @@ index a3e5ce2bcf08..b10ecead0edf 100644
 -	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" "$(CC) $(KBUILD_CFLAGS)"
 +	"$(UTS_MACHINE)" "$(CONFIG_SMP)" "$(CONFIG_PREEMPT)" "$(CONFIG_IRQ_PIPELINE)" "$(CC) $(KBUILD_CFLAGS)"
 diff --git a/init/main.c b/init/main.c
-index 5a2c69b4d7b3..19640c4b629a 100644
+index 66a196c5e4c3..be9e439a2abf 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -48,6 +48,7 @@
+@@ -49,6 +49,7 @@
  #include <linux/tick.h>
  #include <linux/sched/isolation.h>
  #include <linux/interrupt.h>
@@ -1808,7 +1808,7 @@ index 5a2c69b4d7b3..19640c4b629a 100644
  #include <linux/taskstats_kern.h>
  #include <linux/delayacct.h>
  #include <linux/unistd.h>
-@@ -558,7 +559,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -559,7 +560,7 @@ asmlinkage __visible void __init start_kernel(void)
  
  	cgroup_init_early();
  
@@ -1817,7 +1817,7 @@ index 5a2c69b4d7b3..19640c4b629a 100644
  	early_boot_irqs_disabled = true;
  
  	/*
-@@ -598,6 +599,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -599,6 +600,7 @@ asmlinkage __visible void __init start_kernel(void)
  	setup_log_buf(0);
  	vfs_caches_init_early();
  	sort_main_extable();
@@ -1825,7 +1825,7 @@ index 5a2c69b4d7b3..19640c4b629a 100644
  	trap_init();
  	mm_init();
  
-@@ -647,6 +649,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -648,6 +650,7 @@ asmlinkage __visible void __init start_kernel(void)
  	/* init some links before init_ISA_irqs() */
  	early_irq_init();
  	init_IRQ();
@@ -1833,7 +1833,7 @@ index 5a2c69b4d7b3..19640c4b629a 100644
  	tick_init();
  	rcu_init_nohz();
  	init_timers();
-@@ -675,7 +678,7 @@ asmlinkage __visible void __init start_kernel(void)
+@@ -676,7 +679,7 @@ asmlinkage __visible void __init start_kernel(void)
  	WARN(!irqs_disabled(), "Interrupts were enabled early\n");
  
  	early_boot_irqs_disabled = false;
@@ -1843,10 +1843,10 @@ index 5a2c69b4d7b3..19640c4b629a 100644
  	kmem_cache_init_late();
  
 diff --git a/kernel/irq/Kconfig b/kernel/irq/Kconfig
-index 8fee06625c37..ff197e6653a5 100644
+index f92d9a687372..6477561f6fe4 100644
 --- a/kernel/irq/Kconfig
 +++ b/kernel/irq/Kconfig
-@@ -134,6 +134,20 @@ config GENERIC_IRQ_DEBUGFS
+@@ -135,6 +135,20 @@ config GENERIC_IRQ_DEBUGFS
  
  	  If you don't know what to do here, say N.
  
@@ -4238,10 +4238,10 @@ index e43795cd2ccf..adc2fd0ed47b 100644
 +	desc->status_use_accessors &= ~_IRQ_CHAINED;
 +}
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 010cf6e93375..1130584bb17a 100644
+index 86f8865cf043..24b66d19c196 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -47,6 +47,7 @@
+@@ -48,6 +48,7 @@
  #include <linux/sched/clock.h>
  #include <linux/sched/debug.h>
  #include <linux/sched/task_stack.h>
@@ -4250,10 +4250,10 @@ index 010cf6e93375..1130584bb17a 100644
  #include <linux/uaccess.h>
  #include <asm/sections.h>
 diff --git a/kernel/sched/idle.c b/kernel/sched/idle.c
-index f5516bae0c1b..558901aa017d 100644
+index 80940939b733..108ef3ede207 100644
 --- a/kernel/sched/idle.c
 +++ b/kernel/sched/idle.c
-@@ -76,22 +76,29 @@ void __weak arch_cpu_idle_dead(void) { }
+@@ -77,22 +77,29 @@ void __weak arch_cpu_idle_dead(void) { }
  void __weak arch_cpu_idle(void)
  {
  	cpu_idle_force_poll = 1;
@@ -4288,7 +4288,7 @@ index f5516bae0c1b..558901aa017d 100644
  	}
  }
  
-@@ -207,6 +214,13 @@ static void cpuidle_idle_call(void)
+@@ -208,6 +215,13 @@ static void cpuidle_idle_call(void)
  exit_idle:
  	__current_set_polling();
  
@@ -4302,7 +4302,7 @@ index f5516bae0c1b..558901aa017d 100644
  	/*
  	 * It is up to the idle functions to reenable local interrupts
  	 */
-@@ -260,6 +274,7 @@ static void do_idle(void)
+@@ -261,6 +275,7 @@ static void do_idle(void)
  			cpu_idle_poll();
  		} else {
  			cpuidle_idle_call();
@@ -4323,10 +4323,10 @@ index b52ed1ada0be..7c80e1048298 100644
  #include <linux/proc_fs.h>
  #include <linux/prefetch.h>
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index eae43952902e..0f8d1fc1ac3e 100644
+index cbdfae379896..2277959bc991 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -833,6 +833,16 @@ config DEBUG_SHIRQ
+@@ -834,6 +834,16 @@ config DEBUG_SHIRQ
  	  Drivers ought to be able to handle interrupts coming in at those
  	  points; some don't and need to be caught.
  

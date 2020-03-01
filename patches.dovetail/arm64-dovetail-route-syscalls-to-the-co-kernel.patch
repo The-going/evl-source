@@ -1,4 +1,4 @@
-From 749f850f19ecadcc191961e98305483d773597d8 Mon Sep 17 00:00:00 2001
+From 0eba752455e94b66c8703c743f4f1df9b4986740 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 10:50:46 +0200
 Subject: [PATCH] arm64: dovetail: route syscalls to the co-kernel
@@ -22,10 +22,10 @@ index 0b93a7588c7d..9e80470c32f8 100644
   */
  
 diff --git a/arch/arm64/kernel/syscall.c b/arch/arm64/kernel/syscall.c
-index 5610ac01c1ec..58597f20d9b9 100644
+index 871c739f060a..15ce595fee11 100644
 --- a/arch/arm64/kernel/syscall.c
 +++ b/arch/arm64/kernel/syscall.c
-@@ -63,12 +63,29 @@ void syscall_trace_exit(struct pt_regs *regs);
+@@ -93,13 +93,30 @@ static void cortex_a76_erratum_1463225_svc_handler(void) { }
  static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
  			   const syscall_fn_t syscall_table[])
  {
@@ -38,6 +38,7 @@ index 5610ac01c1ec..58597f20d9b9 100644
  	regs->orig_x0 = regs->regs[0];
  	regs->syscallno = scno;
  
+ 	cortex_a76_erratum_1463225_svc_handler();
  	local_daif_restore(DAIF_PROCCTX);
 +
 +	if (stalled)
@@ -56,7 +57,7 @@ index 5610ac01c1ec..58597f20d9b9 100644
  	user_exit();
  
  	if (has_syscall_work(flags)) {
-@@ -91,6 +108,8 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+@@ -122,6 +139,8 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
  		local_daif_mask();
  		flags = current_thread_info()->flags;
  		if (!has_syscall_work(flags)) {

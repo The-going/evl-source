@@ -1,0 +1,39 @@
+From f71a7a4489888e31845e7742fa10225c2731429e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 3 Jun 2019 11:29:20 +0200
+Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: handle non-secure
+ PPI override
+
+The proxy tick device needs clock_event_device.irq to match the actual
+IRQ channel receiving the timer notifications, so that it can turn on
+out-of-band handling when installing (irq_switch_oob()).
+
+When a non-secure PPI is detected for the architected timer in CP15
+access mode, we may end up with the per-CPU clock event device ticking
+on the non-secure PPI, although the corresponding clock chip
+descriptor still designates the secure one as its source, which messes
+up interrupt pipelining big time.
+
+Assume that the non-secure PPI event overrides the secure one when
+present, fixing up clock_event_device.irq accordingly. This is mostly
+a work-around: we may need to reconsider how the tick source is
+tracked for switching it to out-of-band mode at some point.
+---
+ drivers/clocksource/arm_arch_timer.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
+index ed9d1a7bc45b..4e3dc4984364 100644
+--- a/drivers/clocksource/arm_arch_timer.c
++++ b/drivers/clocksource/arm_arch_timer.c
+@@ -887,6 +887,7 @@ static int arch_timer_starting_cpu(unsigned int cpu)
+ 	enable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], flags);
+ 
+ 	if (arch_timer_has_nonsecure_ppi()) {
++		clk->irq = arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI];
+ 		flags = check_ppi_trigger(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
+ 		enable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI],
+ 				  flags);
+-- 
+2.16.4
+

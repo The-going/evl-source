@@ -1,0 +1,78 @@
+From fb832c27d2fcb3ef1ca64d6d5205c3bf6da09909 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 21 Jun 2019 20:05:33 +0200
+Subject: [PATCH] drivers/evl: hectic: emit tracepoint on detecting fpu bug
+
+---
+ drivers/evl/hectic.c       |  9 +++++++++
+ include/trace/events/evl.h | 13 +++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/drivers/evl/hectic.c b/drivers/evl/hectic.c
+index 029e651bfd39..81c85837506c 100644
+--- a/drivers/evl/hectic.c
++++ b/drivers/evl/hectic.c
+@@ -54,6 +54,12 @@ struct rtswitch_context {
+ 
+ static u32 fp_features;
+ 
++#define trace_fpu_breakage(__ctx)				\
++	do {							\
++		trace_evl_fpu_corrupt((__ctx)->error.fp_val);	\
++		trace_evl_trigger("hectic");			\
++	} while (0)
++
+ static void handle_fpu_error(struct rtswitch_context *ctx,
+ 			     unsigned int fp_in, unsigned int fp_out,
+ 			     int bad_reg)
+@@ -66,6 +72,7 @@ static void handle_fpu_error(struct rtswitch_context *ctx,
+ 
+ 	ctx->failed = true;
+ 	ctx->error.fp_val = fp_out;
++	trace_fpu_breakage(ctx);
+ 
+ 	if ((cur->base.flags & HECTIC_OOB_WAIT) == HECTIC_OOB_WAIT)
+ 		for (i = 0; i < ctx->tasks_count; i++) {
+@@ -526,6 +533,7 @@ static long hectic_ioctl(struct file *filp, unsigned int cmd,
+ 			-EFAULT : 0;
+ 
+ 	case EVL_HECIOC_GET_LAST_ERROR:
++		trace_fpu_breakage(ctx);
+ 		u_lerr = (typeof(u_lerr))arg;
+ 		return copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
+ 			-EFAULT : 0;
+@@ -557,6 +565,7 @@ static long hectic_oob_ioctl(struct file *filp, unsigned int cmd,
+ 			rtswitch_to_rt(ctx, fromto.from, fromto.to);
+ 
+ 	case EVL_HECIOC_GET_LAST_ERROR:
++		trace_fpu_breakage(ctx);
+ 		u_lerr = (typeof(u_lerr))arg;
+ 		return raw_copy_to_user(u_lerr, &ctx->error, sizeof(ctx->error)) ?
+ 			-EFAULT : 0;
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 33449630afae..b22a446e256a 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -863,6 +863,19 @@ TRACE_EVENT(evl_latspot,
+ 		  __entry->latmax_ns % 1000)
+ );
+ 
++TRACE_EVENT(evl_fpu_corrupt,
++	TP_PROTO(unsigned int fp_val),
++	TP_ARGS(fp_val),
++	TP_STRUCT__entry(
++		 __field(unsigned int, fp_val)
++	),
++	TP_fast_assign(
++		__entry->fp_val = fp_val;
++	),
++	TP_printk("** bad FPU context: fp_val = %u **",
++		__entry->fp_val)
++);
++
+ /* Basically evl_trace() + trigger point */
+ TRACE_EVENT(evl_trigger,
+ 	TP_PROTO(const char *issuer),
+-- 
+2.16.4
+

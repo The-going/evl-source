@@ -1,4 +1,4 @@
-From b9b1271b002cf3e9259b11f13935b75d7a9c6780 Mon Sep 17 00:00:00 2001
+From 53ac755fa7a03aa89ad9735e27ea5e913e1f9d8d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 17:09:23 +0200
 Subject: [PATCH] x86: dovetail: enable context switching from the oob stage
@@ -27,10 +27,10 @@ index 9f25e1400cd5..2321aad637a2 100644
  do {						\
  	paravirt_activate_mm((prev), (next));	\
 diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 7f61431c75fb..25c4bf7c418e 100644
+index 91f6db92554c..f1e19914f9d8 100644
 --- a/arch/x86/mm/tlb.c
 +++ b/arch/x86/mm/tlb.c
-@@ -153,10 +153,12 @@ EXPORT_SYMBOL_GPL(leave_mm);
+@@ -154,10 +154,12 @@ EXPORT_SYMBOL_GPL(leave_mm);
  void switch_mm(struct mm_struct *prev, struct mm_struct *next,
  	       struct task_struct *tsk)
  {
@@ -44,7 +44,7 @@ index 7f61431c75fb..25c4bf7c418e 100644
  	local_irq_restore(flags);
  }
  
-@@ -292,7 +294,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+@@ -293,7 +295,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
  	 */
  
  	/* We don't want flush_tlb_func_* to run concurrently with us. */
@@ -55,7 +55,7 @@ index 7f61431c75fb..25c4bf7c418e 100644
  		WARN_ON_ONCE(!irqs_disabled());
  
  	/*
-@@ -533,6 +537,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+@@ -534,6 +538,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
  	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
  	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
  	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
@@ -63,7 +63,7 @@ index 7f61431c75fb..25c4bf7c418e 100644
  
  	/* This code cannot presently handle being reentered. */
  	VM_WARN_ON(!irqs_disabled());
-@@ -553,7 +558,9 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+@@ -554,7 +559,9 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
  		 * This should be rare, with native_flush_tlb_others skipping
  		 * IPIs to lazy TLB mode CPUs.
  		 */

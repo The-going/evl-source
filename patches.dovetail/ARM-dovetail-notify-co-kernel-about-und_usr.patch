@@ -1,0 +1,35 @@
+From e5c945accbc0b6f0bfc15132abd2b03463ec0377 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 May 2019 17:14:40 +0200
+Subject: [PATCH] ARM: dovetail: notify co-kernel about und_usr
+
+---
+ arch/arm/kernel/entry-armv.S | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
+index 36f290127799..eb124d0ad4ac 100644
+--- a/arch/arm/kernel/entry-armv.S
++++ b/arch/arm/kernel/entry-armv.S
+@@ -499,6 +499,18 @@ ENDPROC(__irq_usr)
+ __und_usr:
+ 	usr_entry uaccess=0
+ 
++#ifdef CONFIG_DOVETAIL
++	get_thread_info tsk
++	ldr	r0, [tsk, #TI_PREEMPT]		@ get preempt count
++	tst	r0, #TI_OOB_MASK		@ oob stage?
++	beq	1f
++	mov	r0, #ARM_TRAP_UNDEFINSTR
++	mov	r1, sp				@ r1 = &regs
++	bl	__oob_trap_notify
++	uaccess_enable ip
++1:
++#endif
++
+ 	mov	r2, r4
+ 	mov	r3, r5
+ 
+-- 
+2.16.4
+

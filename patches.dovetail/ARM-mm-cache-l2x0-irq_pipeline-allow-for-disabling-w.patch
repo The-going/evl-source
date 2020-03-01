@@ -1,4 +1,4 @@
-From 2ddb1dbb56c1db0a27e502937c8b4a58a626b27a Mon Sep 17 00:00:00 2001
+From 1c0bdf6a47193238970264ddfa9ea9b88b5768e3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 18:07:58 +0100
 Subject: [PATCH] ARM/mm: cache-l2x0: irq_pipeline: allow for disabling
@@ -31,10 +31,10 @@ controllers.
  1 file changed, 28 insertions(+)
 
 diff --git a/arch/arm/mm/cache-l2x0.c b/arch/arm/mm/cache-l2x0.c
-index 808efbb89b8..cf5d6bd6ca4 100644
+index 5b251c8ecd45..b5de9aa92b29 100644
 --- a/arch/arm/mm/cache-l2x0.c
 +++ b/arch/arm/mm/cache-l2x0.c
-@@ -60,6 +60,16 @@ struct l2x0_regs l2x0_saved_regs;
+@@ -48,6 +48,16 @@ struct l2x0_regs l2x0_saved_regs;
  static bool l2x0_bresp_disable;
  static bool l2x0_flz_disable;
  
@@ -51,7 +51,7 @@ index 808efbb89b8..cf5d6bd6ca4 100644
  /*
   * Common code for all cache controllers.
   */
-@@ -812,6 +822,24 @@ static int __init __l2c_init(const struct l2c_init_data *data,
+@@ -800,6 +810,24 @@ static int __init __l2c_init(const struct l2c_init_data *data,
  	if (aux_val & aux_mask)
  		pr_alert("L2C: platform provided aux values permit register corruption.\n");
  

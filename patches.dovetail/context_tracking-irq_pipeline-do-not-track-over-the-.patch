@@ -1,4 +1,4 @@
-From 3a386c4a69ae5e2d24aad582486c75fed87b4c78 Mon Sep 17 00:00:00 2001
+From 9294c2f9e8c238463daaa5ad00724b32d16bc0e1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:53:56 +0200
 Subject: [PATCH] context_tracking: irq_pipeline: do not track over the oob
@@ -10,7 +10,7 @@ Subject: [PATCH] context_tracking: irq_pipeline: do not track over the oob
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/context_tracking.h b/include/linux/context_tracking.h
-index d05609ad329..2bec38de964 100644
+index d05609ad329d..2bec38de9647 100644
 --- a/include/linux/context_tracking.h
 +++ b/include/linux/context_tracking.h
 @@ -108,7 +108,7 @@ static inline void guest_enter_irqoff(void)
@@ -23,10 +23,10 @@ index d05609ad329..2bec38de964 100644
  
  	/* KVM does not hold any references to rcu protected data when it
 diff --git a/kernel/context_tracking.c b/kernel/context_tracking.c
-index 9ad37b9e44a..5fa5fd03b02 100644
+index be01a4d627c9..554742481e07 100644
 --- a/kernel/context_tracking.c
 +++ b/kernel/context_tracking.c
-@@ -113,7 +113,7 @@ void context_tracking_enter(enum ctx_state state)
+@@ -114,7 +114,7 @@ void context_tracking_enter(enum ctx_state state)
  	 * helpers are enough to protect RCU uses inside the exception. So
  	 * just return immediately if we detect we are in an IRQ.
  	 */
@@ -35,7 +35,7 @@ index 9ad37b9e44a..5fa5fd03b02 100644
  		return;
  
  	local_irq_save(flags);
-@@ -169,7 +169,7 @@ void context_tracking_exit(enum ctx_state state)
+@@ -170,7 +170,7 @@ void context_tracking_exit(enum ctx_state state)
  {
  	unsigned long flags;
  

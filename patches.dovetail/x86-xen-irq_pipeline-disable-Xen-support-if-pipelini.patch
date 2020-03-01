@@ -1,0 +1,29 @@
+From f47bc602adbc104cdf5eec04e031b9fbfae941c6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Jun 2019 10:12:29 +0200
+Subject: [PATCH] x86/xen: irq_pipeline: disable Xen support if pipelining
+
+The current IRQ_PIPELINE implementation does not cope with
+paravirtualized hardware interrupt state management such as
+PARAVIRT_XXL. When pipelining is enabled, disable Xen which is the
+only in-tree user so far.
+---
+ arch/x86/xen/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+index e07abefd3d26..c53cb96156a4 100644
+--- a/arch/x86/xen/Kconfig
++++ b/arch/x86/xen/Kconfig
+@@ -5,7 +5,7 @@
+ 
+ config XEN
+ 	bool "Xen guest support"
+-	depends on PARAVIRT
++	depends on PARAVIRT && !IRQ_PIPELINE
+ 	select PARAVIRT_CLOCK
+ 	depends on X86_64 || (X86_32 && X86_PAE)
+ 	depends on X86_LOCAL_APIC && X86_TSC
+-- 
+2.16.4
+

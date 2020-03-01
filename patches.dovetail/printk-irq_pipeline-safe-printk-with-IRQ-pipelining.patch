@@ -1,4 +1,4 @@
-From 36d9b0398ef6e242000acc272ea97fe4f99bfacc Mon Sep 17 00:00:00 2001
+From a65cea17d1da775a72151224308e9fc28cc8852b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 21:27:59 +0200
 Subject: [PATCH] printk: irq_pipeline: safe printk with IRQ pipelining
@@ -51,7 +51,7 @@ index 6eb44397ba00..cdd7656c96e6 100644
  
  #endif /* _LINUX_IRQ_PIPELINE_H */
 diff --git a/init/Kconfig b/init/Kconfig
-index 603d12891d86..d822662b1222 100644
+index 781bf3ceb9e9..00030a5f9aee 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
 @@ -1322,7 +1322,7 @@ config PRINTK
@@ -87,10 +87,10 @@ index efc5596c6ab0..f000cdf10d16 100644
  }
  
 diff --git a/kernel/printk/printk_safe.c b/kernel/printk/printk_safe.c
-index 0913b4d385de..f1059b6d9977 100644
+index b4045e782743..ef231ed589d3 100644
 --- a/kernel/printk/printk_safe.c
 +++ b/kernel/printk/printk_safe.c
-@@ -22,6 +22,7 @@
+@@ -10,6 +10,7 @@
  #include <linux/cpumask.h>
  #include <linux/irq_work.h>
  #include <linux/printk.h>
@@ -98,7 +98,7 @@ index 0913b4d385de..f1059b6d9977 100644
  
  #include "internal.h"
  
-@@ -372,6 +373,9 @@ void __printk_safe_exit(void)
+@@ -360,6 +361,9 @@ void __printk_safe_exit(void)
  
  __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
  {

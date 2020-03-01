@@ -1,0 +1,29 @@
+From 7c862e5ed3559052c8c7a7a68e274e717f0ae8f6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 22 Jun 2019 15:52:37 +0200
+Subject: [PATCH] evl/thread: clarify comment
+
+---
+ kernel/evl/thread.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 586cdbb4e6ea..b428e103f4e2 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -775,9 +775,9 @@ int evl_switch_oob(void)
+ 	}
+ 
+ 	/*
+-	 * current is now running on the head interrupt stage. Hard
+-	 * irqs must be off, otherwise something is really wrong in
+-	 * the Dovetail layer.
++	 * The current task is now running on the out-of-band
++	 * execution stage. Hard irqs must be off, otherwise something
++	 * is really wrong in the Dovetail layer.
+ 	 */
+ 	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
+ 		hard_irqs_disabled();
+-- 
+2.16.4
+

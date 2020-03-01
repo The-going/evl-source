@@ -1,0 +1,73 @@
+From 6d299f5aa631de423914ef867809fa139413f532 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 31 May 2019 14:18:51 +0200
+Subject: [PATCH] evl/lock: inline locking helpers
+
+---
+ include/evl/lock.h |  8 ++------
+ kernel/evl/lock.c  | 15 ---------------
+ 2 files changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/include/evl/lock.h b/include/evl/lock.h
+index d25668874abd..6bb2fa6006ab 100644
+--- a/include/evl/lock.h
++++ b/include/evl/lock.h
+@@ -54,7 +54,7 @@ static inline void xnlock_init (struct xnlock *lock)
+ #define DEFINE_XNLOCK(lock)		struct xnlock lock = XNARCH_LOCK_UNLOCKED
+ #define DEFINE_PRIVATE_XNLOCK(lock)	static DEFINE_XNLOCK(lock)
+ 
+-static inline int ____xnlock_get(struct xnlock *lock)
++static inline int ___xnlock_get(struct xnlock *lock)
+ {
+ 	int cpu = raw_smp_processor_id();
+ 
+@@ -67,16 +67,12 @@ static inline int ____xnlock_get(struct xnlock *lock)
+ 	return 0;
+ }
+ 
+-static inline void ____xnlock_put(struct xnlock *lock)
++static inline void ___xnlock_put(struct xnlock *lock)
+ {
+ 	lock->owner = ~0U;
+ 	arch_spin_unlock(&lock->alock);
+ }
+ 
+-int ___xnlock_get(struct xnlock *lock);
+-
+-void ___xnlock_put(struct xnlock *lock);
+-
+ static inline unsigned long
+ __xnlock_get_irqsave(struct xnlock *lock)
+ {
+diff --git a/kernel/evl/lock.c b/kernel/evl/lock.c
+index 3ddd24a153be..bbc9ff28d00f 100644
+--- a/kernel/evl/lock.c
++++ b/kernel/evl/lock.c
+@@ -11,24 +11,9 @@
+  */
+ 
+ #include <linux/module.h>
+-#include <linux/sched/debug.h>
+ #include <evl/lock.h>
+-#include <evl/clock.h>
+ 
+ DEFINE_XNLOCK(nklock);
+ #if defined(CONFIG_SMP)
+ EXPORT_SYMBOL_GPL(nklock);
+-
+-int ___xnlock_get(struct xnlock *lock)
+-{
+-	return ____xnlock_get(lock);
+-}
+-EXPORT_SYMBOL_GPL(___xnlock_get);
+-
+-void ___xnlock_put(struct xnlock *lock)
+-{
+-	____xnlock_put(lock);
+-}
+-EXPORT_SYMBOL_GPL(___xnlock_put);
+-
+ #endif /* CONFIG_SMP */
+-- 
+2.16.4
+

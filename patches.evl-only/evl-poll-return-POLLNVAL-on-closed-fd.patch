@@ -1,0 +1,32 @@
+From f45aaa490d8f6b277b24be8e062350e94e0ff818 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 20 Jun 2019 15:30:04 +0200
+Subject: [PATCH] evl/poll: return POLLNVAL on closed fd
+
+---
+ kernel/evl/poll.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index f2e4d62fd49c..2ef902d73b7b 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -424,13 +424,10 @@ static int collect_events(struct poll_group *group,
+ 			if (filp->f_op->oob_poll)
+ 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
+ 			evl_put_file(efilp);
+-		} else {
++		} else
+ 			ready = wpt->events_received;
+-			if (ready & POLLNVAL)
+-				goto stale;
+-		}
+ 
+-		ready &= wpt->events_polled;
++		ready &= wpt->events_polled | POLLNVAL;
+ 		if (ready) {
+ 			ev.fd = wpt->fd;
+ 			ev.events = ready;
+-- 
+2.16.4
+

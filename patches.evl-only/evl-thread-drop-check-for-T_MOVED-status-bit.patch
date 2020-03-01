@@ -1,0 +1,66 @@
+From 57b3287f696eb8e1c2565d84e258be7115d79691 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 12 Jun 2019 19:07:48 +0200
+Subject: [PATCH] evl/thread: drop check for T_MOVED status bit
+
+We don't plan for switching CPU from out-of-band context anymore, so
+T_MOVED is basically pointless now.
+---
+ include/uapi/evl/control.h | 2 +-
+ include/uapi/evl/thread.h  | 7 +++----
+ kernel/evl/thread.c        | 8 --------
+ 3 files changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 1ee901bdd92a..f3e6a05f6d1f 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  1
++#define EVL_ABI_LEVEL  2
+ 
+ struct evl_core_info {
+ 	__u32 abi_level;
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index b7acf7b6412a..5519a51bcb9a 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -49,10 +49,9 @@
+ 
+ /* Local information flags (private to current thread) */
+ 
+-#define T_MOVED   0x00000001 /*< CPU migration request issued from OOB context */
+-#define T_SYSRST  0x00000002 /*< Thread awaiting syscall restart after signal */
+-#define T_HICCUP  0x00000004 /*< Just left from ptracing - timings wrecked */
+-#define T_INFAULT 0x00000008 /*< In fault handling */
++#define T_SYSRST  0x00000001 /*< Thread awaiting syscall restart after signal */
++#define T_HICCUP  0x00000002 /*< Just left from ptracing - timings wrecked */
++#define T_INFAULT 0x00000004 /*< In fault handling */
+ 
+ /*
+  * Must follow strictly the declaration order of the state flags
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 763f6be4804c..879df473ec78 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -702,14 +702,6 @@ void evl_switch_inband(int cause)
+ 	 */
+ 	evl_propagate_schedparam_change(curr);
+ 
+-#ifdef CONFIG_SMP
+-	if (curr->local_info & T_MOVED) {
+-		curr->local_info &= ~T_MOVED;
+-		cpu = evl_rq_cpu(curr->rq);
+-		set_cpus_allowed_ptr(p, cpumask_of(cpu));
+-	}
+-#endif
+-
+ 	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
+ 		if (curr->state & T_WARN) {
+ 			/* Help debugging spurious mode switches. */
+-- 
+2.16.4
+

@@ -1,0 +1,29 @@
+From 0e007a07d688c80d0ff46f7438cdaf4f3be6a3e8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 May 2019 10:44:41 +0200
+Subject: [PATCH] KVM: dovetail: fix build w/ CONFIG_KVM disabled
+
+---
+ include/linux/dovetail.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 5540d779655a..b049ec837b8b 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -126,7 +126,12 @@ int inband_switch_tail(void);
+ 
+ void oob_trampoline(void);
+ 
++#ifdef CONFIG_KVM
+ void oob_notify_kvm(void);
++#else
++static inline void oob_notify_kvm(void)
++{ }
++#endif
+ 
+ void arch_inband_task_init(struct task_struct *p);
+ 
+-- 
+2.16.4
+

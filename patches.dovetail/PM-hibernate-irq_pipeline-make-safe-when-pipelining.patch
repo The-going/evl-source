@@ -1,4 +1,4 @@
-From fa448cd5bd94fd023ac69d559d202ded8e81b538 Mon Sep 17 00:00:00 2001
+From 7f868d5d09b0da22132a242ac0e31afa057f849f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 09:03:44 +0200
 Subject: [PATCH] PM / hibernate: irq_pipeline: make safe when pipelining
@@ -8,10 +8,10 @@ Subject: [PATCH] PM / hibernate: irq_pipeline: make safe when pipelining
  1 file changed, 3 insertions(+)
 
 diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-index c8c272df7154..0576bc298036 100644
+index cd7434e6000d..092318215ff9 100644
 --- a/kernel/power/hibernate.c
 +++ b/kernel/power/hibernate.c
-@@ -285,6 +285,7 @@ static int create_image(int platform_mode)
+@@ -289,6 +289,7 @@ static int create_image(int platform_mode)
  		goto Enable_cpus;
  
  	local_irq_disable();
@@ -19,7 +19,7 @@ index c8c272df7154..0576bc298036 100644
  
  	system_state = SYSTEM_SUSPEND;
  
-@@ -448,6 +449,7 @@ static int resume_target_kernel(bool platform_mode)
+@@ -456,6 +457,7 @@ static int resume_target_kernel(bool platform_mode)
  
  	local_irq_disable();
  	system_state = SYSTEM_SUSPEND;
@@ -27,7 +27,7 @@ index c8c272df7154..0576bc298036 100644
  
  	error = syscore_suspend();
  	if (error)
-@@ -569,6 +571,7 @@ int hibernation_platform_enter(void)
+@@ -577,6 +579,7 @@ int hibernation_platform_enter(void)
  
  	local_irq_disable();
  	system_state = SYSTEM_SUSPEND;

@@ -1,0 +1,25 @@
+From 3e771fdc0e9b1971f1fab8d97efc04d8318963a9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 May 2019 17:55:09 +0200
+Subject: [PATCH] ARM: irq_pipeline: convert code patching lock to hard form
+
+---
+ arch/arm/kernel/patch.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/kernel/patch.c b/arch/arm/kernel/patch.c
+index d0a05a3bdb96..86108122ae00 100644
+--- a/arch/arm/kernel/patch.c
++++ b/arch/arm/kernel/patch.c
+@@ -16,7 +16,7 @@ struct patch {
+ 	unsigned int insn;
+ };
+ 
+-static DEFINE_RAW_SPINLOCK(patch_lock);
++static DEFINE_HARD_SPINLOCK(patch_lock);
+ 
+ static void __kprobes *patch_map(void *addr, int fixmap, unsigned long *flags)
+ 	__acquires(&patch_lock)
+-- 
+2.16.4
+

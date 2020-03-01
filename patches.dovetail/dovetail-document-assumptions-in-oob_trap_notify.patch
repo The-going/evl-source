@@ -1,0 +1,28 @@
+From 3921b4902986ccad2fa0c7f17a2b79708782a41d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 May 2019 17:31:24 +0200
+Subject: [PATCH] dovetail: document assumptions in oob_trap_notify()
+
+---
+ kernel/dovetail.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 940f5b091007..12784a3b0d78 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -236,6 +236,11 @@ void __oob_trap_notify(unsigned int exception, struct pt_regs *regs)
+ 	/*
+ 	 * We send a notification about all traps raised over a
+ 	 * registered oob stage only.
++	 *
++	 * CAUTION: The out-of-band trap handler expects hard irqs off
++	 * on entry, and might demote the current context to the
++	 * in-band stage, returning with hard irqs on. So we have to
++	 * protect the call accordingly.
+ 	 */
+ 	if (dovetail_enabled) {
+ 		flags = hard_local_irq_save();
+-- 
+2.16.4
+

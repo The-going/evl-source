@@ -1,4 +1,4 @@
-From 4218d3ea9e25e7a6f8fd8da9e35bae611b88a829 Mon Sep 17 00:00:00 2001
+From 72832449fc81d3d02b0b568136b0e94affb264fe Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:23:29 +0200
 Subject: [PATCH] x86/hpet: irq_pipeline: enable pipelined clock events
@@ -9,10 +9,10 @@ Subject: [PATCH] x86/hpet: irq_pipeline: enable pipelined clock events
  2 files changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/kernel/hpet.c b/arch/x86/kernel/hpet.c
-index fb32925a2e62..e3cb9de10bab 100644
+index a0573f2e7763..2e4a11d371de 100644
 --- a/arch/x86/kernel/hpet.c
 +++ b/arch/x86/kernel/hpet.c
-@@ -418,7 +418,8 @@ static int hpet_legacy_next_event(unsigned long delta,
+@@ -419,7 +419,8 @@ static int hpet_legacy_next_event(unsigned long delta,
  static struct clock_event_device hpet_clockevent = {
  	.name			= "hpet",
  	.features		= CLOCK_EVT_FEAT_PERIODIC |
@@ -22,7 +22,7 @@ index fb32925a2e62..e3cb9de10bab 100644
  	.set_state_periodic	= hpet_legacy_set_periodic,
  	.set_state_oneshot	= hpet_legacy_set_oneshot,
  	.set_state_shutdown	= hpet_legacy_shutdown,
-@@ -524,7 +525,7 @@ static irqreturn_t hpet_interrupt_handler(int irq, void *data)
+@@ -525,7 +526,7 @@ static irqreturn_t hpet_interrupt_handler(int irq, void *data)
  		return IRQ_HANDLED;
  	}
  

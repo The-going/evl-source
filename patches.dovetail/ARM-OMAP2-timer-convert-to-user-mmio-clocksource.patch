@@ -1,4 +1,4 @@
-From 9c514469226b8258a530bd190417e781329c9dac Mon Sep 17 00:00:00 2001
+From f096647440432628ffb439ed39c029e90a4f3037 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 4 Apr 2019 15:57:00 +0200
 Subject: [PATCH] ARM: OMAP2: timer: convert to user mmio clocksource
@@ -9,10 +9,10 @@ Subject: [PATCH] ARM: OMAP2: timer: convert to user mmio clocksource
  2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/arch/arm/mach-omap2/Kconfig b/arch/arm/mach-omap2/Kconfig
-index 5e33d1a90664..8caa9bf76cfd 100644
+index fdb6743760a2..cf6ad49657dd 100644
 --- a/arch/arm/mach-omap2/Kconfig
 +++ b/arch/arm/mach-omap2/Kconfig
-@@ -96,6 +96,7 @@ config ARCH_OMAP2PLUS
+@@ -97,6 +97,7 @@ config ARCH_OMAP2PLUS
  	select ARCH_HAS_HOLES_MEMORYMODEL
  	select ARCH_OMAP
  	select CLKSRC_MMIO
