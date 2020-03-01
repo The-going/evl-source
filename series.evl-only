@@ -336,3 +336,4 @@
 	patches.evl-only/evl-proxy-return-EBADF-on-invalid-target-fd.patch
 	patches.evl-only/uapi-evl-fptest-try-harder-not-to-shadow-local-varia.patch
 	patches.evl-only/evl-thread-fix-inverted-single-step-bit-flip.patch
+	patches.evl-only/evl-thread-switch-potentially-large-cpumask-to-stati.patch

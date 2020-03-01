@@ -1,0 +1,38 @@
+From fcce6d0e329c375bf2f20de18e7b4f5218180969 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 13 Dec 2019 13:12:05 +0100
+Subject: [PATCH] irq_pipeline: fix error code on allocation failure
+
+---
+ kernel/irq/irqptorture.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/irq/irqptorture.c b/kernel/irq/irqptorture.c
+index 4ba0f28b9211..2518c47415d5 100644
+--- a/kernel/irq/irqptorture.c
++++ b/kernel/irq/irqptorture.c
+@@ -76,11 +76,11 @@ static int test_stop_machine(void)
+ {
+ 	struct stop_machine_p_data d;
+ 	cpumask_var_t tmp_mask;
+-	int ret = -EINVAL, cpu;
++	int ret = -ENOMEM, cpu;
+ 
+ 	if (!zalloc_cpumask_var(&d.disable_mask, GFP_KERNEL)) {
+ 		WARN_ON(1);
+-		return -EINVAL;
++		return ret;
+ 	}
+ 
+ 	if (!alloc_cpumask_var(&tmp_mask, GFP_KERNEL)) {
+@@ -88,6 +88,7 @@ static int test_stop_machine(void)
+ 		goto fail;
+ 	}
+ 
++	ret = -EINVAL;
+ 	d.origin_cpu = raw_smp_processor_id();
+ 	pr_alert("irq_pipeline" TORTURE_FLAG
+ 		 " CPU%d initiates stop_machine()\n",
+-- 
+2.16.4
+

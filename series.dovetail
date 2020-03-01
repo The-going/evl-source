@@ -262,3 +262,6 @@
 	patches.dovetail/locking-irq_pipeline-fix-mutable-spin-trylock.patch
 	patches.dovetail/locking-irq_pipeline-add-nested-hard-spin-lock-opera.patch
 	patches.dovetail/locking-irq_pipeline-add-nested-mutable-spin-lock-op.patch
+	patches.dovetail/irq_pipeline-fix-error-code-on-allocation-failure.patch
+	patches.dovetail/genirq-irq_pipeline-add-4th-mapping-level-to-interru.patch
+	patches.dovetail/genirq-irq_pipeline-remove-code-redundancy.patch

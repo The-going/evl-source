@@ -1,0 +1,88 @@
+From 11084ff4a8afaf80f4c9a81d1c7ef6d0f8d9a21a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 13 Dec 2019 13:31:36 +0100
+Subject: [PATCH] evl/thread: switch potentially large cpumask to static
+ storage
+
+When a huge number of CPUs is available (e.g. CONFIG_MAXSMP/x86), we
+might overflow the stack with cpumask_t variables, for instance with
+stack-based thread init descriptors. Since such descriptor only needs
+to refer to a constant cpumask, we can maintain a reference to a
+global mask instead of embedding a private object there.
+---
+ include/evl/thread.h    | 6 +++---
+ kernel/evl/sched/core.c | 2 +-
+ kernel/evl/thread.c     | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 707b46dcbc57..04dff620f920 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -36,7 +36,7 @@ struct evl_sched_class;
+ struct evl_poll_watchpoint;
+ 
+ struct evl_init_thread_attr {
+-	struct cpumask affinity;
++	const struct cpumask *affinity;
+ 	int flags;
+ 	struct evl_sched_class *sched_class;
+ 	union evl_sched_param sched_param;
+@@ -323,8 +323,8 @@ int __evl_run_kthread(struct evl_kthread *kthread);
+ 			__fmt, ##__args)
+ 
+ #define evl_run_kthread_on_cpu(__kthread, __cpu, __fn, __priority,	\
+-			__fmt, __args...)				\
+-	_evl_run_kthread(__kthread, *cpumask_of(__cpu), __fn, __priority, \
++			       __fmt, __args...)			\
++	_evl_run_kthread(__kthread, cpumask_of(__cpu), __fn, __priority, \
+ 			__fmt, ##__args)
+ 
+ static inline void evl_cancel_kthread(struct evl_kthread *kthread)
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 266640de28fd..9211784e552a 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -187,7 +187,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	 * reschedule from evl_exit_irq() later on is harmless.
+ 	 */
+ 	iattr.flags = T_ROOT;
+-	iattr.affinity = *cpumask_of(cpu);
++	iattr.affinity = cpumask_of(cpu);
+ 	iattr.sched_class = &evl_sched_idle;
+ 	iattr.sched_param.idle.prio = EVL_IDLE_PRIO;
+ 	evl_init_thread(&rq->root_thread, &iattr, rq, name_fmt, cpu);
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 6dd105c808c7..372bdb239ae6 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -172,7 +172,7 @@ int evl_init_thread(struct evl_thread *thread,
+ 	if (!rq) {
+ 		if (!alloc_cpumask_var(&affinity, GFP_KERNEL))
+ 			return -ENOMEM;
+-		cpumask_and(affinity, &iattr->affinity, &evl_cpu_affinity);
++		cpumask_and(affinity, iattr->affinity, &evl_cpu_affinity);
+ 		if (!cpumask_empty(affinity))
+ 			rq = evl_cpu_rq(cpumask_first(affinity));
+ 		free_cpumask_var(affinity);
+@@ -186,7 +186,7 @@ int evl_init_thread(struct evl_thread *thread,
+ 	if (thread->name == NULL)
+ 		return -ENOMEM;
+ 
+-	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
++	cpumask_and(&thread->affinity, iattr->affinity, &evl_cpu_affinity);
+ 	thread->rq = rq;
+ 	thread->state = flags;
+ 	thread->info = 0;
+@@ -2018,7 +2018,7 @@ thread_factory_build(struct evl_factory *fac, const char *name,
+ 	}
+ 
+ 	iattr.flags = T_USER;
+-	iattr.affinity = CPU_MASK_ALL;
++	iattr.affinity = cpu_possible_mask;
+ 	iattr.sched_class = &evl_sched_weak;
+ 	iattr.sched_param.weak.prio = 0;
+ 	ret = evl_init_thread(curr, &iattr, NULL, "%s", name);
+-- 
+2.16.4
+
