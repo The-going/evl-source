@@ -216,3 +216,12 @@
 	patches.evl-only/evl-clock-drop-meaningless-parameter-from-clock_slee.patch
 	patches.evl-only/evl-proxy-enable-inband-writes.patch
 	patches.evl-only/evl-timerfd-enable-get-set-from-in-band-context.patch
+	patches.evl-only/evl-control-export-oob-cpu-list-via-sysfs.patch
+	patches.evl-only/drivers-evl-latmus-detect-wrong-CPU-spec.patch
+	patches.evl-only/evl-control-add-query-for-CPU-state.patch
+	patches.evl-only/evl-sched-generalize-use-of-evl_schedq_is_empty.patch
+	patches.evl-only/evl-sched-inline-queuing-ops-for-the-fifo-policy.patch
+	patches.evl-only/evl-trace-wait-fix-tracepoint-names.patch
+	patches.evl-only/evl-sched-shorten-rescheduling-path-when-oob.patch
+	patches.evl-only/ARM-l2x0-irq_pipeline-harden-atomic-range-locking.patch
+	patches.evl-only/genirq-irq_pipeline-drop-redundant-comment.patch

@@ -1,0 +1,34 @@
+From 5a43ccb773d183556758b60301773b7d72a6f31e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 2 Jul 2019 09:43:33 +0200
+Subject: [PATCH] gpio: zynq: irq_pipeline: enable pipelined interrupt control
+
+---
+ drivers/gpio/gpio-zynq.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpio/gpio-zynq.c b/drivers/gpio/gpio-zynq.c
+index f241b6c13dbe..564ddb8a77f4 100644
+--- a/drivers/gpio/gpio-zynq.c
++++ b/drivers/gpio/gpio-zynq.c
+@@ -583,7 +583,7 @@ static struct irq_chip zynq_gpio_level_irqchip = {
+ 	.irq_request_resources = zynq_gpio_irq_reqres,
+ 	.irq_release_resources = zynq_gpio_irq_relres,
+ 	.flags		= IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED |
+-			  IRQCHIP_MASK_ON_SUSPEND,
++			  IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static struct irq_chip zynq_gpio_edge_irqchip = {
+@@ -596,7 +596,7 @@ static struct irq_chip zynq_gpio_edge_irqchip = {
+ 	.irq_set_wake	= zynq_gpio_set_wake,
+ 	.irq_request_resources = zynq_gpio_irq_reqres,
+ 	.irq_release_resources = zynq_gpio_irq_relres,
+-	.flags		= IRQCHIP_MASK_ON_SUSPEND,
++	.flags		= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
+-- 
+2.16.4
+

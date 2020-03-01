@@ -1,0 +1,59 @@
+From 72f2c132a4ddc47e55d555246ea84e4a885ff6cf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 3 Jul 2019 21:49:40 +0200
+Subject: [PATCH] evl/trace: wait: fix tracepoint names
+
+---
+ include/evl/wait.h         | 2 +-
+ include/trace/events/evl.h | 4 ++--
+ kernel/evl/wait.c          | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 3fa5f98c068d..f4be7b302921 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -142,7 +142,7 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
+ {
+ 	struct evl_thread *waiter, *tmp;
+ 
+-	trace_evl_wait_flush(wq);
++	trace_evl_flush_wait(wq);
+ 
+ 	list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next)
+ 		evl_wakeup_thread(waiter, T_PEND, reason);
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 7ee27955b95d..c04cda0396da 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -687,12 +687,12 @@ DEFINE_EVENT(wq_event, evl_wait,
+ 	TP_ARGS(wq)
+ );
+ 
+-DEFINE_EVENT(wq_event, evl_wait_wakeup,
++DEFINE_EVENT(wq_event, evl_wake_up,
+ 	TP_PROTO(struct evl_wait_queue *wq),
+ 	TP_ARGS(wq)
+ );
+ 
+-DEFINE_EVENT(wq_event, evl_wait_flush,
++DEFINE_EVENT(wq_event, evl_flush_wait,
+ 	TP_PROTO(struct evl_wait_queue *wq),
+ 	TP_ARGS(wq)
+ );
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index 6c4ea209abe1..3665a4edbb46 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(evl_add_wait_queue);
+ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 			struct evl_thread *waiter)
+ {
+-	trace_evl_wait_wakeup(wq);
++	trace_evl_wake_up(wq);
+ 
+ 	if (list_empty(&wq->wait_list))
+ 		waiter = NULL;
+-- 
+2.16.4
+

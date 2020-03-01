@@ -1,0 +1,40 @@
+From c6ca83018ee30e51c1132c7b30831b41fdd72ae1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 2 Jul 2019 09:44:00 +0200
+Subject: [PATCH] evl/control: export oob cpu list via sysfs
+
+---
+ kernel/evl/control.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/kernel/evl/control.c b/kernel/evl/control.c
+index c0eb05ca1f07..a2594a41758f 100644
+--- a/kernel/evl/control.c
++++ b/kernel/evl/control.c
+@@ -310,6 +310,15 @@ static ssize_t abi_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(abi);
+ 
++static ssize_t cpus_show(struct device *dev,
++			struct device_attribute *attr,
++			char *buf)
++{
++	return scnprintf(buf, PAGE_SIZE, "%*pbl\n",
++			cpumask_pr_args(&evl_oob_cpus));
++}
++static DEVICE_ATTR_RO(cpus);
++
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+ static ssize_t quota_show(struct device *dev,
+@@ -361,6 +370,7 @@ static DEVICE_ATTR_RO(tp);
+ static struct attribute *control_attrs[] = {
+ 	&dev_attr_state.attr,
+ 	&dev_attr_abi.attr,
++	&dev_attr_cpus.attr,
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	&dev_attr_quota.attr,
+ #endif
+-- 
+2.16.4
+

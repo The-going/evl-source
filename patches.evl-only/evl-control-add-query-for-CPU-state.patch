@@ -1,0 +1,134 @@
+From 09bdd556388421f7cb804324a14358dc4b20a806 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 2 Jul 2019 15:18:55 +0200
+Subject: [PATCH] evl/control: add query for CPU state
+
+A practical LART is to know beforehand when some out-of-band work is
+about to run on a non-isolated CPU, so that the application may warn
+the user about the potentially higher latency figures induced by
+higher rates of cache and TLB misses which may be caused by heavy
+in-band load running on the same core.
+
+The control device now accepts the
+[oob_]ioctl(EVL_CTLIOC_GET_CPUSTATE) request, which queries the
+current state of a CPU:
+
+- EVL_CPU_ISOL if it does not belong to housekeeping set of the
+  in-band kernel, i.e. not mentioned in isolcpus= for the scheduling
+  domain.
+
+- EVL_CPU_OOB if it is part of the out-of-band set EVL manages.
+
+- EVL_CPU_OFFLINE if currently off.
+---
+ include/uapi/evl/control.h |  8 +++++++-
+ include/uapi/evl/sched.h   |  4 ++++
+ kernel/evl/control.c       | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 5d9a0a4ae3d3..7dcf042f597d 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  7
++#define EVL_ABI_LEVEL  8
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+@@ -20,9 +20,15 @@ struct evl_core_info {
+ 	__u64 shm_size;
+ };
+ 
++struct evl_cpu_state {
++	__u32 cpu;
++	__u32 *state;
++};
++
+ #define EVL_CONTROL_IOCBASE	'C'
+ 
+ #define EVL_CTLIOC_GET_COREINFO		_IOR(EVL_CONTROL_IOCBASE, 0, struct evl_core_info)
+ #define EVL_CTLIOC_SCHEDCTL		_IOWR(EVL_CONTROL_IOCBASE, 1, struct evl_sched_ctlreq)
++#define EVL_CTLIOC_GET_CPUSTATE		_IOR(EVL_CONTROL_IOCBASE, 2, struct evl_cpu_state)
+ 
+ #endif /* !_EVL_UAPI_CONTROL_H */
+diff --git a/include/uapi/evl/sched.h b/include/uapi/evl/sched.h
+index 54ae0453a166..90c248a343e5 100644
+--- a/include/uapi/evl/sched.h
++++ b/include/uapi/evl/sched.h
+@@ -10,6 +10,10 @@
+ 
+ #include <linux/types.h>
+ 
++#define EVL_CPU_OOB      (1 << 0)
++#define EVL_CPU_ISOL     (1 << 1)
++#define EVL_CPU_OFFLINE  (1 << 2)
++
+ #define SCHED_WEAK	43
+ 
+ #define sched_rr_quantum	sched_u.rr.__sched_rr_quantum
+diff --git a/kernel/evl/control.c b/kernel/evl/control.c
+index a2594a41758f..8e5586d22143 100644
+--- a/kernel/evl/control.c
++++ b/kernel/evl/control.c
+@@ -6,6 +6,7 @@
+ 
+ #include <linux/types.h>
+ #include <linux/mm.h>
++#include <linux/sched/isolation.h>
+ #include <evl/memory.h>
+ #include <evl/thread.h>
+ #include <evl/factory.h>
+@@ -200,10 +201,32 @@ static int do_sched_control(struct evl_sched_ctlreq *ctl)
+ 	return ret;
+ }
+ 
++static int do_cpu_state(struct evl_cpu_state *cpst)
++{
++	int cpu = cpst->cpu;
++	__u32 state = 0;
++
++	if (cpst->cpu >= num_possible_cpus() || !cpu_present(cpu))
++		return -EINVAL;
++
++	if (!cpu_online(cpu))
++		state |= EVL_CPU_OFFLINE;
++
++	if (is_evl_cpu(cpu))
++		state |= EVL_CPU_OOB;
++
++	if (!housekeeping_cpu(cpu, HK_FLAG_DOMAIN))
++		state |= EVL_CPU_ISOL;
++
++	return raw_copy_to_user(cpst->state, &state, sizeof(state)) ?
++		-EFAULT : 0;
++}
++
+ static long control_common_ioctl(struct file *filp, unsigned int cmd,
+ 			unsigned long arg)
+ {
+ 	struct evl_sched_ctlreq ctl, __user *u_ctl;
++	struct evl_cpu_state cpst, __user *u_cpst;
+ 	long ret;
+ 
+ 	switch (cmd) {
+@@ -214,6 +237,13 @@ static long control_common_ioctl(struct file *filp, unsigned int cmd,
+ 			return -EFAULT;
+ 		ret = do_sched_control(&ctl);
+ 		break;
++	case EVL_CTLIOC_GET_CPUSTATE:
++		u_cpst = (typeof(u_cpst))arg;
++		ret = raw_copy_from_user(&cpst, u_cpst, sizeof(cpst));
++		if (ret)
++			return -EFAULT;
++		ret = do_cpu_state(&cpst);
++		break;
+ 	default:
+ 		ret = -ENOTTY;
+ 	}
+-- 
+2.16.4
+

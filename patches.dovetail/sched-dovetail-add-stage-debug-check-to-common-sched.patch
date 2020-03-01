@@ -1,4 +1,4 @@
-From 21d0cd6c6c9470ee344ed54434b692cf3ed461d9 Mon Sep 17 00:00:00 2001
+From c7619ff7c9c6cf382bc3555c617444b1e408cada Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 19:36:14 +0200
 Subject: [PATCH] sched: dovetail: add stage debug check to common scheduling
@@ -19,7 +19,7 @@ This code is compiled in with CONFIG_DEBUG_IRQ_PIPELINE.
  3 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index 74b1ee9027f5..73b4701beaab 100644
+index 0c9bc231107f..db575c38e06c 100644
 --- a/include/linux/kernel.h
 +++ b/include/linux/kernel.h
 @@ -14,6 +14,7 @@
@@ -30,7 +30,7 @@ index 74b1ee9027f5..73b4701beaab 100644
  #include <asm/byteorder.h>
  #include <asm/div64.h>
  #include <uapi/linux/kernel.h>
-@@ -200,9 +201,12 @@ struct user;
+@@ -201,9 +202,12 @@ struct user;
  
  #ifdef CONFIG_PREEMPT_VOLUNTARY
  extern int _cond_resched(void);

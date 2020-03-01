@@ -1,0 +1,29 @@
+From e83d5d1c55adda23ab95697a9e0b86e57342c10c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 5 Jul 2019 11:01:20 +0200
+Subject: [PATCH] genirq: irq_pipeline: drop redundant comment
+
+---
+ kernel/irq/pipeline.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 5d2c18c8a22d..902aa0b6db43 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -828,12 +828,6 @@ static void handle_unexpected_irq(struct irq_desc *desc, irqreturn_t ret)
+ 
+ 	desc->last_unhandled = jiffies;
+ 
+-	/*
+-	 * If more than 1000 unhandled events were received
+-	 * consecutively, we have to stop this IRQ from poking us at
+-	 * the oob of the pipeline by disabling out-of-band mode for
+-	 * the interrupt.
+-	 */
+ 	if (unlikely(desc->irqs_unhandled > 1000)) {
+ 		printk(KERN_ERR "out-of-band irq %d: stuck or unexpected\n", irq);
+ 		irq_settings_clr_oob(desc);
+-- 
+2.16.4
+

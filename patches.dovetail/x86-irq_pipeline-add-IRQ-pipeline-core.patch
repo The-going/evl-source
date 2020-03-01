@@ -1,4 +1,4 @@
-From 84435d587511a1d88f027d909d29337934641f17 Mon Sep 17 00:00:00 2001
+From 4e01ba42fd4c821248396a59fb7f38b9ca2e7a07 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 16:40:19 +0200
 Subject: [PATCH] x86: irq_pipeline: add IRQ pipeline core
@@ -806,7 +806,7 @@ index ce1b5cc360a2..d4f6332bef82 100644
  obj-$(CONFIG_EISA)		+= eisa.o
  obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
-index 177aa8ef2afa..8b5df081ddca 100644
+index 85be316665b4..fa325b414453 100644
 --- a/arch/x86/kernel/apic/apic.c
 +++ b/arch/x86/kernel/apic/apic.c
 @@ -271,10 +271,10 @@ void native_apic_icr_write(u32 low, u32 id)
@@ -890,7 +890,7 @@ index 177aa8ef2afa..8b5df081ddca 100644
  				acked++;
  			}
  		}
-@@ -2047,7 +2059,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
+@@ -2048,7 +2060,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
  	 */
  	v = apic_read(APIC_ISR + ((vector & ~0x1f) >> 1));
  	if (v & (1 << (vector & 0x1f)))
@@ -899,7 +899,7 @@ index 177aa8ef2afa..8b5df081ddca 100644
  
  	inc_irq_stat(irq_spurious_count);
  
-@@ -2083,7 +2095,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
+@@ -2084,7 +2096,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
  	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
  		apic_write(APIC_ESR, 0);
  	v = apic_read(APIC_ESR);

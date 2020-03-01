@@ -1,0 +1,28 @@
+From c7c89749499715dd6eec572c23c7f0a08e8ccac2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 2 Jul 2019 11:57:32 +0200
+Subject: [PATCH] drivers/evl: latmus: detect wrong CPU spec
+
+The CPU the sampler runs on must be part of the out-of-band set.
+---
+ drivers/evl/latmus.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/evl/latmus.c b/drivers/evl/latmus.c
+index d3ec6acfcf28..b4b1c795eb7a 100644
+--- a/drivers/evl/latmus.c
++++ b/drivers/evl/latmus.c
+@@ -901,6 +901,10 @@ static long latmus_ioctl(struct file *filp, unsigned int cmd,
+ 	    setup_data.priority > EVL_FIFO_MAX_PRIO)
+ 		return -EINVAL;
+ 
++	if (setup_data.cpu >= num_possible_cpus() ||
++		!is_evl_cpu(setup_data.cpu))
++		return -EINVAL;
++
+ 	/* Clear previous runner. */
+ 	runner = ls->runner;
+ 	if (runner) {
+-- 
+2.16.4
+

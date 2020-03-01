@@ -1,0 +1,29 @@
+From 8832ab575629fe65c6d5627b37117a5929bb1fd6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 4 Jul 2019 20:53:26 +0200
+Subject: [PATCH] evl/sched: shorten rescheduling path when oob
+
+---
+ include/evl/sched.h | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 0193b800e130..463767378b5c 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -280,7 +280,11 @@ static inline bool evl_schedule(void)
+ 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
+ 		return false;
+ 
+-	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
++	if (unlikely(running_inband()))
++		return (bool)run_oob_call((int (*)(void *))__evl_schedule,
++					this_rq);
++
++	return __evl_schedule(this_rq);
+ }
+ 
+ static inline int evl_preempt_count(void)
+-- 
+2.16.4
+

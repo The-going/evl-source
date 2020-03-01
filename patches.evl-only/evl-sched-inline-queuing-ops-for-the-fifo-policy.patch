@@ -1,0 +1,309 @@
+From da80a52bc05bcb9beda1eefc69871ef5f0fd7f5e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 3 Jul 2019 21:37:45 +0200
+Subject: [PATCH] evl/sched: inline queuing ops for the fifo policy
+
+SCHED_FIFO is the most critical and frequently used scheduling policy
+with EVL, so there is a net gain in inlining the small helpers
+manipulating the thread list for this one.
+---
+ include/evl/sched.h       | 29 +++++++++++++----
+ include/evl/sched/queue.h | 82 +++++++++++++++++++++++++++++++++++++++--------
+ kernel/evl/sched/core.c   | 61 ++---------------------------------
+ kernel/evl/sched/fifo.c   | 29 -----------------
+ 4 files changed, 94 insertions(+), 107 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index ae3ead00abff..0193b800e130 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -437,27 +437,44 @@ static inline int evl_calc_weighted_prio(struct evl_sched_class *sched_class,
+ 	return prio + sched_class->weight;
+ }
+ 
+-static inline void evl_enqueue_thread(struct evl_thread *thread)
++static __always_inline void evl_enqueue_thread(struct evl_thread *thread)
+ {
+ 	struct evl_sched_class *sched_class = thread->sched_class;
+ 
+-	if (sched_class != &evl_sched_idle)
++	/*
++	 * Enqueue for next pick: i.e. move to end of current priority
++	 * group (i.e. FIFO).
++	 */
++	if (likely(sched_class == &evl_sched_fifo))
++		__evl_enqueue_fifo_thread(thread);
++	else if (sched_class != &evl_sched_idle)
+ 		sched_class->sched_enqueue(thread);
+ }
+ 
+-static inline void evl_dequeue_thread(struct evl_thread *thread)
++static __always_inline void evl_dequeue_thread(struct evl_thread *thread)
+ {
+ 	struct evl_sched_class *sched_class = thread->sched_class;
+ 
+-	if (sched_class != &evl_sched_idle)
++	/*
++	 * Pull from the runnable thread queue.
++	 */
++	if (likely(sched_class == &evl_sched_fifo))
++		__evl_dequeue_fifo_thread(thread);
++	else if (sched_class != &evl_sched_idle)
+ 		sched_class->sched_dequeue(thread);
+ }
+ 
+-static inline void evl_requeue_thread(struct evl_thread *thread)
++static __always_inline void evl_requeue_thread(struct evl_thread *thread)
+ {
+ 	struct evl_sched_class *sched_class = thread->sched_class;
+ 
+-	if (sched_class != &evl_sched_idle)
++	/*
++	 * Put back at same place: i.e. requeue to head of current
++	 * priority group (i.e. LIFO, used for preemption handling).
++	 */
++	if (likely(sched_class == &evl_sched_fifo))
++		__evl_requeue_fifo_thread(thread);
++	else if (sched_class != &evl_sched_idle)
+ 		sched_class->sched_requeue(thread);
+ }
+ 
+diff --git a/include/evl/sched/queue.h b/include/evl/sched/queue.h
+index 9a32192d1f83..8e3519e27686 100644
+--- a/include/evl/sched/queue.h
++++ b/include/evl/sched/queue.h
+@@ -42,29 +42,85 @@ struct evl_thread;
+ 
+ void evl_init_schedq(struct evl_multilevel_queue *q);
+ 
+-void evl_add_schedq(struct evl_multilevel_queue *q,
+-		struct evl_thread *thread);
+-
+-void evl_add_schedq_tail(struct evl_multilevel_queue *q,
+-			struct evl_thread *thread);
+-
+-void evl_del_schedq(struct evl_multilevel_queue *q,
+-		struct evl_thread *thread);
+-
+ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q);
+ 
+-static inline int evl_schedq_is_empty(struct evl_multilevel_queue *q)
++struct evl_thread *
++evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
++
++static __always_inline
++int evl_schedq_is_empty(struct evl_multilevel_queue *q)
+ {
+ 	return q->elems == 0;
+ }
+ 
+-static inline int evl_get_schedq_weight(struct evl_multilevel_queue *q)
++static __always_inline
++int evl_get_schedq_weight(struct evl_multilevel_queue *q)
+ {
+ 	/* Highest priorities are mapped to lowest array elements. */
+ 	return find_first_bit(q->prio_map, EVL_MLQ_LEVELS);
+ }
+ 
+-struct evl_thread *
+-evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
++static __always_inline
++int get_qindex(struct evl_multilevel_queue *q, int prio)
++{
++	/*
++	 * find_first_bit() is used to scan the bitmap, so the lower
++	 * the index value, the higher the priority.
++	 */
++	return EVL_MLQ_LEVELS - prio - 1;
++}
++
++static __always_inline
++struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
++{
++	struct list_head *head;
++	int idx;
++
++	idx = get_qindex(q, prio);
++	head = q->heads + idx;
++	q->elems++;
++
++	/* New item is not linked yet. */
++	if (list_empty(head))
++		__set_bit(idx, q->prio_map);
++
++	return head;
++}
++
++static __always_inline
++void evl_add_schedq(struct evl_multilevel_queue *q,
++		struct evl_thread *thread)
++{
++	struct list_head *head = add_q(q, thread->cprio);
++	list_add(&thread->rq_next, head);
++}
++
++static __always_inline
++void evl_add_schedq_tail(struct evl_multilevel_queue *q,
++			struct evl_thread *thread)
++{
++	struct list_head *head = add_q(q, thread->cprio);
++	list_add_tail(&thread->rq_next, head);
++}
++
++static __always_inline
++void __evl_del_schedq(struct evl_multilevel_queue *q,
++		struct list_head *entry, int idx)
++{
++	struct list_head *head = q->heads + idx;
++
++	list_del(entry);
++	q->elems--;
++
++	if (list_empty(head))
++		__clear_bit(idx, q->prio_map);
++}
++
++static __always_inline
++void evl_del_schedq(struct evl_multilevel_queue *q,
++	struct evl_thread *thread)
++{
++	__evl_del_schedq(q, &thread->rq_next, get_qindex(q, thread->cprio));
++}
+ 
+ #endif /* !_EVL_SCHED_QUEUE_H */
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 143e0193cf5a..8dba933b834b 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -474,63 +474,6 @@ void evl_init_schedq(struct evl_multilevel_queue *q)
+ 		INIT_LIST_HEAD(q->heads + prio);
+ }
+ 
+-static inline int get_qindex(struct evl_multilevel_queue *q, int prio)
+-{
+-	/*
+-	 * find_first_bit() is used to scan the bitmap, so the lower
+-	 * the index value, the higher the priority.
+-	 */
+-	return EVL_MLQ_LEVELS - prio - 1;
+-}
+-
+-static struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
+-{
+-	struct list_head *head;
+-	int idx;
+-
+-	idx = get_qindex(q, prio);
+-	head = q->heads + idx;
+-	q->elems++;
+-
+-	/* New item is not linked yet. */
+-	if (list_empty(head))
+-		__set_bit(idx, q->prio_map);
+-
+-	return head;
+-}
+-
+-void evl_add_schedq(struct evl_multilevel_queue *q,
+-		struct evl_thread *thread)
+-{
+-	struct list_head *head = add_q(q, thread->cprio);
+-	list_add(&thread->rq_next, head);
+-}
+-
+-void evl_add_schedq_tail(struct evl_multilevel_queue *q,
+-			struct evl_thread *thread)
+-{
+-	struct list_head *head = add_q(q, thread->cprio);
+-	list_add_tail(&thread->rq_next, head);
+-}
+-
+-static void del_q(struct evl_multilevel_queue *q,
+-		struct list_head *entry, int idx)
+-{
+-	struct list_head *head = q->heads + idx;
+-
+-	list_del(entry);
+-	q->elems--;
+-
+-	if (list_empty(head))
+-		__clear_bit(idx, q->prio_map);
+-}
+-
+-void evl_del_schedq(struct evl_multilevel_queue *q,
+-		struct evl_thread *thread)
+-{
+-	del_q(q, &thread->rq_next, get_qindex(q, thread->cprio));
+-}
+-
+ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
+ {
+ 	struct evl_thread *thread;
+@@ -543,7 +486,7 @@ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
+ 	idx = evl_get_schedq_weight(q);
+ 	head = q->heads + idx;
+ 	thread = list_first_entry(head, struct evl_thread, rq_next);
+-	del_q(q, &thread->rq_next, idx);
++	__evl_del_schedq(q, &thread->rq_next, idx);
+ 
+ 	return thread;
+ }
+@@ -590,7 +533,7 @@ struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
+ 	if (unlikely(thread->sched_class != &evl_sched_fifo))
+ 		return thread->sched_class->sched_pick(rq);
+ 
+-	del_q(q, &thread->rq_next, idx);
++	__evl_del_schedq(q, &thread->rq_next, idx);
+ 
+ 	return thread;
+ }
+diff --git a/kernel/evl/sched/fifo.c b/kernel/evl/sched/fifo.c
+index 2d93629e4b47..c4ddc0572bdc 100644
+--- a/kernel/evl/sched/fifo.c
++++ b/kernel/evl/sched/fifo.c
+@@ -12,32 +12,6 @@ static void evl_fifo_init(struct evl_rq *rq)
+ 	evl_init_schedq(&rq->fifo.runnable);
+ }
+ 
+-static void evl_fifo_requeue(struct evl_thread *thread)
+-{
+-	/*
+-	 * Put back at same place: i.e. requeue to head of current
+-	 * priority group (i.e. LIFO, used for preemption handling).
+-	 */
+-	__evl_requeue_fifo_thread(thread);
+-}
+-
+-static void evl_fifo_enqueue(struct evl_thread *thread)
+-{
+-	/*
+-	 * Enqueue for next pick: i.e. move to end of current priority
+-	 * group (i.e. FIFO).
+-	 */
+-	__evl_enqueue_fifo_thread(thread);
+-}
+-
+-static void evl_fifo_dequeue(struct evl_thread *thread)
+-{
+-	/*
+-	 * Pull from the runnable thread queue.
+-	 */
+-	__evl_dequeue_fifo_thread(thread);
+-}
+-
+ static void evl_fifo_rotate(struct evl_rq *rq,
+ 			const union evl_sched_param *p)
+ {
+@@ -116,9 +90,6 @@ static ssize_t evl_fifo_show(struct evl_thread *thread,
+ 
+ struct evl_sched_class evl_sched_fifo = {
+ 	.sched_init		=	evl_fifo_init,
+-	.sched_enqueue		=	evl_fifo_enqueue,
+-	.sched_dequeue		=	evl_fifo_dequeue,
+-	.sched_requeue		=	evl_fifo_requeue,
+ 	.sched_pick		=	evl_fifo_pick,
+ 	.sched_tick		=	evl_fifo_tick,
+ 	.sched_rotate		=	evl_fifo_rotate,
+-- 
+2.16.4
+

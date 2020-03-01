@@ -194,3 +194,6 @@
 	patches.dovetail/dovetail-altsched-fold-inband_switch_notify-into-pre.patch
 	patches.dovetail/genirq-irq_pipeline-reword-documentation-bits.patch
 	patches.dovetail/genirq-irq_pipeline-clarify-stage-switching-in-dispa.patch
+	patches.dovetail/gpio-zynq-irq_pipeline-enable-pipelined-interrupt-co.patch
+	patches.dovetail/ARM-l2x0-irq_pipeline-enforce-atomic-operations-on-c.patch
+	patches.dovetail/genirq-irq_pipeline-fix-2-level-mapping-helper.patch
