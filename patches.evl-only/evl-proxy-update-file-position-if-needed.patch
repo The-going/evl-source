@@ -1,0 +1,60 @@
+From 0c886645b04569977e4ec8b30dbd80f72ec5f865 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 27 Aug 2019 17:44:11 +0200
+Subject: [PATCH] evl/proxy: update file position if needed
+
+Make the file position progress for writes to non-stream files.
+---
+ kernel/evl/proxy.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/proxy.c b/kernel/evl/proxy.c
+index 482775ef5752..e37436476e62 100644
+--- a/kernel/evl/proxy.c
++++ b/kernel/evl/proxy.c
+@@ -55,13 +55,20 @@ static void relay_output(struct work_struct *work)
+ 	struct proxy_ring *ring = &out->ring;
+ 	unsigned int rdoff, count, len, n;
+ 	struct file *filp = proxy->filp;
++	loff_t pos, *ppos;
+ 	ssize_t ret = 0;
+-	loff_t pos = 0;
+ 
+ 	count = atomic_read(&ring->fillsz);
+ 	rdoff = ring->rdoff;
+ 
+-	 while (count > 0 && ret >= 0) {
++	ppos = NULL;
++	if (!(filp->f_mode & FMODE_STREAM)) {
++		mutex_lock(&filp->f_pos_lock);
++		ppos = &pos;
++		pos = filp->f_pos;
++	}
++
++	while (count > 0 && ret >= 0) {
+ 		len = count;
+ 		do {
+ 			if (rdoff + len > ring->bufsz)
+@@ -72,13 +79,18 @@ static void relay_output(struct work_struct *work)
+ 			if (ring->granularity > 0)
+ 				n = min(n, ring->granularity);
+ 
+-			ret = kernel_write(filp, ring->bufmem + rdoff, n, &pos);
++			ret = kernel_write(filp, ring->bufmem + rdoff, n, ppos);
++			if (ret >= 0 && ppos)
++				filp->f_pos = *ppos;
+ 			len -= n;
+ 			rdoff = (rdoff + n) % ring->bufsz;
+ 		} while (len > 0 && ret > 0);
+ 		count = atomic_sub_return(count, &ring->fillsz);
+ 	}
+ 
++	if (ppos)
++		mutex_unlock(&filp->f_pos_lock);
++
+ 	ring->rdoff = rdoff;
+ 
+ 	if (count == 0)
+-- 
+2.16.4
+

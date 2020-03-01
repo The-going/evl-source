@@ -1,4 +1,4 @@
-From bd4d2fdd9355296cfd80c1ff667218132c272865 Mon Sep 17 00:00:00 2001
+From 78336dbb6e7934346edf66eeb4dd8f58d234e659 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 23 Apr 2017 11:48:58 +0200
 Subject: [PATCH] evenless: nothing but yet another co-kernel
@@ -194,10 +194,10 @@ Subject: [PATCH] evenless: nothing but yet another co-kernel
  create mode 100644 kernel/evenless/xbuf.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 161030d94268..d72696c4fb5b 100644
+index 1bc4b0103d49..0b8776a55f87 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -282,6 +282,8 @@ config PGTABLE_LEVELS
+@@ -286,6 +286,8 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -206,7 +206,7 @@ index 161030d94268..d72696c4fb5b 100644
  menu "System Type"
  
  config MMU
-@@ -667,6 +669,10 @@ config ARCH_MULTI_V6_V7
+@@ -671,6 +673,10 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID

@@ -1,0 +1,23 @@
+From 32f0c2697685ae04dc73bf2f181391353dc8c19f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 1 Sep 2019 19:15:31 +0200
+Subject: [PATCH] evl: uapi: fix license bits
+
+---
+ include/uapi/evl/sched.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/uapi/evl/sched.h b/include/uapi/evl/sched.h
+index 90c248a343e5..ef7af38b8e77 100644
+--- a/include/uapi/evl/sched.h
++++ b/include/uapi/evl/sched.h
+@@ -1,5 +1,5 @@
+ /*
+- * SPDX-License-Identifier: GPL-2.0
++ * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+  * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
+-- 
+2.16.4
+

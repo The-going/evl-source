@@ -1,4 +1,4 @@
-From 428ee788210ff029aa408e8ad7d0ce7bb2f913ce Mon Sep 17 00:00:00 2001
+From aff834330a61b5b1b3fae780a1203ccbd0bff3eb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 6 May 2017 18:28:49 +0200
 Subject: [PATCH] timekeeping: irq_pipeline: add NMI-safe ktime_get_real_fast()
@@ -50,7 +50,7 @@ index 01641dbb68ef..3f378e332f41 100644
  
  #endif /* !__ASSEMBLY__ */
 diff --git a/kernel/time/timekeeping.c b/kernel/time/timekeeping.c
-index d911c8470149..6328ea6be628 100644
+index ca69290bee2a..c13489d2e890 100644
 --- a/kernel/time/timekeeping.c
 +++ b/kernel/time/timekeeping.c
 @@ -89,6 +89,8 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
@@ -62,7 +62,7 @@ index d911c8470149..6328ea6be628 100644
  /* flag for if timekeeping is suspended */
  int __read_mostly timekeeping_suspended;
  
-@@ -505,6 +507,16 @@ u64 notrace ktime_get_boot_fast_ns(void)
+@@ -510,6 +512,16 @@ u64 notrace ktime_get_boot_fast_ns(void)
  }
  EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
  
@@ -79,7 +79,7 @@ index d911c8470149..6328ea6be628 100644
  
  /*
   * See comment for __ktime_get_fast_ns() vs. timestamp ordering
-@@ -564,6 +576,8 @@ static void halt_fast_timekeeper(const struct timekeeper *tk)
+@@ -569,6 +581,8 @@ static void halt_fast_timekeeper(const struct timekeeper *tk)
  	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
  	tkr_dummy.clock = &dummy_clock;
  	update_fast_timekeeper(&tkr_dummy, &tk_fast_raw);
@@ -88,7 +88,7 @@ index d911c8470149..6328ea6be628 100644
  }
  
  static RAW_NOTIFIER_HEAD(pvclock_gtod_chain);
-@@ -669,6 +683,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
+@@ -674,6 +688,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
  	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
  	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
  	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);

@@ -264,3 +264,5 @@
 	patches.evl-only/evl-monitor-add-support-for-recursive-gate-locking.patch
 	patches.evl-only/evl-wait-remove-left-over-declarations.patch
 	patches.evl-only/include-evl-devices.h-read-in-poll.h.patch
+	patches.evl-only/evl-proxy-update-file-position-if-needed.patch
+	patches.evl-only/evl-uapi-fix-license-bits.patch

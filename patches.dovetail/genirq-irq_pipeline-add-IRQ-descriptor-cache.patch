@@ -1,4 +1,4 @@
-From 9d679f65040f27258964d1a64c01e071cb206b44 Mon Sep 17 00:00:00 2001
+From b3de260618ee1da518e3f4cf59e30582b8cb9fe3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 12 Jul 2019 19:51:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ descriptor cache
@@ -13,7 +13,7 @@ cache to ease the pain.
  3 files changed, 56 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index f56568cf7bc..3ebfaa5a914 100644
+index f56568cf7bc3..3ebfaa5a914e 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -176,4 +176,10 @@ static inline bool inband_irq_pending(void)
@@ -28,19 +28,19 @@ index f56568cf7bc..3ebfaa5a914 100644
 +
  #endif /* _LINUX_IRQ_PIPELINE_H */
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index faec5fad647..258850ed3aa 100644
+index 2936457d8693..9dd5a0e4c1db 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
-@@ -440,6 +440,7 @@ static void free_desc(unsigned int irq)
+@@ -453,6 +453,7 @@ static void free_desc(unsigned int irq)
  	 * irq_sysfs_init() as well.
  	 */
- 	kobject_del(&desc->kobj);
+ 	irq_sysfs_del(desc);
 +	uncache_irq_desc(irq);
  	delete_irq_desc(irq);
  
  	/*
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 9f2abbdde22..f4eb7e602ba 100644
+index 9f2abbdde223..f4eb7e602bad 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -10,6 +10,7 @@

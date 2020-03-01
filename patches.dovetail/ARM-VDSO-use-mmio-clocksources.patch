@@ -1,4 +1,4 @@
-From f6b03a88db698aa9489e951d275da6dc3ad2f61a Mon Sep 17 00:00:00 2001
+From 98fb09c1ce9c07bb233661bb44b92c07d8b7b387 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Sat, 23 Jul 2016 14:36:14 +0200
 Subject: [PATCH] ARM: VDSO: use mmio clocksources
@@ -306,10 +306,10 @@ index aa95ca02614e..7482ed9f414f 100644
 +	d->clock_type = ARM_CLOCK_ARCH_TIMER;
 +}
 diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-index c54cd7ed90ba..b418bc96a149 100644
+index c1222c0e9fd3..03e062f757d9 100644
 --- a/arch/arm/mm/Kconfig
 +++ b/arch/arm/mm/Kconfig
-@@ -898,7 +898,7 @@ config KUSER_HELPERS
+@@ -894,7 +894,7 @@ config KUSER_HELPERS
  
  config VDSO
  	bool "Enable VDSO for acceleration of some system calls"

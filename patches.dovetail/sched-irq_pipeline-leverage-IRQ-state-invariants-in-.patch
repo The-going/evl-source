@@ -1,4 +1,4 @@
-From abe573b44de130965eba5228d31e79f4e5b6f5ce Mon Sep 17 00:00:00 2001
+From 88fad2e8ce0cd69032ac5c74294466100ae0b884 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 May 2019 21:26:11 +0200
 Subject: [PATCH] sched: irq_pipeline: leverage IRQ state invariants in
@@ -17,10 +17,10 @@ interrupt states across the inband schedule() call.
  1 file changed, 13 insertions(+), 9 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 49cc9df2239f..69ed37deb6ae 100644
+index 051c0d049a69..e6a14e899e1d 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -4135,7 +4135,7 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
+@@ -4138,7 +4138,7 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
  #endif /* CONFIG_PREEMPT */
  
  #ifdef CONFIG_IRQ_PIPELINE
@@ -29,7 +29,7 @@ index 49cc9df2239f..69ed37deb6ae 100644
  {
  	struct irq_stage_data *p;
  
-@@ -4147,12 +4147,13 @@ static inline void preempt_sync_inband_irqs(unsigned long flags)
+@@ -4150,12 +4150,13 @@ static inline void preempt_sync_inband_irqs(unsigned long flags)
  		clear_stage_bit(STAGE_STALL_BIT, p);
  		sync_current_stage();
  		preempt_enable_no_resched_notrace();
@@ -47,7 +47,7 @@ index 49cc9df2239f..69ed37deb6ae 100644
  #endif
  
  /*
-@@ -4164,11 +4165,14 @@ static inline void preempt_sync_inband_irqs(unsigned long flags) { }
+@@ -4167,11 +4168,14 @@ static inline void preempt_sync_inband_irqs(unsigned long flags) { }
  asmlinkage __visible void __sched preempt_schedule_irq(void)
  {
  	enum ctx_state prev_state;
@@ -65,7 +65,7 @@ index 49cc9df2239f..69ed37deb6ae 100644
  		hard_local_irq_enable();
  	}
  
-@@ -4192,7 +4196,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
+@@ -4195,7 +4199,7 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
  	 * need_resched is clear, so we just need to synchronize the
  	 * in-band stage log.
  	 */

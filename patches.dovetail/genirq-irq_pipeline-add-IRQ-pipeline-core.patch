@@ -1,4 +1,4 @@
-From d6f08afb528713448f0712bf1b4c8bed4771643a Mon Sep 17 00:00:00 2001
+From 20e74a9e2567f89e9fec4ccd8d88204e1c1da7de Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 20 Jul 2016 15:06:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
@@ -2396,7 +2396,7 @@ index a4ace611f47f..e3f249fef88d 100644
  EXPORT_SYMBOL_GPL(handle_bad_irq);
  
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index 9484e88dabc2..5b471145b483 100644
+index 9be995fc3c5a..2936457d8693 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
 @@ -16,6 +16,7 @@
@@ -2407,7 +2407,7 @@ index 9484e88dabc2..5b471145b483 100644
  
  #include "internals.h"
  
-@@ -618,9 +619,12 @@ void irq_init_desc(unsigned int irq)
+@@ -631,9 +632,12 @@ void irq_init_desc(unsigned int irq)
  #endif /* !CONFIG_SPARSE_IRQ */
  
  /**
@@ -2421,7 +2421,7 @@ index 9484e88dabc2..5b471145b483 100644
   */
  int generic_handle_irq(unsigned int irq)
  {
-@@ -628,35 +632,22 @@ int generic_handle_irq(unsigned int irq)
+@@ -641,35 +645,22 @@ int generic_handle_irq(unsigned int irq)
  
  	if (!desc)
  		return -EINVAL;
@@ -2461,7 +2461,7 @@ index 9484e88dabc2..5b471145b483 100644
  	/*
  	 * Some hardware gives randomly wrong interrupts.  Rather
  	 * than crashing, do something sensible.
-@@ -674,6 +665,30 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
+@@ -687,6 +678,30 @@ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
  }
  
  #ifdef CONFIG_IRQ_DOMAIN

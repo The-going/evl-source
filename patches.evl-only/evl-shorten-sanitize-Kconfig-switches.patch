@@ -1,4 +1,4 @@
-From ccd0ccf1feab48603eecd513ef456ae00f12881b Mon Sep 17 00:00:00 2001
+From efee1b05f66263e6d3d21e3055d26a1364b06bc4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -42,10 +42,10 @@ Subject: [PATCH] evl: shorten, sanitize Kconfig switches
  35 files changed, 146 insertions(+), 164 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index d72696c4fb5b..d6a8e8145a17 100644
+index 0b8776a55f87..e40094ff1ced 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -282,7 +282,7 @@ config PGTABLE_LEVELS
+@@ -286,7 +286,7 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -54,7 +54,7 @@ index d72696c4fb5b..d6a8e8145a17 100644
  
  menu "System Type"
  
-@@ -669,7 +669,7 @@ config ARCH_MULTI_V6_V7
+@@ -673,7 +673,7 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID

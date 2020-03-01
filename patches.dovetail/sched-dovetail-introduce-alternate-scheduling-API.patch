@@ -1,4 +1,4 @@
-From 62100d48f92050634fa5fb2b5fd8e72778384ba8 Mon Sep 17 00:00:00 2001
+From aa0a9c22eca97787c18e140d0a50e9ba1f10ccaf Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:32:33 +0200
 Subject: [PATCH] sched: dovetail: introduce alternate scheduling API
@@ -369,7 +369,7 @@ index 05bc5c0d7357..6da6429bdf5e 100644
  {
  	check_inband_stage();
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 70bb255913c8..f7721b1092ac 100644
+index a0a9c84efebb..eb4621071180 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
 @@ -2412,7 +2412,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
@@ -457,7 +457,7 @@ index 70bb255913c8..f7721b1092ac 100644
  }
  
  void __noreturn do_task_dead(void)
-@@ -3943,7 +3965,8 @@ asmlinkage __visible void __sched schedule(void)
+@@ -3946,7 +3968,8 @@ asmlinkage __visible void __sched schedule(void)
  	sched_submit_work(tsk);
  	do {
  		preempt_disable();
@@ -467,7 +467,7 @@ index 70bb255913c8..f7721b1092ac 100644
  		sched_preempt_enable_no_resched();
  	} while (need_resched());
  	sched_update_worker(tsk);
-@@ -4024,7 +4047,8 @@ static void __sched notrace preempt_schedule_common(void)
+@@ -4027,7 +4050,8 @@ static void __sched notrace preempt_schedule_common(void)
  		 */
  		preempt_disable_notrace();
  		preempt_latency_start(1);
@@ -477,7 +477,7 @@ index 70bb255913c8..f7721b1092ac 100644
  		preempt_latency_stop(1);
  		preempt_enable_no_resched_notrace();
  
-@@ -7541,6 +7565,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+@@ -7544,6 +7568,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
  
  #endif	/* CONFIG_CGROUP_SCHED */
  

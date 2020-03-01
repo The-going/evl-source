@@ -1,4 +1,4 @@
-From dfa04aa223a058335e9dbdadcba9badad69932e9 Mon Sep 17 00:00:00 2001
+From 01c30f6a38bdcab83fb8dd26b283d98aa88440b8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 13 Jul 2019 17:06:27 +0200
 Subject: [PATCH] genirq: irq_pipeline: flatten IRQ fast path
@@ -11,7 +11,7 @@ Subject: [PATCH] genirq: irq_pipeline: flatten IRQ fast path
  4 files changed, 48 insertions(+), 61 deletions(-)
 
 diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
-index 3ebfaa5a914..1868cfee7b9 100644
+index 3ebfaa5a914e..1868cfee7b92 100644
 --- a/include/linux/irq_pipeline.h
 +++ b/include/linux/irq_pipeline.h
 @@ -30,9 +30,6 @@ void arch_irq_pipeline_init(void);
@@ -38,7 +38,7 @@ index 3ebfaa5a914..1868cfee7b9 100644
  {
  	return false;
 diff --git a/include/linux/irqdesc.h b/include/linux/irqdesc.h
-index 5a74f7c58f8..3f38f784f83 100644
+index 5a74f7c58f83..3f38f784f839 100644
 --- a/include/linux/irqdesc.h
 +++ b/include/linux/irqdesc.h
 @@ -158,6 +158,8 @@ static inline void generic_handle_irq_desc(struct irq_desc *desc)
@@ -84,10 +84,10 @@ index 5a74f7c58f8..3f38f784f83 100644
  
  /* Test to see if a driver has successfully requested an irq */
 diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
-index 258850ed3aa..1f4945133c6 100644
+index 9dd5a0e4c1db..790237998823 100644
 --- a/kernel/irq/irqdesc.c
 +++ b/kernel/irq/irqdesc.c
-@@ -633,22 +633,35 @@ int generic_handle_irq(unsigned int irq)
+@@ -646,22 +646,35 @@ int generic_handle_irq(unsigned int irq)
  
  	if (!desc)
  		return -EINVAL;
@@ -127,7 +127,7 @@ index 258850ed3aa..1f4945133c6 100644
  	/*
  	 * Some hardware gives randomly wrong interrupts.  Rather
  	 * than crashing, do something sensible.
-@@ -666,30 +679,6 @@ int do_domain_irq(unsigned int irq, struct pt_regs *regs)
+@@ -679,30 +692,6 @@ int do_domain_irq(unsigned int irq, struct pt_regs *regs)
  }
  
  #ifdef CONFIG_IRQ_DOMAIN
@@ -159,7 +159,7 @@ index 258850ed3aa..1f4945133c6 100644
   * handle_domain_nmi - Invoke the handler for a HW irq belonging to a domain
   * @domain:	The domain where to perform the lookup
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index f4eb7e602ba..01b5f6a03f6 100644
+index f4eb7e602bad..01b5f6a03f6e 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -949,10 +949,19 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */
