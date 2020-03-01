@@ -1,0 +1,151 @@
+From 7c912c7a8378cd13f47536f0ad31ce69b1fee6d2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 28 Jan 2020 15:42:46 +0100
+Subject: [PATCH] x86: dovetail: preserve preemption count at IST exit
+
+If dovetailing, we might have switched from out-of-band to in-band
+context in the middle of the IST section, in which case the preemption
+count was reset during the transition. Skip the update if so.
+---
+ arch/x86/include/asm/traps.h      |  2 +-
+ arch/x86/kernel/cpu/mce/core.c    |  3 ++-
+ arch/x86/kernel/cpu/mce/p5.c      |  3 ++-
+ arch/x86/kernel/cpu/mce/winchip.c |  4 +++-
+ arch/x86/kernel/traps.c           | 17 +++++++++++++----
+ 5 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
+index ffa0dc8a535e..d1a217e46710 100644
+--- a/arch/x86/include/asm/traps.h
++++ b/arch/x86/include/asm/traps.h
+@@ -122,7 +122,7 @@ void smp_error_interrupt(struct pt_regs *regs);
+ asmlinkage void smp_irq_move_cleanup_interrupt(void);
+ 
+ extern void ist_enter(struct pt_regs *regs);
+-extern void ist_exit(struct pt_regs *regs);
++extern void ist_exit(struct pt_regs *regs, bool oob_entry);
+ extern void ist_begin_non_atomic(struct pt_regs *regs);
+ extern void ist_end_non_atomic(void);
+ 
+diff --git a/arch/x86/kernel/cpu/mce/core.c b/arch/x86/kernel/cpu/mce/core.c
+index cfa91af6f9b0..16ec71877a29 100644
+--- a/arch/x86/kernel/cpu/mce/core.c
++++ b/arch/x86/kernel/cpu/mce/core.c
+@@ -1231,6 +1231,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
+ 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
+ 	struct mca_config *cfg = &mca_cfg;
++	bool oob_entry = running_oob();
+ 	int cpu = smp_processor_id();
+ 	char *msg = "Unknown";
+ 	struct mce m, *final;
+@@ -1369,7 +1370,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 	}
+ 
+ out_ist:
+-	ist_exit(regs);
++	ist_exit(regs, oob_entry);
+ }
+ EXPORT_SYMBOL_GPL(do_machine_check);
+ 
+diff --git a/arch/x86/kernel/cpu/mce/p5.c b/arch/x86/kernel/cpu/mce/p5.c
+index 4ae6df556526..9ecd69640b57 100644
+--- a/arch/x86/kernel/cpu/mce/p5.c
++++ b/arch/x86/kernel/cpu/mce/p5.c
+@@ -22,6 +22,7 @@ int mce_p5_enabled __read_mostly;
+ /* Machine check handler for Pentium class Intel CPUs: */
+ static void pentium_machine_check(struct pt_regs *regs, long error_code)
+ {
++	bool oob_entry = running_oob();
+ 	u32 loaddr, hi, lotype;
+ 
+ 	ist_enter(regs);
+@@ -39,7 +40,7 @@ static void pentium_machine_check(struct pt_regs *regs, long error_code)
+ 
+ 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+ 
+-	ist_exit(regs);
++	ist_exit(regs, oob_entry);
+ }
+ 
+ /* Set up machine check reporting for processors with Intel style MCE: */
+diff --git a/arch/x86/kernel/cpu/mce/winchip.c b/arch/x86/kernel/cpu/mce/winchip.c
+index a30ea13cccc2..9133afeb9aa0 100644
+--- a/arch/x86/kernel/cpu/mce/winchip.c
++++ b/arch/x86/kernel/cpu/mce/winchip.c
+@@ -18,12 +18,14 @@
+ /* Machine check handler for WinChip C6: */
+ static void winchip_machine_check(struct pt_regs *regs, long error_code)
+ {
++	bool oob_entry = running_oob();
++
+ 	ist_enter(regs);
+ 
+ 	pr_emerg("CPU0: Machine Check Exception.\n");
+ 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+ 
+-	ist_exit(regs);
++	ist_exit(regs, oob_entry);
+ }
+ 
+ /* Set up machine check reporting on the Winchip C6 series */
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 8b421c891c05..7079b937b69c 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -156,9 +156,16 @@ void ist_enter(struct pt_regs *regs)
+ }
+ NOKPROBE_SYMBOL(ist_enter);
+ 
+-void ist_exit(struct pt_regs *regs)
++void ist_exit(struct pt_regs *regs, bool oob_entry)
+ {
+-	preempt_enable_no_resched();
++	/*
++	 * If dovetailing, we might have switched from out-of-band to
++	 * in-band context in the middle of the IST section, in which
++	 * case the preemption count was reset during the
++	 * transition. Skip the update if so.
++	 */
++	if (!oob_entry || running_oob())
++		preempt_enable_no_resched();
+ 
+ 	if (!user_mode(regs))
+ 		rcu_nmi_exit();
+@@ -636,6 +643,7 @@ NOKPROBE_SYMBOL(do_general_protection);
+ 
+ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ {
++	bool oob_entry = running_oob();
+ 	unsigned long flags;
+ 
+ #ifdef CONFIG_DYNAMIC_FTRACE
+@@ -683,7 +691,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ 	pipelined_fault_exit(flags);
+ 
+ exit:
+-	ist_exit(regs);
++	ist_exit(regs, oob_entry);
+ }
+ NOKPROBE_SYMBOL(do_int3);
+ 
+@@ -783,6 +791,7 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
+ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+ {
+ 	struct task_struct *tsk = current;
++	bool oob_entry = running_oob();
+ 	unsigned long dr6, flags;
+ 	int user_icebp = 0;
+ 	int si_code;
+@@ -884,7 +893,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+ exit:
+ 	pipelined_fault_exit(flags);
+ out:
+-	ist_exit(regs);
++	ist_exit(regs, oob_entry);
+ }
+ NOKPROBE_SYMBOL(do_debug);
+ 
+-- 
+2.16.4
+

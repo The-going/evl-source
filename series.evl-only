@@ -347,3 +347,21 @@
 	patches.evl-only/evl-proxy-run-deferred-output-on-dedicated-wq.patch
 	patches.evl-only/evl-proxy-skip-wq-creation-for-mapping-only-service.patch
 	patches.evl-only/evl-syscall-honor-vDSO-fallback-calls-in-oob-mode.patch
+	patches.evl-only/evl-stax-fix-handling-of-special-gate-mask-bits.patch
+	patches.evl-only/drivers-evl-hectic-add-stax-test-helpers.patch
+	patches.evl-only/drivers-evl-add-Kconfig-help-strings.patch
+	patches.evl-only/evl-device-include-stax-header.patch
+	patches.evl-only/evl-work-add-oob-mechanism-for-submitting-in-band-wo.patch
+	patches.evl-only/evl-sem-general-fix.patch
+	patches.evl-only/evl-sem-add-evl_broadcast_ksem.patch
+	patches.evl-only/evl-stax-notify-oob-exclusion-via-SIGDEBUG_STAGE_LOC.patch
+	patches.evl-only/evl-sem-fix-and-rename-broadcast-operation.patch
+	patches.evl-only/evl-work-synchronize-on-flag-instead-of-sema4.patch
+	patches.evl-only/evl-thread-fix-locking-imbalance-for-INBAND_TASK_SCH.patch
+	patches.evl-only/evl-tick-allow-building-w-CONFIG_DEBUG_FORCE_WEAK_PE.patch
+	patches.evl-only/evl-thread-drop-useless-thread_info-initializer.patch
+	patches.evl-only/evl-flag-clarify-the-pulse-interface.patch
+	patches.evl-only/evl-flag-add-clear-operation.patch
+	patches.evl-only/evl-sched-move-dovetail_leave_oob-out-of-lock.patch
+	patches.evl-only/evl-introduce-synchronous-breakpoint-support.patch
+	patches.evl-only/evl-deny-accessing-attributes-of-clone-devices.patch

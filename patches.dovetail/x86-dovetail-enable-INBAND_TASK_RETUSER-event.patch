@@ -1,0 +1,78 @@
+From ef946fe082fba0a1832776d24278742e312297c2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Feb 2020 10:15:04 +0100
+Subject: [PATCH] x86: dovetail: enable INBAND_TASK_RETUSER event
+
+Fire INBAND_TASK_RETUSER on return to user mode.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/x86/entry/common.c            | 17 +++++++++++++++++
+ arch/x86/include/asm/thread_info.h |  2 ++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
+index b3fa28781ec7..8c7a4b47f22e 100644
+--- a/arch/x86/entry/common.c
++++ b/arch/x86/entry/common.c
+@@ -197,6 +197,19 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
+ 	}
+ }
+ 
++static inline bool do_retuser(u32 cached_flags)
++{
++	if (dovetailing() && (cached_flags & _TIF_RETUSER)) {
++		enable_local_irqs();
++		inband_retuser_notify();
++		disable_local_irqs();
++		/* RETUSER might have switched oob */
++		return running_inband();
++	}
++
++	return false;
++}
++
+ /* Called with IRQs disabled. */
+ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+ {
+@@ -210,6 +223,7 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+ 	lockdep_assert_irqs_disabled();
+ 	lockdep_sys_exit();
+ 
++again:
+ 	cached_flags = READ_ONCE(ti->flags);
+ 
+ 	if (unlikely(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
+@@ -240,6 +254,9 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+ 	ti->status &= ~(TS_COMPAT|TS_I386_REGS_POKED);
+ #endif
+ 
++	if (do_retuser(cached_flags))
++		goto again;
++
+ 	user_enter_irqoff();
+ 
+ 	mds_user_clear_cpu_buffers();
+diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
+index c08f394f03af..49484dde3b32 100644
+--- a/arch/x86/include/asm/thread_info.h
++++ b/arch/x86/include/asm/thread_info.h
+@@ -100,6 +100,7 @@ struct thread_info {
+ #define TIF_MEMDIE		20	/* is terminating due to OOM killer */
+ #define TIF_POLLING_NRFLAG	21	/* idle is polling for TIF_NEED_RESCHED */
+ #define TIF_IO_BITMAP		22	/* uses I/O bitmap */
++#define TIF_RETUSER		23	/* INBAND_TASK_RETUSER is pending */
+ #define TIF_FORCED_TF		24	/* true if TF in eflags artificially */
+ #define TIF_BLOCKSTEP		25	/* set when we want DEBUGCTLMSR_BTF */
+ #define TIF_MAYDAY		26	/* emergency trap pending */
+@@ -130,6 +131,7 @@ struct thread_info {
+ #define _TIF_NOHZ		(1 << TIF_NOHZ)
+ #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
+ #define _TIF_IO_BITMAP		(1 << TIF_IO_BITMAP)
++#define _TIF_RETUSER		(1 << TIF_RETUSER)
+ #define _TIF_FORCED_TF		(1 << TIF_FORCED_TF)
+ #define _TIF_MAYDAY		(1 << TIF_MAYDAY)
+ #define _TIF_BLOCKSTEP		(1 << TIF_BLOCKSTEP)
+-- 
+2.16.4
+

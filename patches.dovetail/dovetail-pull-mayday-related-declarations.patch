@@ -1,0 +1,25 @@
+From cdc18df4c1529dbe8ffbf08b1eb2155516da79eb Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 14 Feb 2020 12:38:10 +0100
+Subject: [PATCH] dovetail: pull mayday-related declarations
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ kernel/irq/pipeline.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 021c49f303e1..8224fba36dde 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -12,6 +12,7 @@
+ #include <linux/irq_work.h>
+ #include <linux/jhash.h>
+ #include <linux/debug_locks.h>
++#include <linux/dovetail.h>
+ #include <dovetail/irq.h>
+ #include <trace/events/irq.h>
+ #include "internals.h"
+-- 
+2.16.4
+

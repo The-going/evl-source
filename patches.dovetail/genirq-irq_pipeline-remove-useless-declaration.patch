@@ -1,0 +1,27 @@
+From ff1f58cfd0e576855ba5c43e7342cadc4f9eeea4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 6 Feb 2020 15:04:40 +0100
+Subject: [PATCH] genirq: irq_pipeline: remove useless declaration
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/linux/irq_pipeline.h | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index 80ec18a0c0db..9b210026231d 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -44,9 +44,6 @@ static __always_inline void synchronize_pipeline_on_irq(void)
+ 		synchronize_pipeline();
+ }
+ 
+-void dovetail_call_mayday(struct thread_info *ti,
+-			  struct pt_regs *regs);
+-
+ bool handle_oob_irq(struct irq_desc *desc);
+ 
+ void arch_do_IRQ_pipelined(struct irq_desc *desc);
+-- 
+2.16.4
+

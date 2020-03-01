@@ -1,0 +1,50 @@
+From a77c10b9cbc1435337195e8f55c090c68138592c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 27 Jan 2020 10:43:03 +0100
+Subject: [PATCH] evl/sem: fix and rename broadcast operation
+
+An EVL core sema4 must be reset to zero when broadcast. At this
+chance, rename the call to evl_broadcast() in order to match the
+current naming scheme.
+---
+ include/evl/sem.h |  5 -----
+ kernel/evl/sem.c  | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/include/evl/sem.h b/include/evl/sem.h
+index effddafd470f..9378e38886cd 100644
+--- a/include/evl/sem.h
++++ b/include/evl/sem.h
+@@ -43,9 +43,4 @@ int evl_trydown(struct evl_ksem *ksem);
+ 
+ void evl_up(struct evl_ksem *ksem);
+ 
+-static inline void evl_broadcast_ksem(struct evl_ksem *ksem)
+-{
+-	evl_flush_wait(&ksem->wait, T_BCAST);
+-}
+-
+ #endif /* !_EVL_SEM_H */
+diff --git a/kernel/evl/sem.c b/kernel/evl/sem.c
+index e4456f8f3174..f65e384932d9 100644
+--- a/kernel/evl/sem.c
++++ b/kernel/evl/sem.c
+@@ -57,3 +57,15 @@ void evl_up(struct evl_ksem *ksem)
+ 	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_up);
++
++void evl_broadcast(struct evl_ksem *ksem)
++{
++	unsigned long flags;
++
++	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
++	ksem->value = 0;
++	evl_flush_wait_locked(&ksem->wait, T_BCAST);
++	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
++	evl_schedule();
++}
++EXPORT_SYMBOL_GPL(evl_broadcast);
+-- 
+2.16.4
+

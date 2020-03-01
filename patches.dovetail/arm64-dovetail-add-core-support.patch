@@ -1,4 +1,4 @@
-From d8f8b673624f47a9e9d049ebb54186867cdcaed0 Mon Sep 17 00:00:00 2001
+From cfaab937cc4d5992f621182102b940825ea22709 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Sep 2018 19:11:56 +0200
 Subject: [PATCH] arm64: dovetail: add core support
@@ -12,10 +12,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  create mode 100644 arch/arm64/include/asm/dovetail.h
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 875e9b4383d9..e61d7983fe65 100644
+index cb00c09b0248..6e13e7b2af3d 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -153,6 +153,7 @@ config ARM64
+@@ -154,6 +154,7 @@ config ARM64
  	select HAVE_GCC_PLUGINS
  	select HAVE_HW_BREAKPOINT if PERF_EVENTS
  	select HAVE_IRQ_PIPELINE
@@ -23,7 +23,7 @@ index 875e9b4383d9..e61d7983fe65 100644
  	select HAVE_IRQ_TIME_ACCOUNTING
  	select HAVE_MEMBLOCK_NODE_MAP if NUMA
  	select HAVE_NMI
-@@ -1008,6 +1009,8 @@ config SECCOMP
+@@ -1009,6 +1010,8 @@ config SECCOMP
  	  and the task is only allowed to execute a few safe syscalls
  	  defined by each seccomp mode.
  

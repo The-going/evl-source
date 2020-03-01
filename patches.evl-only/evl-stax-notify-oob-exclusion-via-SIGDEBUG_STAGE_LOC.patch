@@ -1,0 +1,102 @@
+From b14d68ac1f239346865303da96f38c750c4e4e0e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 25 Jan 2020 12:03:53 +0100
+Subject: [PATCH] evl/stax: notify oob exclusion via SIGDEBUG_STAGE_LOCKED
+
+Enabling the T_WOSX bit in the thread mode will cause
+SIGDEBUG_STAGE_LOCKED to be sent to the caller on return from any
+out-of-band sleep caused by a stage exclusion (i.e. in-band holding
+the lock).
+
+This is a debug mechanism aimed at detecting unwanted serialization of
+oob threads with in-band activity on accessing a resource protected by
+a stax.
+---
+ include/uapi/evl/signal.h | 1 +
+ include/uapi/evl/thread.h | 2 ++
+ kernel/evl/stax.c         | 8 ++++++++
+ kernel/evl/thread.c       | 2 +-
+ 4 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/include/uapi/evl/signal.h b/include/uapi/evl/signal.h
+index e422ab80d5f3..cbdf68b7b90a 100644
+--- a/include/uapi/evl/signal.h
++++ b/include/uapi/evl/signal.h
+@@ -33,5 +33,6 @@
+ #define SIGDEBUG_WATCHDOG		5
+ #define SIGDEBUG_MUTEX_IMBALANCE	6
+ #define SIGDEBUG_MUTEX_SLEEP		7
++#define SIGDEBUG_STAGE_LOCKED		8
+ 
+ #endif /* !_EVL_UAPI_SIGNAL_H */
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index da7f0f985cf2..0f11a51218bb 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -32,6 +32,7 @@
+ #define T_USER    0x00004000 /*< Userland thread */
+ #define T_WOSS    0x00008000 /*< Warn on stage switch (SIGDEBUG) */
+ #define T_WOLI    0x00010000 /*< Warn on locking inconsistency (SIGDEBUG)  */
++#define T_WOSX    0x00020000 /*< Warn on stage exclusion (SIGDEBUG)  */
+ 
+ /* Information flags (shared) */
+ 
+@@ -46,6 +47,7 @@
+ #define T_SCHEDP  0x00000100 /*< schedparam propagation is pending */
+ #define T_BCAST   0x00000200 /*< Woken up upon resource broadcast */
+ #define T_SIGNAL  0x00000400 /*< Event monitor signaled */
++#define T_SXALERT 0x00000800 /*< Stage exclusion alert (SIGDEBUG sent) */
+ 
+ /* Local information flags (private to current thread) */
+ 
+diff --git a/kernel/evl/stax.c b/kernel/evl/stax.c
+index bc90aea57e5e..5b6d534683d5 100644
+--- a/kernel/evl/stax.c
++++ b/kernel/evl/stax.c
+@@ -45,8 +45,10 @@ static inline bool oob_may_access(int gateval)
+ 
+ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
+ {
++	struct evl_thread *curr = evl_current();
+ 	int old, new, prev, ret = 0;
+ 	unsigned long flags;
++	bool notify = false;
+ 
+ 	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+ 
+@@ -67,6 +69,9 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
+ 			goto out;
+ 	} while (!(prev & STAX_CLAIMED_BIT));
+ 
++	if (curr->state & T_WOSX)
++		notify = true;
++
+ 	do {
+ 		if (oob_may_access(atomic_read(&stax->gate)))
+ 			break;
+@@ -88,6 +93,9 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
+ out:
+ 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+ 
++	if (notify)
++		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_STAGE_LOCKED);
++
+ 	return ret;
+ }
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 372bdb239ae6..8d653c14a848 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1368,7 +1368,7 @@ int evl_update_mode(__u32 mask, bool set)
+ 	if (curr == NULL)
+ 		return -EPERM;
+ 
+-	if (mask & ~(T_WOSS|T_WOLI))
++	if (mask & ~(T_WOSS|T_WOLI|T_WOSX))
+ 		return -EINVAL;
+ 
+ 	trace_evl_thread_update_mode(mask, set);
+-- 
+2.16.4
+

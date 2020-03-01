@@ -1,4 +1,4 @@
-From 08abbc38354ac02fdcc7d904324b8653dcf69f69 Mon Sep 17 00:00:00 2001
+From dcdcc9c7cafcdc787996563353076ef85129e200 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:38:38 +0200
 Subject: [PATCH] lockdep: irq_pipeline: add pipeline awareness
@@ -26,7 +26,7 @@ index 5ce7339d5de0..857dd9318169 100644
 +
  #endif /* __ASM_GENERIC_IRQ_PIPELINE_H */
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 32282e7112d3..b3b90382672e 100644
+index 32406ef0d6a2..927044e976cb 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
 @@ -42,6 +42,7 @@
@@ -37,7 +37,7 @@ index 32282e7112d3..b3b90382672e 100644
  #include <linux/utsname.h>
  #include <linux/hash.h>
  #include <linux/ftrace.h>
-@@ -765,6 +766,56 @@ static int static_obj(const void *obj)
+@@ -764,6 +765,56 @@ static int static_obj(const void *obj)
  }
  #endif
  
@@ -94,7 +94,7 @@ index 32282e7112d3..b3b90382672e 100644
  /*
   * To make lock name printouts unique, we calculate a unique
   * class->name_version generation counter. The caller must hold the graph
-@@ -828,7 +879,7 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
+@@ -827,7 +878,7 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
  	/*
  	 * We do an RCU walk of the hash, see lockdep_free_key_range().
  	 */
@@ -103,7 +103,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return NULL;
  
  	hlist_for_each_entry_rcu(class, hash_head, hash_entry) {
-@@ -1180,7 +1231,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
+@@ -1179,7 +1230,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
  	struct hlist_head *hash_head;
  	struct lock_class *class;
  
@@ -112,7 +112,7 @@ index 32282e7112d3..b3b90382672e 100644
  
  	class = look_up_lock_class(lock, subclass);
  	if (likely(class))
-@@ -1492,7 +1543,7 @@ static int __bfs(struct lock_list *source_entry,
+@@ -1491,7 +1542,7 @@ static int __bfs(struct lock_list *source_entry,
  
  		head = get_dep_list(lock, offset);
  
@@ -121,7 +121,7 @@ index 32282e7112d3..b3b90382672e 100644
  
  		list_for_each_entry_rcu(entry, head, entry) {
  			if (!lock_accessed(entry)) {
-@@ -2804,7 +2855,7 @@ static inline int add_chain_cache(struct task_struct *curr,
+@@ -2803,7 +2854,7 @@ static inline int add_chain_cache(struct task_struct *curr,
  	 * disabled to make this an IRQ-safe lock.. for recursion reasons
  	 * lockdep won't complain about its own locking errors.
  	 */
@@ -130,7 +130,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return 0;
  
  	chain = alloc_lock_chain();
-@@ -3414,7 +3465,7 @@ void lockdep_hardirqs_on(unsigned long ip)
+@@ -3413,7 +3464,7 @@ void lockdep_hardirqs_on(unsigned long ip)
  	 * already enabled, yet we find the hardware thinks they are in fact
  	 * enabled.. someone messed up their IRQ state tracing.
  	 */
@@ -139,7 +139,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return;
  
  	/*
-@@ -3450,7 +3501,7 @@ void lockdep_hardirqs_off(unsigned long ip)
+@@ -3449,7 +3500,7 @@ void lockdep_hardirqs_off(unsigned long ip)
  	 * So we're supposed to get called after you mask local IRQs, but for
  	 * some reason the hardware doesn't quite think you did a proper job.
  	 */
@@ -148,7 +148,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return;
  
  	if (curr->hardirqs_enabled) {
-@@ -3480,7 +3531,7 @@ void trace_softirqs_on(unsigned long ip)
+@@ -3479,7 +3530,7 @@ void trace_softirqs_on(unsigned long ip)
  	 * We fancy IRQs being disabled here, see softirq.c, avoids
  	 * funny state and nesting things.
  	 */
@@ -157,7 +157,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return;
  
  	if (curr->softirqs_enabled) {
-@@ -3519,7 +3570,7 @@ void trace_softirqs_off(unsigned long ip)
+@@ -3518,7 +3569,7 @@ void trace_softirqs_off(unsigned long ip)
  	/*
  	 * We fancy IRQs being disabled here, see softirq.c
  	 */
@@ -166,7 +166,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return;
  
  	if (curr->softirqs_enabled) {
-@@ -4086,7 +4137,7 @@ static int reacquire_held_locks(struct task_struct *curr, unsigned int depth,
+@@ -4085,7 +4136,7 @@ static int reacquire_held_locks(struct task_struct *curr, unsigned int depth,
  	struct held_lock *hlock;
  	int first_idx = idx;
  
@@ -175,7 +175,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return 0;
  
  	for (hlock = curr->held_locks + idx; idx < depth; idx++, hlock++) {
-@@ -4395,7 +4446,13 @@ static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie
+@@ -4394,7 +4445,13 @@ static void __lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie cookie
  static void check_flags(unsigned long flags)
  {
  #if defined(CONFIG_PROVE_LOCKING) && defined(CONFIG_DEBUG_LOCKDEP)
@@ -190,7 +190,7 @@ index 32282e7112d3..b3b90382672e 100644
  		return;
  
  	if (irqs_disabled_flags(flags)) {
-@@ -4473,19 +4530,20 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
+@@ -4472,19 +4529,20 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
  			  struct lockdep_map *nest_lock, unsigned long ip)
  {
  	unsigned long flags;
@@ -214,7 +214,7 @@ index 32282e7112d3..b3b90382672e 100644
  }
  EXPORT_SYMBOL_GPL(lock_acquire);
  
-@@ -4496,14 +4554,14 @@ void lock_release(struct lockdep_map *lock, unsigned long ip)
+@@ -4495,14 +4553,14 @@ void lock_release(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -231,7 +231,7 @@ index 32282e7112d3..b3b90382672e 100644
  }
  EXPORT_SYMBOL_GPL(lock_release);
  
-@@ -4515,13 +4573,13 @@ int lock_is_held_type(const struct lockdep_map *lock, int read)
+@@ -4514,13 +4572,13 @@ int lock_is_held_type(const struct lockdep_map *lock, int read)
  	if (unlikely(current->lockdep_recursion))
  		return 1; /* avoid false negative lockdep_assert_held() */
  
@@ -247,7 +247,7 @@ index 32282e7112d3..b3b90382672e 100644
  
  	return ret;
  }
-@@ -4711,13 +4769,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
+@@ -4710,13 +4768,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -263,7 +263,7 @@ index 32282e7112d3..b3b90382672e 100644
  }
  EXPORT_SYMBOL_GPL(lock_contended);
  
-@@ -4731,12 +4789,12 @@ void lock_acquired(struct lockdep_map *lock, unsigned long ip)
+@@ -4730,12 +4788,12 @@ void lock_acquired(struct lockdep_map *lock, unsigned long ip)
  	if (unlikely(current->lockdep_recursion))
  		return;
  
@@ -278,7 +278,7 @@ index 32282e7112d3..b3b90382672e 100644
  }
  EXPORT_SYMBOL_GPL(lock_acquired);
  #endif
-@@ -5284,7 +5342,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5283,7 +5341,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  	if (unlikely(!debug_locks))
  		return;
  
@@ -287,7 +287,7 @@ index 32282e7112d3..b3b90382672e 100644
  	for (i = 0; i < curr->lockdep_depth; i++) {
  		hlock = curr->held_locks + i;
  
-@@ -5295,7 +5353,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5294,7 +5352,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  		print_freed_lock_bug(curr, mem_from, mem_from + mem_len, hlock);
  		break;
  	}

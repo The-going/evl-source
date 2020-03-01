@@ -1,0 +1,28 @@
+From 0685ca648e6192c2365ed02a766436d1dd434b8f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 22 Jan 2020 18:20:38 +0100
+Subject: [PATCH] x86: dovetail: remove wrong assertion
+
+We might leave the exit handling code with hard irqs off, if
+cond_disable_irq() was applied earlier.
+---
+ arch/x86/kernel/traps.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 51567f323eeb..8b421c891c05 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -104,9 +104,6 @@ void pipelined_fault_exit(unsigned long combo)
+ 	unsigned long flags;
+ 	int nosync;
+ 
+-	WARN_ON_ONCE(irq_pipeline_debug() &&
+-		oob_stage_present() && hard_irqs_disabled());
+-
+ 	flags = irqs_split_flags(combo, &nosync);
+ 	if (!nosync) {
+ 		hard_local_irq_disable();
+-- 
+2.16.4
+

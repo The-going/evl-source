@@ -1,4 +1,4 @@
-From f1ccea2929911126432ac255a73e72b9f8d37caa Mon Sep 17 00:00:00 2001
+From 92f2bc0321679605a672154725467b85e7501bc7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 24 Aug 2017 19:39:20 +0200
 Subject: [PATCH] arm64: irq_pipeline: add IRQ pipeline core
@@ -27,10 +27,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  create mode 100644 arch/arm64/kernel/irq_pipeline.c
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index b1b4476ddb83..875e9b4383d9 100644
+index e688dfad0b72..cb00c09b0248 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -152,6 +152,7 @@ config ARM64
+@@ -153,6 +153,7 @@ config ARM64
  	select HAVE_FUNCTION_GRAPH_TRACER
  	select HAVE_GCC_PLUGINS
  	select HAVE_HW_BREAKPOINT if PERF_EVENTS
@@ -694,7 +694,7 @@ index 000000000000..b41b5ff52ac4
 +	do_domain_irq(irq, regs);
 +}
 diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index 71f788cd2b18..2a285dc3edd5 100644
+index d54586d5b031..393ca414d0e9 100644
 --- a/arch/arm64/kernel/process.c
 +++ b/arch/arm64/kernel/process.c
 @@ -123,7 +123,7 @@ void arch_cpu_idle(void)
@@ -914,7 +914,7 @@ index 73caf35c2262..f42222c49460 100644
  void register_undef_hook(struct undef_hook *hook)
  {
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 077b02a2d4d3..0c8f046c3a1d 100644
+index 85566d32958f..15dab190a19e 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
 @@ -13,6 +13,7 @@
@@ -1035,8 +1035,8 @@ index 077b02a2d4d3..0c8f046c3a1d 100644
  	const struct fault_info *inf;
  	struct mm_struct *mm = current->mm;
  	vm_fault_t fault, major = 0;
--	unsigned long vm_flags = VM_READ | VM_WRITE;
-+	unsigned long vm_flags = VM_READ | VM_WRITE, irqflags;
+-	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
++	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC, irqflags;
  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
  
 +	irqflags = fault_entry(regs);

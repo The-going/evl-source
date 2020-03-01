@@ -1,4 +1,4 @@
-From cdc423923c7abc897819e75c4ff8f4b9d27a32cc Mon Sep 17 00:00:00 2001
+From 0ac6cd2d47891db6d8ee32a3dd22286c0507006b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 10:05:09 +0200
 Subject: [PATCH] exit: dovetail: announce task exit
@@ -9,7 +9,7 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  1 file changed, 2 insertions(+)
 
 diff --git a/kernel/exit.c b/kernel/exit.c
-index bcbd59888e67..5f939019f7de 100644
+index 2833ffb0c211..5fb4bdb52af4 100644
 --- a/kernel/exit.c
 +++ b/kernel/exit.c
 @@ -14,6 +14,7 @@
@@ -20,7 +20,7 @@ index bcbd59888e67..5f939019f7de 100644
  #include <linux/module.h>
  #include <linux/capability.h>
  #include <linux/completion.h>
-@@ -752,6 +753,7 @@ void __noreturn do_exit(long code)
+@@ -748,6 +749,7 @@ void __noreturn do_exit(long code)
  	}
  
  	exit_signals(tsk);  /* sets PF_EXITING */

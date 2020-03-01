@@ -1,4 +1,4 @@
-From d2e6c7182bde3a3e0bb4a18afde03a50c9bd02c3 Mon Sep 17 00:00:00 2001
+From 622cef6508eb7cf8125bb7f85dbfebc1182ba501 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Oct 2016 12:48:34 +0200
 Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
@@ -28,10 +28,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  create mode 100644 arch/arm/kernel/irq_pipeline.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index ba75e3661a41..541c4c9a9ad7 100644
+index 96dab76da3b3..0e2c036b2e87 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -578,6 +578,7 @@ config ARCH_MULTI_V7
+@@ -579,6 +579,7 @@ config ARCH_MULTI_V7
  config ARCH_MULTI_V6_V7
  	bool
  	select MIGHT_HAVE_CACHE_L2X0
@@ -659,7 +659,7 @@ index 000000000000..d27402b739ea
 +#endif
 +}
 diff --git a/arch/arm/kernel/process.c b/arch/arm/kernel/process.c
-index cea1c27c29cb..364274db3df7 100644
+index 46e478fb5ea2..e73ffdc09e54 100644
 --- a/arch/arm/kernel/process.c
 +++ b/arch/arm/kernel/process.c
 @@ -71,7 +71,7 @@ void arch_cpu_idle(void)

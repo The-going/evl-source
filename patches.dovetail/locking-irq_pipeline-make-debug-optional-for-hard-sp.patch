@@ -1,4 +1,4 @@
-From b4880d17d00a1ebe2a086b31fd116d7d7e7cf410 Mon Sep 17 00:00:00 2001
+From 51a1cff2602f725839a15ab26e7336452a4a1615 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 19:36:20 +0200
 Subject: [PATCH] locking: irq_pipeline: make debug optional for hard spinlocks
@@ -268,10 +268,10 @@ index 962550ca59af..b63f16dc6b32 100644
  	if (!hard_irqs_disabled_flags(flags))
  		hard_local_irq_enable();
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index b3b90382672e..0a2493580ad5 100644
+index 927044e976cb..6f203c0acae9 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -792,8 +792,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
+@@ -791,8 +791,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
  	restore_stage(flags);
  }
  
@@ -280,7 +280,7 @@ index b3b90382672e..0a2493580ad5 100644
  #else
  
  #define lockdep_stage_test_and_disable(__irqsoff)		\
-@@ -812,7 +810,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
+@@ -811,7 +809,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
  	})
  
  #define lockdep_stage_restore(__flags)		raw_local_irq_restore(__flags)

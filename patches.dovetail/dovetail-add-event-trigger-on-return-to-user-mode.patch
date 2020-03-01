@@ -1,0 +1,121 @@
+From 4ec6c1da245152221fad2b904803ada21dad1157 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Feb 2020 10:08:19 +0100
+Subject: [PATCH] dovetail: add event trigger on return to user mode
+
+In certain situations, we need a way to force a dovetailed task
+running in-band to call back the companion core before it returns to
+user-space context.
+
+Calling dovetail_request_ucall() for such task will ensure this,
+causing the handle_inband_event() handler to receive the
+INBAND_TASK_RETUSER event. dovetail_clear_ucall() clears a pending
+request for the current task.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/linux/dovetail.h | 25 ++++++++++++++++++++++++-
+ kernel/dovetail.c        |  9 +++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 939bff19717f..aef0492bd9ae 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -23,6 +23,7 @@ enum inband_event_type {
+ 	INBAND_TASK_SIGNAL,
+ 	INBAND_TASK_MIGRATION,
+ 	INBAND_TASK_EXIT,
++	INBAND_TASK_RETUSER,
+ 	INBAND_PROCESS_CLEANUP,
+ };
+ 
+@@ -117,6 +118,8 @@ static inline void inband_exit_guest(void)
+ 	barrier();
+ }
+ 
++void inband_retuser_notify(void);
++
+ int inband_switch_tail(void);
+ 
+ void oob_trampoline(void);
+@@ -200,6 +203,20 @@ static inline void dovetail_send_mayday(struct task_struct *castaway)
+ 		set_ti_thread_flag(ti, TIF_MAYDAY);
+ }
+ 
++static inline void dovetail_request_ucall(struct task_struct *task)
++{
++	struct thread_info *ti = task_thread_info(task);
++
++	if (test_ti_local_flags(ti, _TLF_DOVETAIL))
++		set_ti_thread_flag(ti, TIF_RETUSER);
++}
++
++static inline void dovetail_clear_ucall(void)
++{
++	if (test_thread_flag(TIF_RETUSER))
++		clear_thread_flag(TIF_RETUSER);
++}
++
+ void install_inband_fd(unsigned int fd, struct file *file,
+ 		       struct files_struct *files);
+ 
+@@ -234,6 +251,8 @@ static inline void inband_exit_notify(void) { }
+ 
+ static inline void inband_cleanup_notify(struct mm_struct *mm) { }
+ 
++static inline void inband_retuser_notify(void) { }
++
+ static inline void oob_trampoline(void) { }
+ 
+ static inline void prepare_inband_switch(struct task_struct *next) { }
+@@ -247,7 +266,11 @@ static inline int inband_switch_tail(void)
+ 	return 0;
+ }
+ 
+-#define protect_inband_mm(__flags)	\
++static inline void dovetail_request_ucall(struct task_struct *task) { }
++
++static inline void dovetail_clear_ucall(void) { }
++
++#define protect_inband_mm(__flags)		\
+ 	do { (void)(__flags); } while (0)
+ 
+ #define unprotect_inband_mm(__flags)	\
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 8c3a627e15f7..acac3fdd203b 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -95,6 +95,13 @@ void dovetail_call_mayday(struct thread_info *ti, struct pt_regs *regs)
+ 	hard_local_irq_restore(flags);
+ }
+ 
++void inband_retuser_notify(void)
++{
++	clear_thread_flag(TIF_RETUSER);
++	inband_event_notify(INBAND_TASK_RETUSER, current);
++	/* CAUTION: we might have switched out-of-band here. */
++}
++
+ int __pipeline_syscall(struct pt_regs *regs)
+ {
+ 	struct thread_info *ti = current_thread_info();
+@@ -270,6 +277,7 @@ static void finalize_oob_transition(void) /* hard IRQs off */
+ {
+ 	struct irq_pipeline_data *pd;
+ 	struct irq_stage_data *p;
++	struct thread_info *ti;
+ 	struct task_struct *t;
+ 
+ 	pd = raw_cpu_ptr(&irq_pipeline);
+@@ -287,6 +295,7 @@ static void finalize_oob_transition(void) /* hard IRQs off */
+ 	 * converse migration.
+ 	 */
+ 	pd->task_inflight = NULL;
++	ti = task_thread_info(t);
+ 
+ 	/*
+ 	 * IRQs are hard disabled, but the stage transition handler
+-- 
+2.16.4
+

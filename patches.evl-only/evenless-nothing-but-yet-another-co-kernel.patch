@@ -1,4 +1,4 @@
-From acf0e5056cb90fc1fa92118fb4019e0a864c46a9 Mon Sep 17 00:00:00 2001
+From 938ba984e966644c04213f778be1005a3d929f7a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 23 Apr 2017 11:48:58 +0200
 Subject: [PATCH] evenless: nothing but yet another co-kernel
@@ -194,10 +194,10 @@ Subject: [PATCH] evenless: nothing but yet another co-kernel
  create mode 100644 kernel/evenless/xbuf.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index f03de0cbfbc2..698aab542d46 100644
+index 734b0e732f60..af1f9b84b6e6 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -283,6 +283,8 @@ config PGTABLE_LEVELS
+@@ -284,6 +284,8 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -206,7 +206,7 @@ index f03de0cbfbc2..698aab542d46 100644
  menu "System Type"
  
  config MMU
-@@ -580,6 +582,10 @@ config ARCH_MULTI_V6_V7
+@@ -581,6 +583,10 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID
@@ -416,7 +416,7 @@ index 000000000000..c1d7f37642fd
 +
 +#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index e61d7983fe65..c767f1c15fce 100644
+index 6e13e7b2af3d..1b20ed2c66dc 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
 @@ -131,6 +131,7 @@ config ARM64
@@ -427,7 +427,7 @@ index e61d7983fe65..c767f1c15fce 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1626,6 +1627,8 @@ config STACKPROTECTOR_PER_TASK
+@@ -1627,6 +1628,8 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  

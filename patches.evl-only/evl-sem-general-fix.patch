@@ -1,0 +1,58 @@
+From 82327fbb331caa7c3d6ad22ac7b5c7117da59142 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 23 Jan 2020 18:11:07 +0100
+Subject: [PATCH] evl/sem: general fix
+
+Multiple bugs:
+
+- wrong initializer
+- wrong up/down protocol
+
+Merely unusable before these fixes.
+---
+ include/evl/sem.h | 1 +
+ kernel/evl/sem.c  | 9 +++------
+ 2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/include/evl/sem.h b/include/evl/sem.h
+index 2db96de9530a..9378e38886cd 100644
+--- a/include/evl/sem.h
++++ b/include/evl/sem.h
+@@ -25,6 +25,7 @@ struct evl_ksem {
+ 
+ static inline void evl_init_ksem(struct evl_ksem *ksem, unsigned int value)
+ {
++	ksem->value = value;
+ 	evl_init_wait(&ksem->wait, &evl_mono_clock, EVL_WAIT_PRIO);
+ }
+ 
+diff --git a/kernel/evl/sem.c b/kernel/evl/sem.c
+index ac7381e4fc09..e4456f8f3174 100644
+--- a/kernel/evl/sem.c
++++ b/kernel/evl/sem.c
+@@ -29,8 +29,7 @@ EXPORT_SYMBOL_GPL(evl_down_timeout);
+ 
+ int evl_down(struct evl_ksem *ksem)
+ {
+-	return evl_wait_event_timeout(&ksem->wait, EVL_INFINITE,
+-				EVL_REL, down_ksem(ksem));
++	return evl_wait_event(&ksem->wait, down_ksem(ksem));
+ }
+ EXPORT_SYMBOL_GPL(evl_down);
+ 
+@@ -52,10 +51,8 @@ void evl_up(struct evl_ksem *ksem)
+ 	unsigned long flags;
+ 
+ 	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
+-
+-	if (!evl_wake_up_head(&ksem->wait))
+-		ksem->value++;
+-
++	ksem->value++;
++	evl_wake_up_head(&ksem->wait);
+ 	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
+ 	evl_schedule();
+ }
+-- 
+2.16.4
+

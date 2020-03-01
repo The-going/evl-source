@@ -1,0 +1,26 @@
+From 323c12323c5a8117bbf88a456223506c7c044d69 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 3 Feb 2020 10:05:31 +0100
+Subject: [PATCH] evl/flag: add clear operation
+
+---
+ include/evl/flag.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/include/evl/flag.h b/include/evl/flag.h
+index 752404bdf198..afebf811a0d3 100644
+--- a/include/evl/flag.h
++++ b/include/evl/flag.h
+@@ -128,4 +128,9 @@ static inline void evl_pulse_flag(struct evl_flag *wf)
+ 	evl_flush_flag(wf, T_BCAST);
+ }
+ 
++static inline void evl_clear_flag(struct evl_flag *wf)
++{
++	wf->raised = false;
++}
++
+ #endif /* _EVL_FLAG_H */
+-- 
+2.16.4
+

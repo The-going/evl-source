@@ -1,0 +1,59 @@
+From 3275f3d9cf57223a10284fd2cd7733b6faf499a3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 29 Jan 2020 18:57:43 +0100
+Subject: [PATCH] sched: dovetail: drop INBAND_TASK_SCHEDULE event
+
+This used to be a uselessly intrusive hook, which companion cores
+should not actually need. Its only use was to help in tracking the
+ptracing state. There is a better way to do so using the new
+INBAND_TASK_PTSTOP/PTCONT/PTSTEP events (see EVL).
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ Documentation/dovetail.rst | 5 -----
+ include/linux/dovetail.h   | 5 +----
+ 2 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/Documentation/dovetail.rst b/Documentation/dovetail.rst
+index fd8af6ce28d3..1d9d9d832426 100644
+--- a/Documentation/dovetail.rst
++++ b/Documentation/dovetail.rst
+@@ -307,11 +307,6 @@ pointer argument which relates to the event type.
+ 
+ The following events are defined (include/linux/dovetail.h):
+ 
+-- INBAND_TASK_SCHEDULE(struct task_struct *next)
+-
+-  sent in preparation of a context switch, right before the memory
+-  context is switched to *next*.
+-
+ - INBAND_TASK_SIGNAL(struct task_struct *target)
+ 
+   sent when *target* is about to receive a signal. The real-time core
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 80edb4ef3281..03784ce9a079 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -19,7 +19,6 @@ struct file;
+ struct files_struct;
+ 
+ enum inband_event_type {
+-	INBAND_TASK_SCHEDULE,
+ 	INBAND_TASK_SIGNAL,
+ 	INBAND_TASK_MIGRATION,
+ 	INBAND_TASK_EXIT,
+@@ -117,10 +116,8 @@ void prepare_inband_switch(struct task_struct *next)
+ {
+ 	struct task_struct *prev = current;
+ 
+-	if (test_ti_local_flags(task_thread_info(next), _TLF_DOVETAIL)) {
++	if (test_ti_local_flags(task_thread_info(next), _TLF_DOVETAIL))
+ 		__this_cpu_write(irq_pipeline.rqlock_owner, prev);
+-		inband_event_notify(INBAND_TASK_SCHEDULE, next);
+-	}
+ 
+ 	hard_local_irq_disable();
+ }
+-- 
+2.16.4
+

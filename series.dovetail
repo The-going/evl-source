@@ -271,3 +271,19 @@
 	patches.dovetail/x86-tsc-set-vDSO-access-type.patch
 	patches.dovetail/clocksource-arm_arch_timer-set-vDSO-access-type-unco.patch
 	patches.dovetail/clocksource-mmio-set-vDSO-access-type-unconditionall.patch
+	patches.dovetail/x86-dovetail-remove-wrong-assertion.patch
+	patches.dovetail/x86-dovetail-preserve-preemption-count-at-IST-exit.patch
+	patches.dovetail/genirq-irq_pipeline-remove-useless-declaration.patch
+	patches.dovetail/ARM-dovetail-update-call-to-__pipeline_syscall.patch
+	patches.dovetail/arm64-dovetail-update-call-to-__pipeline_syscall.patch
+	patches.dovetail/x86-dovetail-update-call-to-pipeline_syscall.patch
+	patches.dovetail/dovetail-assume-current-for-syscall-pipelining.patch
+	patches.dovetail/arm64-dovetail-fix-preemption-count-corruption-in-de.patch
+	patches.dovetail/context_tracking-irq_pipeline-generally-disable-trac.patch
+	patches.dovetail/dovetail-add-event-trigger-on-return-to-user-mode.patch
+	patches.dovetail/x86-dovetail-enable-INBAND_TASK_RETUSER-event.patch
+	patches.dovetail/arm64-dovetail-enable-INBAND_TASK_RETUSER-event.patch
+	patches.dovetail/ARM-dovetail-enable-INBAND_TASK_RETUSER-event.patch
+	patches.dovetail/ptrace-dovetail-trigger-PTSTEP-PTSTOP-and-PTCONT-eve.patch
+	patches.dovetail/sched-dovetail-drop-INBAND_TASK_SCHEDULE-event.patch
+	patches.dovetail/dovetail-pull-mayday-related-declarations.patch

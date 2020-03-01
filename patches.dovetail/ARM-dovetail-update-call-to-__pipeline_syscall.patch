@@ -1,0 +1,27 @@
+From df391448b5e6f7d97de17d7994fa93af02209971 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 6 Feb 2020 15:23:19 +0100
+Subject: [PATCH] ARM: dovetail: update call to __pipeline_syscall()
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm/kernel/entry-common.S | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm/kernel/entry-common.S b/arch/arm/kernel/entry-common.S
+index e4a587b5c3ec..9654f6600204 100644
+--- a/arch/arm/kernel/entry-common.S
++++ b/arch/arm/kernel/entry-common.S
+@@ -282,8 +282,7 @@ slow_path:
+ 	cmp	scno, r0
+ 	bne	root_syscall
+ pipeline_syscall:
+-	mov	r1, sp				@ regs
+-	mov	r0, tsk
++	mov	r0, sp				@ regs
+ 	bl	__pipeline_syscall
+ 	ldr	r10, [tsk, #TI_LOCAL_FLAGS]
+ 	tst	r10, #_TLF_OOB
+-- 
+2.16.4
+

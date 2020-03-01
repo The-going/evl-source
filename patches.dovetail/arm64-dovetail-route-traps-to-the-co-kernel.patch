@@ -1,4 +1,4 @@
-From 01e079bcb23a697ec3367d0ad7d410a1aa08d3ff Mon Sep 17 00:00:00 2001
+From a808261ad025ea0e299c5b7d5e59f05a51af9cb3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 11:17:29 +0200
 Subject: [PATCH] arm64: dovetail: route traps to the co-kernel
@@ -98,7 +98,7 @@ index f42222c49460..cd33f11752cb 100644
  	current->thread.fault_code = esr;
  
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 0c8f046c3a1d..c69df499c134 100644
+index 15dab190a19e..d75487b42172 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
 @@ -40,6 +40,7 @@
@@ -165,7 +165,7 @@ index 0c8f046c3a1d..c69df499c134 100644
  		arm64_force_sig_fault(inf->sig, inf->code, (void __user *)addr,
  				      inf->name);
 @@ -529,7 +547,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 	unsigned long vm_flags = VM_READ | VM_WRITE, irqflags;
+ 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC, irqflags;
  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
  
 -	irqflags = fault_entry(regs);

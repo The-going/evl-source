@@ -1,4 +1,4 @@
-From 716c7c2329e085c06bf6d4adf68de185ab120d74 Mon Sep 17 00:00:00 2001
+From 6f8f8b63e813873b6a4aec46d1962561b97a9997 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -42,10 +42,10 @@ Subject: [PATCH] evl: shorten, sanitize Kconfig switches
  35 files changed, 146 insertions(+), 164 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 698aab542d46..af67ef74f5b2 100644
+index af1f9b84b6e6..d25c798add54 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -283,7 +283,7 @@ config PGTABLE_LEVELS
+@@ -284,7 +284,7 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -54,7 +54,7 @@ index 698aab542d46..af67ef74f5b2 100644
  
  menu "System Type"
  
-@@ -582,7 +582,7 @@ config ARCH_MULTI_V6_V7
+@@ -583,7 +583,7 @@ config ARCH_MULTI_V6_V7
  	select MIGHT_HAVE_CACHE_L2X0
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL if CPU_HAS_ASID
@@ -77,7 +77,7 @@ index 52b3e06ea216..b563b393c7c9 100644
  endif
  
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index c767f1c15fce..d372603d3005 100644
+index 1b20ed2c66dc..c9075e4e3f18 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
 @@ -131,7 +131,7 @@ config ARM64
@@ -89,7 +89,7 @@ index c767f1c15fce..d372603d3005 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1627,7 +1627,7 @@ config STACKPROTECTOR_PER_TASK
+@@ -1628,7 +1628,7 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  

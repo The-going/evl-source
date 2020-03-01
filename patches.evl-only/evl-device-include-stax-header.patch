@@ -1,0 +1,24 @@
+From 10656ea673543c7e4c9f4446d4c8da018ad7ba1a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 23 Jan 2020 14:51:38 +0100
+Subject: [PATCH] evl/device: include stax header
+
+---
+ include/evl/device.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/evl/device.h b/include/evl/device.h
+index 59a2b0e5487b..1f54672020df 100644
+--- a/include/evl/device.h
++++ b/include/evl/device.h
+@@ -14,6 +14,7 @@
+ #include <evl/mutex.h>
+ #include <evl/wait.h>
+ #include <evl/poll.h>
++#include <evl/stax.h>
+ 
+ #else  /* !CONFIG_EVL */
+ 
+-- 
+2.16.4
+

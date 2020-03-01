@@ -1,0 +1,26 @@
+From 3979a9d31c0482b704cc9cd448cee57217d8dbf7 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 6 Feb 2020 15:23:24 +0100
+Subject: [PATCH] arm64: dovetail: update call to __pipeline_syscall()
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm64/kernel/syscall.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/kernel/syscall.c b/arch/arm64/kernel/syscall.c
+index 0fc4ec649d02..f70eee4bb188 100644
+--- a/arch/arm64/kernel/syscall.c
++++ b/arch/arm64/kernel/syscall.c
+@@ -107,7 +107,7 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+ 	if (stalled)
+ 		local_irq_enable();
+ 
+-	ret = pipeline_syscall(ti, scno, regs);
++	ret = pipeline_syscall(scno, regs);
+ 	if (ret) {
+ 		if (stalled)
+ 			local_irq_disable();
+-- 
+2.16.4
+

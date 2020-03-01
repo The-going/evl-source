@@ -1,0 +1,64 @@
+From b043dc8d8a602bf2dd2988af99310a7ba3bca2e8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 14 Feb 2020 10:24:10 +0100
+Subject: [PATCH] context_tracking: irq_pipeline: generally disable tracking
+ from oob
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/linux/context_tracking.h       | 2 +-
+ include/linux/context_tracking_state.h | 2 +-
+ kernel/context_tracking.c              | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/context_tracking.h b/include/linux/context_tracking.h
+index 703e31b0e3aa..64ec82851aa3 100644
+--- a/include/linux/context_tracking.h
++++ b/include/linux/context_tracking.h
+@@ -108,7 +108,7 @@ static inline void guest_enter_irqoff(void)
+ 	else
+ 		current->flags |= PF_VCPU;
+ 
+-	if (running_inband() && context_tracking_enabled())
++	if (context_tracking_enabled())
+ 		__context_tracking_enter(CONTEXT_GUEST);
+ 
+ 	/* KVM does not hold any references to rcu protected data when it
+diff --git a/include/linux/context_tracking_state.h b/include/linux/context_tracking_state.h
+index e7fe6678b7ad..b90cf6177eb7 100644
+--- a/include/linux/context_tracking_state.h
++++ b/include/linux/context_tracking_state.h
+@@ -28,7 +28,7 @@ DECLARE_PER_CPU(struct context_tracking, context_tracking);
+ 
+ static inline bool context_tracking_enabled(void)
+ {
+-	return static_branch_unlikely(&context_tracking_key);
++	return static_branch_unlikely(&context_tracking_key) && running_inband();
+ }
+ 
+ static inline bool context_tracking_enabled_cpu(int cpu)
+diff --git a/kernel/context_tracking.c b/kernel/context_tracking.c
+index b3472daa3d89..0296b4bda8f1 100644
+--- a/kernel/context_tracking.c
++++ b/kernel/context_tracking.c
+@@ -114,7 +114,7 @@ void context_tracking_enter(enum ctx_state state)
+ 	 * helpers are enough to protect RCU uses inside the exception. So
+ 	 * just return immediately if we detect we are in an IRQ.
+ 	 */
+-	if (!running_inband() || in_interrupt())
++	if (in_interrupt())
+ 		return;
+ 
+ 	local_irq_save(flags);
+@@ -170,7 +170,7 @@ void context_tracking_exit(enum ctx_state state)
+ {
+ 	unsigned long flags;
+ 
+-	if (!running_inband() || in_interrupt())
++	if (in_interrupt())
+ 		return;
+ 
+ 	local_irq_save(flags);
+-- 
+2.16.4
+

@@ -1,0 +1,113 @@
+From 65c2c812a11b14ac046f3882ea82aa32ac027a93 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Feb 2020 10:14:54 +0100
+Subject: [PATCH] ARM: dovetail: enable INBAND_TASK_RETUSER event
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm/include/asm/thread_info.h |  4 +++-
+ arch/arm/kernel/entry-common.S     |  6 ++++--
+ arch/arm/kernel/signal.c           | 18 ++++++++++++++++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
+index d1469e7f01d3..54c49eb34fa5 100644
+--- a/arch/arm/include/asm/thread_info.h
++++ b/arch/arm/include/asm/thread_info.h
+@@ -152,6 +152,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+ #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
+ #define TIF_RESTORE_SIGMASK	20
+ #define TIF_MAYDAY		21	/* emergency trap pending */
++#define TIF_RETUSER		22	/* INBAND_TASK_RETUSER is pending */
+ 
+ #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+ #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+@@ -163,6 +164,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+ #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
+ #define _TIF_USING_IWMMXT	(1 << TIF_USING_IWMMXT)
+ #define _TIF_MAYDAY		(1 << TIF_MAYDAY)
++#define _TIF_RETUSER		(1 << TIF_RETUSER)
+ 
+ /* Checks for any syscall work in entry-common.S */
+ #define _TIF_SYSCALL_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
+@@ -172,7 +174,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+  * Change these and you break ASM code in entry-common.S
+  */
+ #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
+-				 _TIF_NOTIFY_RESUME | _TIF_UPROBE)
++				 _TIF_NOTIFY_RESUME | _TIF_UPROBE | _TIF_RETUSER)
+ 
+ /*
+  * Local (synchronous) thread flags.
+diff --git a/arch/arm/kernel/entry-common.S b/arch/arm/kernel/entry-common.S
+index 9654f6600204..8494558c9448 100644
+--- a/arch/arm/kernel/entry-common.S
++++ b/arch/arm/kernel/entry-common.S
+@@ -55,7 +55,8 @@ __ret_fast_syscall:
+ 	cmp	r2, #TASK_SIZE
+ 	blne	addr_limit_check_failed
+ 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
+-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
++	ldr	r2, =#_TIF_SYSCALL_WORK | _TIF_WORK_MASK
++	ands	r2, r1, r2
+ 	bne	fast_work_pending
+ 
+ 
+@@ -133,7 +134,8 @@ ENTRY(ret_to_user_from_irq)
+ 	cmp	r2, #TASK_SIZE
+ 	blne	addr_limit_check_failed
+ 	ldr	r1, [tsk, #TI_FLAGS]
+-	tst	r1, #_TIF_WORK_MASK
++	ldr	r2, =#_TIF_WORK_MASK
++	ands	r2, r1, r2
+ 	bne	slow_work_pending
+ no_work_pending:
+ 	asm_trace_hardirqs_on save = 0
+diff --git a/arch/arm/kernel/signal.c b/arch/arm/kernel/signal.c
+index 7601879fa841..f0d8ab2a7049 100644
+--- a/arch/arm/kernel/signal.c
++++ b/arch/arm/kernel/signal.c
+@@ -640,6 +640,17 @@ static int do_signal(struct pt_regs *regs, int syscall)
+ 	return 0;
+ }
+ 
++static inline void do_retuser(void)
++{
++	unsigned int thread_flags;
++
++	if (dovetailing()) {
++		thread_flags = current_thread_info()->flags;
++		if (thread_flags & _TIF_RETUSER)
++			inband_retuser_notify();
++	}
++}
++
+ asmlinkage int
+ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+ {
+@@ -668,6 +679,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+ 			if (thread_flags & _TIF_SIGPENDING) {
+ 				int restart = do_signal(regs, syscall);
+ 				if (unlikely(restart)) {
++					do_retuser();
+ 					/*
+ 					 * Restart without handlers.
+ 					 * Deal with it without leaving
+@@ -683,8 +695,14 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+ 				tracehook_notify_resume(regs);
+ 				rseq_handle_notify_resume(NULL, regs);
+ 			}
++			do_retuser();
+ 		}
+ 		hard_local_irq_disable();
++
++		/* RETUSER might have switched oob */
++		if (!running_inband())
++			break;
++
+ 		thread_flags = current_thread_info()->flags;
+ 	} while (inband_irq_pending() || (thread_flags & _TIF_WORK_MASK));
+ 	return 0;
+-- 
+2.16.4
+

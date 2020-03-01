@@ -1,0 +1,28 @@
+From 8cf2be70838cb89d1382518ea1187267d53d2782 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 29 Jan 2020 18:35:52 +0100
+Subject: [PATCH] evl/thread: drop useless thread_info initializer
+
+---
+ include/asm-generic/evl/thread_info.h | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/include/asm-generic/evl/thread_info.h b/include/asm-generic/evl/thread_info.h
+index 99cfd71e49bd..ed2bd105f583 100644
+--- a/include/asm-generic/evl/thread_info.h
++++ b/include/asm-generic/evl/thread_info.h
+@@ -22,11 +22,6 @@ void evl_init_thread_state(struct oob_thread_state *p)
+ 
+ struct oob_thread_state { };
+ 
+-static inline
+-void evl_init_thread_state(struct oob_thread_state *p)
+-{
+-}
+-
+ #endif	/* !CONFIG_EVL */
+ 
+ #endif /* !_ASM_GENERIC_EVL_THREAD_INFO_H */
+-- 
+2.16.4
+

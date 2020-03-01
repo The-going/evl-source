@@ -1,0 +1,49 @@
+From f75f5d3293208c093d964dee3c422a9a29d3c74a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Feb 2020 18:08:43 +0100
+Subject: [PATCH] arm64: dovetail: fix preemption count corruption in debug
+ trap handler
+
+Since oob_trap_notify() may switch in-band, entering a preemption
+disabled section before calling the fault_entry() handler would cause
+a preemption count imbalance detected by
+finish_task_switch()<-dovetail_resume_inband().
+
+Enclose the debug_exception_enter/exit calls inside the
+fault_entry/exit section with no overlap.
+---
+ arch/arm64/mm/fault.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
+index 836305ab943c..e2c071f0d472 100644
+--- a/arch/arm64/mm/fault.c
++++ b/arch/arm64/mm/fault.c
+@@ -998,20 +998,20 @@ void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
+ 	if (cortex_a76_erratum_1463225_debug_handler(regs))
+ 		return;
+ 
+-	debug_exception_enter(regs);
+-
+ 	if (user_mode(regs) && !is_ttbr0_addr(pc))
+ 		arm64_apply_bp_hardening();
+ 
+ 	irqflags = fault_entry(ARM64_TRAP_DEBUG, regs);
+ 
++	debug_exception_enter(regs);
++
+ 	if (inf->fn(addr_if_watchpoint, esr, regs)) {
+ 		arm64_notify_die(inf->name, regs,
+ 				 inf->sig, inf->code, (void __user *)pc, esr);
+ 	}
+ 
+-	fault_exit(irqflags);
+-
+ 	debug_exception_exit(regs);
++
++	fault_exit(irqflags);
+ }
+ NOKPROBE_SYMBOL(do_debug_exception);
+-- 
+2.16.4
+

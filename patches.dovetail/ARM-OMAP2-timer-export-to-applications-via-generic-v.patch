@@ -1,4 +1,4 @@
-From be5950dec9a1458dbbd0c08619e70a7832444476 Mon Sep 17 00:00:00 2001
+From b32c53656251fef040f369c1e610e6f8eb0d762d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 4 Apr 2019 15:57:00 +0200
 Subject: [PATCH] ARM: OMAP2: timer: export to applications via generic vDSO
@@ -10,11 +10,11 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  2 files changed, 22 insertions(+), 17 deletions(-)
 
 diff --git a/arch/arm/mach-omap2/Kconfig b/arch/arm/mach-omap2/Kconfig
-index ad08d470a2ca..39ddfab9eb51 100644
+index dca7d06c0b93..aac43f4a8f3f 100644
 --- a/arch/arm/mach-omap2/Kconfig
 +++ b/arch/arm/mach-omap2/Kconfig
-@@ -97,6 +97,7 @@ config ARCH_OMAP2PLUS
- 	select ARCH_HAS_HOLES_MEMORYMODEL
+@@ -98,6 +98,7 @@ config ARCH_OMAP2PLUS
+ 	select ARCH_HAS_RESET_CONTROLLER
  	select ARCH_OMAP
  	select CLKSRC_MMIO
 +	select GENERIC_CLOCKSOURCE_VDSO

@@ -1,0 +1,191 @@
+From e3569efaab0ed099a11ea33791a602abbed166fe Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 23 Jan 2020 16:55:07 +0100
+Subject: [PATCH] evl/work: add oob mechanism for submitting in-band work
+
+---
+ include/evl/device.h |  1 +
+ include/evl/work.h   | 62 ++++++++++++++++++++++++++++++++++++++++++
+ kernel/evl/Makefile  |  1 +
+ kernel/evl/work.c    | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 140 insertions(+)
+ create mode 100644 include/evl/work.h
+ create mode 100644 kernel/evl/work.c
+
+diff --git a/include/evl/device.h b/include/evl/device.h
+index 1f54672020df..3bb85b0c8111 100644
+--- a/include/evl/device.h
++++ b/include/evl/device.h
+@@ -15,6 +15,7 @@
+ #include <evl/wait.h>
+ #include <evl/poll.h>
+ #include <evl/stax.h>
++#include <evl/work.h>
+ 
+ #else  /* !CONFIG_EVL */
+ 
+diff --git a/include/evl/work.h b/include/evl/work.h
+new file mode 100644
+index 000000000000..8494b596feab
+--- /dev/null
++++ b/include/evl/work.h
+@@ -0,0 +1,62 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2020 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVL_WORK_H
++#define _EVL_WORK_H
++
++#include <linux/irq_work.h>
++#include <linux/workqueue.h>
++#include <evl/sem.h>
++
++struct evl_work {
++	struct irq_work irq_work;
++	struct work_struct wq_work;
++	struct workqueue_struct *wq;
++	int (*handler)(void *arg);
++};
++
++struct evl_sync_work {
++	struct evl_work work;
++	struct evl_ksem done;
++	int result;
++};
++
++void evl_init_work(struct evl_work *work,
++		   void (*handler)(struct evl_work *work));
++
++void evl_init_sync_work(struct evl_sync_work *sync_work,
++			int (*handler)(struct evl_sync_work *sync_work));
++
++void evl_call_inband_from(struct evl_work *work,
++			struct workqueue_struct *wq);
++
++static inline void evl_call_inband(struct evl_work *work)
++{
++	evl_call_inband_from(work, system_wq);
++}
++
++static inline
++void evl_flush_work(struct evl_work *work)
++{
++	flush_work(&work->wq_work);
++}
++
++int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
++			struct workqueue_struct *wq);
++
++static inline
++int evl_call_inband_sync(struct evl_sync_work *sync_work)
++{
++	return evl_call_inband_sync_from(sync_work, system_wq);
++}
++
++static inline
++void evl_flush_sync_work(struct evl_sync_work *sync_work)
++{
++	evl_flush_work(&sync_work->work);
++}
++
++#endif /* !_EVL_WORK_H */
+diff --git a/kernel/evl/Makefile b/kernel/evl/Makefile
+index dbd29b21f2e0..9bdee544b42d 100644
+--- a/kernel/evl/Makefile
++++ b/kernel/evl/Makefile
+@@ -18,6 +18,7 @@ evl-y :=		\
+ 	tick.o		\
+ 	timer.o		\
+ 	wait.o		\
++	work.o		\
+ 	xbuf.o
+ 
+ evl-$(CONFIG_FTRACE) +=	trace.o
+diff --git a/kernel/evl/work.c b/kernel/evl/work.c
+new file mode 100644
+index 000000000000..07e7c577eb42
+--- /dev/null
++++ b/kernel/evl/work.c
+@@ -0,0 +1,76 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2020 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#include <evl/work.h>
++
++static void do_wq_work(struct work_struct *wq_work)
++{
++	struct evl_work *work;
++
++	work = container_of(wq_work, struct evl_work, wq_work);
++	work->handler(work);
++}
++
++static void do_wq_work_sync(struct work_struct *wq_work)
++{
++	struct evl_sync_work *sync_work;
++
++	sync_work = container_of(wq_work, struct evl_sync_work, work.wq_work);
++	sync_work->result = sync_work->work.handler(sync_work);
++	evl_up(&sync_work->done);
++}
++
++static void do_irq_work(struct irq_work *irq_work)
++{
++	struct evl_work *work;
++
++	work = container_of(irq_work, struct evl_work, irq_work);
++	queue_work(work->wq, &work->wq_work);
++}
++
++void evl_init_work(struct evl_work *work,
++		void (*handler)(struct evl_work *work))
++{
++	init_irq_work(&work->irq_work, do_irq_work);
++	INIT_WORK(&work->wq_work, do_wq_work);
++	work->handler = (typeof(work->handler))handler;
++}
++
++void evl_init_sync_work(struct evl_sync_work *sync_work,
++			int (*handler)(struct evl_sync_work *sync_work))
++{
++	struct evl_work *work = &sync_work->work;
++
++	init_irq_work(&work->irq_work, do_irq_work);
++	INIT_WORK(&work->wq_work, do_wq_work_sync);
++	work->handler = (typeof(work->handler))handler;
++	evl_init_ksem(&sync_work->done, 0);
++}
++
++void evl_call_inband_from(struct evl_work *work,
++			struct workqueue_struct *wq)
++{
++	work->wq = wq;
++	irq_work_queue(&work->irq_work);
++}
++
++int evl_call_inband_sync_from(struct evl_sync_work *sync_work,
++			struct workqueue_struct *wq)
++{
++	struct evl_work *work = &sync_work->work;
++
++	sync_work->result = -EINVAL;
++
++	if (unlikely(running_inband())) {
++		evl_call_inband_from(work, wq);
++		flush_work(&work->wq_work);
++		return sync_work->result;
++	}
++
++	evl_call_inband_from(work, wq);
++
++	return evl_down(&sync_work->done) ?: sync_work->result;
++}
+-- 
+2.16.4
+

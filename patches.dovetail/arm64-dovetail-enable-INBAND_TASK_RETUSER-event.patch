@@ -1,0 +1,87 @@
+From 693f6c895689c88723e1bd7654facba779bba4fd Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 7 Feb 2020 10:14:59 +0100
+Subject: [PATCH] arm64: dovetail: enable INBAND_TASK_RETUSER event
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm64/include/asm/thread_info.h |  4 +++-
+ arch/arm64/kernel/signal.c           | 20 +++++++++++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
+index 1da8cc3ca560..82574bf91f5f 100644
+--- a/arch/arm64/include/asm/thread_info.h
++++ b/arch/arm64/include/asm/thread_info.h
+@@ -68,6 +68,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+ #define TIF_FOREIGN_FPSTATE	3	/* CPU's FP state is not current's */
+ #define TIF_UPROBE		4	/* uprobe breakpoint or singlestep */
+ #define TIF_FSCHECK		5	/* Check FS is USER_DS on return */
++#define TIF_RETUSER		6	/* INBAND_TASK_RETUSER is pending */
+ #define TIF_NOHZ		7
+ #define TIF_SYSCALL_TRACE	8	/* syscall trace active */
+ #define TIF_SYSCALL_AUDIT	9	/* syscall auditing */
+@@ -100,10 +101,11 @@ void arch_release_task_struct(struct task_struct *tsk);
+ #define _TIF_32BIT		(1 << TIF_32BIT)
+ #define _TIF_SVE		(1 << TIF_SVE)
+ #define _TIF_MAYDAY		(1 << TIF_MAYDAY)
++#define _TIF_RETUSER		(1 << TIF_RETUSER)
+ 
+ #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
+ 				 _TIF_NOTIFY_RESUME | _TIF_FOREIGN_FPSTATE | \
+-				 _TIF_UPROBE | _TIF_FSCHECK)
++				 _TIF_UPROBE | _TIF_FSCHECK | _TIF_RETUSER)
+ 
+ #define _TIF_SYSCALL_WORK	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
+ 				 _TIF_SYSCALL_TRACEPOINT | _TIF_SECCOMP | \
+diff --git a/arch/arm64/kernel/signal.c b/arch/arm64/kernel/signal.c
+index eb4f695858e6..1894fb759188 100644
+--- a/arch/arm64/kernel/signal.c
++++ b/arch/arm64/kernel/signal.c
+@@ -897,6 +897,17 @@ static void do_signal(struct pt_regs *regs)
+ 	restore_saved_sigmask();
+ }
+ 
++static inline void do_retuser(void)
++{
++	unsigned long thread_flags;
++
++	if (dovetailing()) {
++		thread_flags = current_thread_info()->flags;
++		if (thread_flags & _TIF_RETUSER)
++			inband_retuser_notify();
++	}
++}
++
+ asmlinkage void do_notify_resume(struct pt_regs *regs,
+ 				 unsigned long thread_flags)
+ {
+@@ -943,10 +954,12 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
+ 
+ 			if (thread_flags & _TIF_FOREIGN_FPSTATE)
+ 				fpsimd_restore_current_state();
++
++			do_retuser();
+ 		}
+ 
+ 		/*
+-		 * CAUTION: we may have restored the fpsimd state for
++		 * Dovetail: we may have restored the fpsimd state for
+ 		 * current with no other opportunity to check for
+ 		 * _TIF_FOREIGN_FPSTATE until we are back running on
+ 		 * el0, so we must not take any interrupt until then,
+@@ -954,6 +967,11 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
+ 		 * thread's fpsimd state.
+ 		 */
+ 		local_daif_mask();
++
++		/* RETUSER might have switched oob */
++		if (!running_inband())
++			break;
++
+ 		thread_flags = READ_ONCE(current_thread_info()->flags);
+ 	} while (inband_irq_pending() || (thread_flags & _TIF_WORK_MASK));
+ }
+-- 
+2.16.4
+
