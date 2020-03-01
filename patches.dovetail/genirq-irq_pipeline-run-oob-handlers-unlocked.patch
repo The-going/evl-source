@@ -1,0 +1,35 @@
+From d6ff435a75eab5d639aeeff2e7127d2bbc1303ad Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 25 Sep 2019 11:33:26 +0200
+Subject: [PATCH] genirq: irq_pipeline: run oob handlers unlocked
+
+---
+ kernel/irq/pipeline.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 96412030928f..d1679207bbf8 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -872,6 +872,9 @@ static void do_oob_irq(struct irq_desc *desc)
+ 		ret = action->handler(irq, dev_id);
+ 		trace_irq_handler_exit(irq, action, ret);
+ 	} else {
++		desc->istate &= ~IRQS_PENDING;
++		irqd_set(&desc->irq_data, IRQD_IRQ_INPROGRESS);
++		raw_spin_unlock(&desc->lock);
+ 		for_each_action_of_desc(desc, action) {
+ 			trace_irq_handler_entry(irq, action);
+ 			dev_id = action->dev_id;
+@@ -879,6 +882,8 @@ static void do_oob_irq(struct irq_desc *desc)
+ 			trace_irq_handler_exit(irq, action, res);
+ 			ret |= res;
+ 		}
++		raw_spin_lock(&desc->lock);
++		irqd_clear(&desc->irq_data, IRQD_IRQ_INPROGRESS);
+ 	}
+ done:
+ 	if (likely(ret & IRQ_HANDLED)) {
+-- 
+2.16.4
+

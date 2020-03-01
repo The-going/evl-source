@@ -1,4 +1,4 @@
-From 7534661e5e88d2b9eb4b62d3bc068321c98932d9 Mon Sep 17 00:00:00 2001
+From 1d4cc0a8b6dfd78937fe0ea462bb4188797b9c8b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 21 May 2019 16:50:42 +0200
 Subject: [PATCH] gpiolib: evl: enable out-of-band GPIO handling
@@ -31,7 +31,7 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  create mode 100644 include/uapi/evl/devices/gpio.h
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index f497003f119c..6a93b694a2cd 100644
+index d9074191edef..2d8ec4bff239 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
 @@ -27,6 +27,10 @@
@@ -229,9 +229,9 @@ index f497003f119c..6a93b694a2cd 100644
 +	}
 +
  	/*
- 	 * Do not allow OPEN_SOURCE & OPEN_DRAIN flags in a single request. If
- 	 * the hardware actually supports enabling both at the same time the
-@@ -554,6 +701,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+ 	 * Do not allow both INPUT & OUTPUT flags to be set as they are
+ 	 * contradictory.
+@@ -562,6 +709,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  	if (!lh)
  		return -ENOMEM;
  	lh->gdev = gdev;
@@ -239,7 +239,7 @@ index f497003f119c..6a93b694a2cd 100644
  	get_device(&gdev->dev);
  
  	/* Make sure this is terminated */
-@@ -632,6 +780,15 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -640,6 +788,15 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  		goto out_put_unused_fd;
  	}
  
@@ -255,7 +255,7 @@ index f497003f119c..6a93b694a2cd 100644
  	handlereq.fd = fd;
  	if (copy_to_user(ip, &handlereq, sizeof(handlereq))) {
  		/*
-@@ -685,12 +842,19 @@ struct lineevent_state {
+@@ -693,12 +850,19 @@ struct lineevent_state {
  	struct gpio_device *gdev;
  	const char *label;
  	struct gpio_desc *desc;
@@ -275,7 +275,7 @@ index f497003f119c..6a93b694a2cd 100644
  };
  
  #define GPIOEVENT_REQUEST_VALID_FLAGS \
-@@ -721,6 +885,9 @@ static ssize_t lineevent_read(struct file *filep,
+@@ -729,6 +893,9 @@ static ssize_t lineevent_read(struct file *filep,
  	unsigned int copied;
  	int ret;
  
@@ -285,7 +285,7 @@ index f497003f119c..6a93b694a2cd 100644
  	if (count < sizeof(struct gpioevent_data))
  		return -EINVAL;
  
-@@ -757,11 +924,159 @@ static ssize_t lineevent_read(struct file *filep,
+@@ -765,11 +932,159 @@ static ssize_t lineevent_read(struct file *filep,
  	return copied;
  }
  
@@ -445,7 +445,7 @@ index f497003f119c..6a93b694a2cd 100644
  	free_irq(le->irq, le);
  	gpiod_free(le->desc);
  	kfree(le->label);
-@@ -810,6 +1125,10 @@ static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
+@@ -818,6 +1133,10 @@ static long lineevent_ioctl_compat(struct file *filep, unsigned int cmd,
  static const struct file_operations lineevent_fileops = {
  	.release = lineevent_release,
  	.read = lineevent_read,
@@ -456,7 +456,7 @@ index f497003f119c..6a93b694a2cd 100644
  	.poll = lineevent_poll,
  	.owner = THIS_MODULE,
  	.llseek = noop_llseek,
-@@ -837,24 +1156,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
+@@ -845,24 +1164,8 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
  	else
  		ge.timestamp = le->timestamp;
  
@@ -482,7 +482,7 @@ index f497003f119c..6a93b694a2cd 100644
  
  	ret = kfifo_put(&le->events, ge);
  	if (ret != 0)
-@@ -937,6 +1240,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -947,6 +1250,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		goto out_free_label;
  	le->desc = desc;
  	le->eflags = eflags;
@@ -490,7 +490,7 @@ index f497003f119c..6a93b694a2cd 100644
  
  	if (lflags & GPIOHANDLE_REQUEST_ACTIVE_LOW)
  		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
-@@ -961,21 +1265,32 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -967,21 +1271,32 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  	if (eflags & GPIOEVENT_REQUEST_FALLING_EDGE)
  		irqflags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
  			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
@@ -536,7 +536,7 @@ index f497003f119c..6a93b694a2cd 100644
  
  	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
  	if (fd < 0) {
-@@ -992,12 +1307,23 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -998,12 +1313,23 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		goto out_put_unused_fd;
  	}
  

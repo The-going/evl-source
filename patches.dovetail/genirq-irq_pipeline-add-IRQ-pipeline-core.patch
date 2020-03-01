@@ -1,4 +1,4 @@
-From 20e74a9e2567f89e9fec4ccd8d88204e1c1da7de Mon Sep 17 00:00:00 2001
+From f53d854cfe1dfd3e033a3aab7224a01eb428b690 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 20 Jul 2016 15:06:15 +0200
 Subject: [PATCH] genirq: irq_pipeline: add IRQ pipeline core
@@ -4148,7 +4148,7 @@ index 000000000000..293d897930f5
 +EXPORT_SYMBOL_GPL(irq_desc);
 +#endif
 diff --git a/kernel/irq/resend.c b/kernel/irq/resend.c
-index 95414ad3506a..91ddb2815792 100644
+index 98c04ca5fa43..3c608e540d7a 100644
 --- a/kernel/irq/resend.c
 +++ b/kernel/irq/resend.c
 @@ -16,10 +16,11 @@
@@ -4164,7 +4164,7 @@ index 95414ad3506a..91ddb2815792 100644
  
  /* Bitmap to handle software resend of interrupts: */
  static DECLARE_BITMAP(irqs_resend, IRQ_BITMAP_BITS);
-@@ -68,6 +69,9 @@ void check_irq_resend(struct irq_desc *desc)
+@@ -70,6 +71,9 @@ void check_irq_resend(struct irq_desc *desc)
  		return;
  	if (desc->istate & IRQS_PENDING) {
  		desc->istate &= ~IRQS_PENDING;
@@ -4174,7 +4174,7 @@ index 95414ad3506a..91ddb2815792 100644
  		desc->istate |= IRQS_REPLAY;
  
  		if (!desc->irq_data.chip->irq_retrigger ||
-@@ -96,5 +100,6 @@ void check_irq_resend(struct irq_desc *desc)
+@@ -98,5 +102,6 @@ void check_irq_resend(struct irq_desc *desc)
  			tasklet_schedule(&resend_tasklet);
  #endif
  		}

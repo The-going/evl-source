@@ -244,3 +244,9 @@
 	patches.dovetail/rcu-irq_pipeline-out-of-band-context-is-by-essence-n.patch
 	patches.dovetail/tty-imx-add-raw-console-channel.patch
 	patches.dovetail/regmap-dovetail-add-support-for-out-of-band-locking.patch
+	patches.dovetail/genirq-irq_pipeline-fix-handling-of-edge-events.patch
+	patches.dovetail/genirq-irq_pipeline-run-oob-handlers-unlocked.patch
+	patches.dovetail/genirq-irq_pipeline-provide-generic-decoding-handler.patch
+	patches.dovetail/ARM-irq_pipeline-convert-to-handle_irq_pipelined.patch
+	patches.dovetail/arm64-irq_pipeline-convert-to-handle_irq_pipelined.patch
+	patches.dovetail/x86-irq_pipeline-convert-to-handle_irq_pipelined.patch

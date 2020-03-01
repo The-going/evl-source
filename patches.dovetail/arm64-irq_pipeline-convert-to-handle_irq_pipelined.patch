@@ -1,0 +1,26 @@
+From c6b09d05bfa67cc715a6b670f14df9680b2c4af2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 1 Oct 2019 11:36:36 +0200
+Subject: [PATCH] arm64: irq_pipeline: convert to handle_irq_pipelined()
+
+---
+ arch/arm64/kernel/irq.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm64/kernel/irq.c b/arch/arm64/kernel/irq.c
+index bd15d2b1e665..f5cac9986b59 100644
+--- a/arch/arm64/kernel/irq.c
++++ b/arch/arm64/kernel/irq.c
+@@ -43,8 +43,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
+ asmlinkage int __exception_irq_entry
+ handle_arch_irq_pipelined(struct pt_regs *regs)
+ {
+-	handle_arch_irq(regs);
+-	return leave_irq_pipeline(regs);
++	return handle_irq_pipelined(regs);
+ }
+ 
+ #endif
+-- 
+2.16.4
+

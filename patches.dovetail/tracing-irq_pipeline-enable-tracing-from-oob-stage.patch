@@ -1,4 +1,4 @@
-From 5a905f91a867b377e427518399712cc26da5d52b Mon Sep 17 00:00:00 2001
+From 5266ce1b23a88a6f361688873abbd01148d3b06c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -17,10 +17,10 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index eca34503f178..338a91da0d36 100644
+index f9821a3374e9..cf363c555c7c 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
-@@ -5605,10 +5605,10 @@ static int ftrace_process_locs(struct module *mod,
+@@ -5622,10 +5622,10 @@ static int ftrace_process_locs(struct module *mod,
  	 * reason to cause large interrupt latencies while we do it.
  	 */
  	if (!mod)
@@ -33,7 +33,7 @@ index eca34503f178..338a91da0d36 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6150,9 +6150,9 @@ void __init ftrace_init(void)
+@@ -6167,9 +6167,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +45,7 @@ index eca34503f178..338a91da0d36 100644
  	if (ret)
  		goto failed;
  
-@@ -6287,7 +6287,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6304,7 +6304,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:
@@ -111,7 +111,7 @@ index 66358d66c933..3af2d6661a54 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 507ee49f35c7..301efa18eb68 100644
+index 9f38357ea540..44da7242e2de 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -923,9 +923,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
@@ -144,7 +144,7 @@ index 507ee49f35c7..301efa18eb68 100644
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
  		WARN_ON_ONCE(tr->current_trace != &nop_trace);
-@@ -6729,13 +6729,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+@@ -6731,13 +6731,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
  			ret = tracing_alloc_snapshot_instance(tr);
  		if (ret < 0)
  			break;

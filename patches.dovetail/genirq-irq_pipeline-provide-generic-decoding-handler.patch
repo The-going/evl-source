@@ -1,0 +1,151 @@
+From e7aba20def36cf5f11ac59976e7b25888726d596 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 1 Oct 2019 11:19:34 +0200
+Subject: [PATCH] genirq: irq_pipeline: provide generic decoding handler for
+ pipelined IRQs
+
+Move the architecture-independent portion of the pipeline-related work
+around IRQ decoding to handle_irq_pipelined(). The latter assumes that
+handle_arch_irq() is defined, either because the architecture conforms
+to GENERIC_IRQ_MULTI_HANDLER (e.g. arm, arm64), or it implements this
+routine (x86).
+
+Architecture-specific low-level IRQ handlers should call
+handle_irq_pipelined(). This change also makes sure that all pending
+IRQs have been decoded prior to allowing a companion kernel to
+reschedule in irq_exit_pipeline(), by moving the latter call from
+generic_pipeline_irq() up to the outer IRQ handling layer.
+---
+ include/linux/irq_pipeline.h | 34 ++--------------------------------
+ kernel/irq/pipeline.c        | 44 +++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 41 insertions(+), 37 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index e8493d09e37f..80ec18a0c0db 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -47,38 +47,6 @@ static __always_inline void synchronize_pipeline_on_irq(void)
+ void dovetail_call_mayday(struct thread_info *ti,
+ 			  struct pt_regs *regs);
+ 
+-static __always_inline bool leave_irq_pipeline(struct pt_regs *regs)
+-{
+-	/*
+-	 * We have to synchronize the logs because interrupts might
+-	 * have been logged while we were busy handling an OOB event
+-	 * coming from the hardware:
+-	 *
+-	 * - as a result of calling an OOB handler which in turned
+-	 * posted them.
+-	 *
+-	 * - because we posted them directly for scheduling the
+-	 * interrupt to happen from the inband stage.
+-	 *
+-	 * This also means that hardware-originated OOB events have
+-	 * higher precedence when received than software-originated
+-	 * ones, which are synced once all IRQ flow handlers involved
+-	 * in the interrupt have run.
+-	 */
+-	synchronize_pipeline_on_irq();
+-
+-#ifdef CONFIG_DOVETAIL
+-	/*
+-	 * Sending MAYDAY is in essence a rare case, so prefer test
+-	 * then maybe clear over test_and_clear.
+-	 */
+-	if (user_mode(regs) && test_thread_flag(TIF_MAYDAY))
+-		dovetail_call_mayday(current_thread_info(), regs);
+-#endif
+-
+-	return running_inband() && !irqs_disabled();
+-}
+-
+ bool handle_oob_irq(struct irq_desc *desc);
+ 
+ void arch_do_IRQ_pipelined(struct irq_desc *desc);
+@@ -114,6 +82,8 @@ static inline bool inband_irq_pending(void)
+ 	return stage_irqs_pending(this_inband_staged());
+ }
+ 
++int handle_irq_pipelined(struct pt_regs *regs);
++
+ extern struct irq_domain *synthetic_irq_domain;
+ 
+ #else /* !CONFIG_IRQ_PIPELINE */
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index d1679207bbf8..a3994ae4ac2d 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -1064,7 +1064,6 @@ void restore_stage_on_irq(struct irq_stage_data *prevd)
+  */
+ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ {
+-	struct irq_stage_data *prevd;
+ 	struct pt_regs *old_regs;
+ 	struct irq_desc *desc;
+ 	int ret = 0;
+@@ -1108,15 +1107,11 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	 * call its out-of-band IRQ handler from handle_oob_irq(),
+ 	 * then irq_exit_pipeline() to unwind the interrupt context.
+ 	 */
+-	prevd = switch_stage_on_irq();
+ 	copy_timer_regs(desc, regs);
+-	irq_enter_pipeline();
+ 	preempt_count_add(PIPELINE_OFFSET);
+ 	generic_handle_irq_desc(desc);
+ 	preempt_count_sub(PIPELINE_OFFSET);
+-	irq_exit_pipeline();
+ 	incr_irq_kstat(desc);
+-	restore_stage_on_irq(prevd);
+ out:
+ 	set_irq_regs(old_regs);
+ 	trace_irq_pipeline_exit(irq);
+@@ -1124,6 +1119,45 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	return ret;
+ }
+ 
++int handle_irq_pipelined(struct pt_regs *regs)
++{
++	struct irq_stage_data *prevd;
++
++	prevd = switch_stage_on_irq();
++	irq_enter_pipeline();
++	handle_arch_irq(regs);
++	irq_exit_pipeline();
++	restore_stage_on_irq(prevd);
++	/*
++	 * We have to synchronize the logs because interrupts might
++	 * have been logged while we were busy handling an OOB event
++	 * coming from the hardware:
++	 *
++	 * - as a result of calling an OOB handler which in turned
++	 * posted them.
++	 *
++	 * - because we posted them directly for scheduling the
++	 * interrupt to happen from the inband stage.
++	 *
++	 * This also means that hardware-originated OOB events have
++	 * higher precedence when received than software-originated
++	 * ones, which are synced once all IRQ flow handlers involved
++	 * in the interrupt have run.
++	 */
++	synchronize_pipeline_on_irq();
++
++#ifdef CONFIG_DOVETAIL
++	/*
++	 * Sending MAYDAY is in essence a rare case, so prefer test
++	 * then maybe clear over test_and_clear.
++	 */
++	if (user_mode(regs) && test_thread_flag(TIF_MAYDAY))
++		dovetail_call_mayday(current_thread_info(), regs);
++#endif
++
++	return running_inband() && !irqs_disabled();
++}
++
+ /**
+  *	irq_inject_pipeline - Inject a software-generated IRQ into the
+  *	pipeline @irq: IRQ to inject
+-- 
+2.16.4
+

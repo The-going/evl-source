@@ -1,0 +1,114 @@
+From 9100bd90a2569f90c78e59c615513f01791e7735 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 22 Sep 2019 19:20:08 +0200
+Subject: [PATCH] genirq: irq_pipeline: fix handling of edge events
+
+IRQ events which occur on a signal edge may be latched again as soon
+as the current event is acked in the controller, which means while the
+latter is being processed in do_oob_irq(). We need to iterate over
+do_oob_irq() until all edge events pending for a given IRQ line
+received by any CPU have been handled.
+---
+ kernel/irq/chip.c      |  6 ++++++
+ kernel/irq/internals.h |  2 ++
+ kernel/irq/pipeline.c  | 19 ++++++++++++++++++-
+ 3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/irq/chip.c b/kernel/irq/chip.c
+index 307b7b8de2c7..c68034bb05dd 100644
+--- a/kernel/irq/chip.c
++++ b/kernel/irq/chip.c
+@@ -872,6 +872,7 @@ void handle_edge_irq(struct irq_desc *desc)
+ 
+ 	if (on_pipeline_entry()) {
+ 		chip->irq_ack(&desc->irq_data);
++		desc->istate |= IRQS_EDGE;
+ 		handle_oob_irq(desc);
+ 		goto out_unlock;
+ 	}
+@@ -905,6 +906,8 @@ void handle_edge_irq(struct irq_desc *desc)
+ 		 !irqd_irq_disabled(&desc->irq_data));
+ 
+ out_unlock:
++	if (on_pipeline_entry())
++		desc->istate &= ~IRQS_EDGE;
+ 	raw_spin_unlock(&desc->lock);
+ }
+ EXPORT_SYMBOL(handle_edge_irq);
+@@ -933,6 +936,7 @@ void handle_edge_eoi_irq(struct irq_desc *desc)
+ 	}
+ 
+ 	if (on_pipeline_entry()) {
++		desc->istate |= IRQS_EDGE;
+ 		if (handle_oob_irq(desc))
+ 			goto out_eoi;
+ 		goto out;
+@@ -961,6 +965,8 @@ void handle_edge_eoi_irq(struct irq_desc *desc)
+ out_eoi:
+ 	chip->irq_eoi(&desc->irq_data);
+ out:
++	if (on_pipeline_entry())
++		desc->istate &= ~IRQS_EDGE;
+ 	raw_spin_unlock(&desc->lock);
+ }
+ #endif
+diff --git a/kernel/irq/internals.h b/kernel/irq/internals.h
+index 3924fbe829d4..df228c99f995 100644
+--- a/kernel/irq/internals.h
++++ b/kernel/irq/internals.h
+@@ -50,6 +50,7 @@ enum {
+  * IRQS_PENDING			- irq is pending and replayed later
+  * IRQS_SUSPENDED		- irq is suspended
+  * IRQS_NMI			- irq line is used to deliver NMIs
++ * IRQS_EDGE			- irq line received an edge event
+  */
+ enum {
+ 	IRQS_AUTODETECT		= 0x00000001,
+@@ -62,6 +63,7 @@ enum {
+ 	IRQS_SUSPENDED		= 0x00000800,
+ 	IRQS_TIMINGS		= 0x00001000,
+ 	IRQS_NMI		= 0x00002000,
++	IRQS_EDGE		= 0x00004000,
+ };
+ 
+ #include "debug.h"
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index b17f20ff05f1..96412030928f 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -910,6 +910,12 @@ static inline void incr_irq_kstat(struct irq_desc *desc)
+ 		kstat_incr_irqs_this_cpu(desc);
+ }
+ 
++static inline bool is_active_edge_event(struct irq_desc *desc)
++{
++	return (desc->istate & IRQS_PENDING) &&
++		!irqd_irq_disabled(&desc->irq_data);
++}
++
+ bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off, oob */
+ {
+ 	struct irq_stage_data *oobd = this_oob_staged();
+@@ -956,7 +962,18 @@ bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off, oob */
+ 		return true;
+ 
+ 	set_stage_bit(STAGE_STALL_BIT, oobd);
+-	do_oob_irq(desc);
++
++	if (unlikely(desc->istate & IRQS_EDGE)) {
++		do {
++			if (is_active_edge_event(desc))  {
++				if (irqd_irq_masked(&desc->irq_data))
++					unmask_irq(desc);
++			}
++			do_oob_irq(desc);
++		} while (is_active_edge_event(desc));
++	} else
++		do_oob_irq(desc);
++
+ 	clear_stage_bit(STAGE_STALL_BIT, oobd);
+ 
+ 	/*
+-- 
+2.16.4
+

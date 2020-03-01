@@ -1,4 +1,4 @@
-From 00c91ff6cb104aeeff1483849e08f53c034541f3 Mon Sep 17 00:00:00 2001
+From 2ca04fdc656ebdb28b671ed78314f3dad0a6ec65 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 16:40:19 +0200
 Subject: [PATCH] x86: irq_pipeline: add IRQ pipeline core
@@ -806,7 +806,7 @@ index 3578ad248bc9..b4539cf53605 100644
  obj-$(CONFIG_EISA)		+= eisa.o
  obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
-index aa5495d0f478..6092af352ae3 100644
+index 08fb79f37793..234b7a6e8447 100644
 --- a/arch/x86/kernel/apic/apic.c
 +++ b/arch/x86/kernel/apic/apic.c
 @@ -271,10 +271,10 @@ void native_apic_icr_write(u32 low, u32 id)
@@ -881,7 +881,7 @@ index aa5495d0f478..6092af352ae3 100644
  	return 0;
  }
  
-@@ -1520,7 +1532,7 @@ static void apic_pending_intr_clear(void)
+@@ -1524,7 +1536,7 @@ static void apic_pending_intr_clear(void)
  		for (i = APIC_ISR_NR - 1; i >= 0; i--) {
  			value = apic_read(APIC_ISR + i*0x10);
  			for_each_set_bit(j, &value, 32) {
@@ -890,7 +890,7 @@ index aa5495d0f478..6092af352ae3 100644
  				acked++;
  			}
  		}
-@@ -2128,7 +2140,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
+@@ -2132,7 +2144,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
  	if (v & (1 << (vector & 0x1f))) {
  		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Acked\n",
  			vector, smp_processor_id());
@@ -899,7 +899,7 @@ index aa5495d0f478..6092af352ae3 100644
  	} else {
  		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Not pending!\n",
  			vector, smp_processor_id());
-@@ -2162,7 +2174,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
+@@ -2166,7 +2178,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
  	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
  		apic_write(APIC_ESR, 0);
  	v = apic_read(APIC_ESR);
@@ -956,7 +956,7 @@ index a5464b8b6c46..0247281d9265 100644
  	dmode = (vector == NMI_VECTOR) ? APIC_DM_NMI : APIC_DM_FIXED;
  	numachip_apic_icr_write(apicid, dmode | vector);
 diff --git a/arch/x86/kernel/apic/io_apic.c b/arch/x86/kernel/apic/io_apic.c
-index c7bb6c69f21c..ef4825272fa1 100644
+index d6af97fd170a..c0859a80366f 100644
 --- a/arch/x86/kernel/apic/io_apic.c
 +++ b/arch/x86/kernel/apic/io_apic.c
 @@ -78,7 +78,7 @@

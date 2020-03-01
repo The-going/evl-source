@@ -1,0 +1,26 @@
+From 59f12956b80393d6793b98f83134f0e283a03939 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 1 Oct 2019 11:36:32 +0200
+Subject: [PATCH] ARM: irq_pipeline: convert to handle_irq_pipelined()
+
+---
+ arch/arm/kernel/irq.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm/kernel/irq.c b/arch/arm/kernel/irq.c
+index 30e83ee9d153..d50a12ab2bba 100644
+--- a/arch/arm/kernel/irq.c
++++ b/arch/arm/kernel/irq.c
+@@ -103,8 +103,7 @@ void __init init_IRQ(void)
+ asmlinkage int __exception_irq_entry
+ handle_arch_irq_pipelined(struct pt_regs *regs)
+ {
+-	handle_arch_irq(regs);
+-	return leave_irq_pipeline(regs);
++	return handle_irq_pipelined(regs);
+ }
+ #endif
+ 
+-- 
+2.16.4
+
