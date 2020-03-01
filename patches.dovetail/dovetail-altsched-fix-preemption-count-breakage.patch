@@ -1,4 +1,4 @@
-From 774a4f79fa581548346e0c2a752bfdb35c2c3adf Mon Sep 17 00:00:00 2001
+From 584aa61af9949885fbd5d2fc762d3358f550ceef Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 17 Aug 2019 14:47:25 +0200
 Subject: [PATCH] dovetail: altsched: fix preemption count breakage
@@ -25,10 +25,10 @@ when the converse transition happened at some point before.
  1 file changed, 34 insertions(+), 5 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 32d7ac917061..62e32ef223d2 100644
+index 7956d875f297..6fb1e78b39d7 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8043,6 +8043,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8052,6 +8052,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  {
  	struct task_struct *next, *prev, *last;
  	struct mm_struct *prev_mm, *next_mm;
@@ -36,7 +36,7 @@ index 32d7ac917061..62e32ef223d2 100644
  	bool inband = false;
  
  	if (leave_inband) {
-@@ -8088,6 +8089,31 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8097,6 +8098,31 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  		out->active_mm = NULL;
  	}
  
@@ -68,7 +68,7 @@ index 32d7ac917061..62e32ef223d2 100644
  	switch_to(prev, next, last);
  	barrier();
  
-@@ -8103,13 +8129,16 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8112,13 +8138,16 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  	 * level as/if required.
  	 */
  	if (unlikely(!leave_inband && !test_thread_local_flags(_TLF_OOB))) {

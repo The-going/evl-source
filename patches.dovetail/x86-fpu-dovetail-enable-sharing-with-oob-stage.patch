@@ -1,4 +1,4 @@
-From 9dd6337788bd720501cbb16fc582ee758c97f18e Mon Sep 17 00:00:00 2001
+From 9bd799dac7c11258191956dc3b77124e7ce80fc5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 May 2019 08:39:26 +0200
 Subject: [PATCH] x86/fpu: dovetail: enable sharing with oob stage
@@ -553,10 +553,10 @@ index 0071b794ed19..528f88eee96f 100644
  err_out:
  	if (ret)
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 661e2bf38526..a8cf9c3afdcc 100644
+index ff395f812719..99795b3573b0 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -8410,7 +8410,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
+@@ -8411,7 +8411,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
  /* Swap (qemu) user FPU context for the guest FPU context. */
  static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  {
@@ -567,7 +567,7 @@ index 661e2bf38526..a8cf9c3afdcc 100644
  
  	copy_fpregs_to_fpstate(vcpu->arch.user_fpu);
  	/* PKRU is separately restored in kvm_x86_ops->run.  */
-@@ -8418,7 +8420,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8419,7 +8421,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  				~XFEATURE_MASK_PKRU);
  
  	fpregs_mark_activate();
@@ -576,7 +576,7 @@ index 661e2bf38526..a8cf9c3afdcc 100644
  
  	trace_kvm_fpu(1);
  }
-@@ -8426,13 +8428,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8427,13 +8429,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  /* When vcpu_run ends, restore user space FPU context. */
  static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
  {

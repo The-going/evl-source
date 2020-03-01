@@ -1,4 +1,4 @@
-From da8bee13661da25f93fe79f6d4c563b0c04df444 Mon Sep 17 00:00:00 2001
+From fc38707476144c8605d415e110ab1db47cf57066 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 17:16:22 +0100
 Subject: [PATCH] ARM: dovetail: route syscalls and traps to co-kernel
@@ -171,7 +171,7 @@ index 324352787aea..0c484dcae91b 100644
  	return 0;
  }
 diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
-index 8cf071f96c11..d1b9e5afefd5 100644
+index 239e761296dc..760d021fcf72 100644
 --- a/arch/arm/mm/alignment.c
 +++ b/arch/arm/mm/alignment.c
 @@ -19,6 +19,7 @@
@@ -182,7 +182,7 @@ index 8cf071f96c11..d1b9e5afefd5 100644
  
  #include <asm/cp15.h>
  #include <asm/system_info.h>
-@@ -782,6 +783,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -812,6 +813,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  	if (interrupts_enabled(regs))
  		hard_local_irq_enable();
  
@@ -192,7 +192,7 @@ index 8cf071f96c11..d1b9e5afefd5 100644
  
  	if (thumb_mode(regs)) {
 diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index 63468bf4388b..d04432db8645 100644
+index ceab2acbb83f..f4fa74133d22 100644
 --- a/arch/arm/mm/fault.c
 +++ b/arch/arm/mm/fault.c
 @@ -23,11 +23,18 @@

@@ -1,4 +1,4 @@
-From 9a543d1454ef1d4bbc9e152bff66471387feca32 Mon Sep 17 00:00:00 2001
+From 80fe897cca82ca0a5ced7d1d8b679ec96962b56a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 11 May 2019 15:41:29 +0200
 Subject: [PATCH] sched: dovetail: add switch prepare/finish handlers
@@ -16,10 +16,10 @@ dovetail_context_switch().
  1 file changed, 7 insertions(+), 4 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index b8b914395391..0fb8c84b206b 100644
+index 8a32d762ce47..f0338c76ebc1 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -8016,6 +8016,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8025,6 +8025,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  {
  	struct task_struct *next, *prev, *last;
  	struct mm_struct *prev_mm, *next_mm;
@@ -27,7 +27,7 @@ index b8b914395391..0fb8c84b206b 100644
  
  	if (leave_inband) {
  		struct task_struct *tsk = current;
-@@ -8031,6 +8032,8 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8040,6 +8041,8 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  			oob_notify_kvm();
  	}
  
@@ -36,7 +36,7 @@ index b8b914395391..0fb8c84b206b 100644
  	next = in->task;
  	prev = out->task;
  	prev_mm = out->active_mm;
-@@ -8063,8 +8066,6 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8072,8 +8075,6 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  	if (check_hard_irqs_disabled())
  		hard_irqs_disabled();
  
@@ -45,7 +45,7 @@ index b8b914395391..0fb8c84b206b 100644
  	/*
  	 * If we entered this routine for switching to an out-of-band
  	 * task but don't have _TLF_OOB set for the current context
-@@ -8079,10 +8080,12 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+@@ -8088,10 +8089,12 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
  				!(preempt_count() & STAGE_MASK));
  			preempt_count_sub(STAGE_OFFSET);
  		}

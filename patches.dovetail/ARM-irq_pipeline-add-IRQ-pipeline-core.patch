@@ -1,4 +1,4 @@
-From 5854492af72363fb229bdd302c482f4d3ff2205a Mon Sep 17 00:00:00 2001
+From e69ceea41da1625742218d06aab984c92976ffdf Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Oct 2016 12:48:34 +0200
 Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
@@ -901,11 +901,11 @@ index c053abd1fb53..e48a85f03ea1 100644
  void register_undef_hook(struct undef_hook *hook)
  {
 diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
-index 04b36436cbc0..8cf071f96c11 100644
+index 788c5cf46de5..239e761296dc 100644
 --- a/arch/arm/mm/alignment.c
 +++ b/arch/arm/mm/alignment.c
-@@ -780,7 +780,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
- 	int thumb2_32b = 0;
+@@ -810,7 +810,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	int fault;
  
  	if (interrupts_enabled(regs))
 -		local_irq_enable();
@@ -913,7 +913,7 @@ index 04b36436cbc0..8cf071f96c11 100644
  
  	instrptr = instruction_pointer(regs);
  
-@@ -961,7 +961,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -989,7 +989,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  		 * entry-common.S) and disable the alignment trap only if
  		 * there is no work pending for this thread.
  		 */

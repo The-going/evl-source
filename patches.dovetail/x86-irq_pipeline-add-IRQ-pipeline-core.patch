@@ -1,4 +1,4 @@
-From d8d3787a9b44a82614bb90283190e78da218b1cb Mon Sep 17 00:00:00 2001
+From 7d817a43b9c503fc2420f6f2e5a484b9a3ed4fa0 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 16:40:19 +0200
 Subject: [PATCH] x86: irq_pipeline: add IRQ pipeline core
@@ -841,7 +841,7 @@ index 3578ad248bc9..b4539cf53605 100644
  obj-$(CONFIG_EISA)		+= eisa.o
  obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
 diff --git a/arch/x86/kernel/apic/apic.c b/arch/x86/kernel/apic/apic.c
-index 9e2dd2b296cd..c9f25985f7a3 100644
+index 2b0faf86da1b..f67813136f20 100644
 --- a/arch/x86/kernel/apic/apic.c
 +++ b/arch/x86/kernel/apic/apic.c
 @@ -271,10 +271,10 @@ void native_apic_icr_write(u32 low, u32 id)
@@ -925,7 +925,7 @@ index 9e2dd2b296cd..c9f25985f7a3 100644
  		return true;
  	}
  
-@@ -2174,7 +2186,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
+@@ -2176,7 +2188,7 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
  	if (v & (1 << (vector & 0x1f))) {
  		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Acked\n",
  			vector, smp_processor_id());
@@ -934,7 +934,7 @@ index 9e2dd2b296cd..c9f25985f7a3 100644
  	} else {
  		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Not pending!\n",
  			vector, smp_processor_id());
-@@ -2208,7 +2220,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
+@@ -2210,7 +2222,7 @@ __visible void __irq_entry smp_error_interrupt(struct pt_regs *regs)
  	if (lapic_get_maxlvt() > 3)	/* Due to the Pentium erratum 3AP. */
  		apic_write(APIC_ESR, 0);
  	v = apic_read(APIC_ESR);
@@ -1338,7 +1338,7 @@ index 2c5676b0a6e7..c8ab1608177b 100644
  }
  #endif /* HOTPLUG_CPU */
 diff --git a/arch/x86/kernel/apic/x2apic_cluster.c b/arch/x86/kernel/apic/x2apic_cluster.c
-index 45e92cba92f5..52189535fb0b 100644
+index b0889c48a2ac..0e1126a7320c 100644
 --- a/arch/x86/kernel/apic/x2apic_cluster.c
 +++ b/arch/x86/kernel/apic/x2apic_cluster.c
 @@ -42,7 +42,7 @@ __x2apic_send_IPI_mask(const struct cpumask *mask, int vector, int apic_dest)
@@ -2234,7 +2234,7 @@ index 4bb0f8447112..5279d6438f99 100644
  
  	if (notify_die(DIE_TRAP, "iret exception", regs, error_code,
 diff --git a/arch/x86/kernel/tsc.c b/arch/x86/kernel/tsc.c
-index c59454c382fd..82b86d370b28 100644
+index 7e322e2daaf5..07ee274ba8a9 100644
 --- a/arch/x86/kernel/tsc.c
 +++ b/arch/x86/kernel/tsc.c
 @@ -124,8 +124,11 @@ static void __set_cyc2ns_scale(unsigned long khz, int cpu, unsigned long long ts
