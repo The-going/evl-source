@@ -1,0 +1,57 @@
+From 3e803ddde66b639b9b61d55abac9f3fdf2ba420a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 17:10:39 +0200
+Subject: [PATCH] evl/wait: remove evl_wait[_timeout]()
+
+For waiting for some condition to be fulfilled, the correct pattern is
+either:
+
+- evl_wait_event_timeout(wq, ..., condition);
+
+or its open coded form, as:
+
+- lock(wq);
+  if (!condition) {
+      do {
+         evl_add_wait_queue(wq);
+         unlock(wq);
+         ret = evl_wait_schedule();
+	 lock(wq);
+      } while (!ret && !condition);
+  }
+  unlock(wq);
+
+evl_wait() and evl_wait_timeout() are constructs which do not allow to
+reschedule locklessly while preventing wake up signals to be missed,
+so there is no point in keeping them.
+---
+ include/evl/wait.h | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index d51ca77665da..03108ab70a10 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -67,19 +67,6 @@ struct evl_wait_queue {
+ 	__ret;								\
+ })
+ 
+-#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
+-({									\
+-	unsigned long __flags;						\
+-									\
+-	no_ugly_lock();							\
+-	xnlock_get_irqsave(&nklock, __flags);				\
+-	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
+-	xnlock_put_irqrestore(&nklock, __flags);			\
+-	evl_wait_schedule();						\
+-})
+-
+-#define evl_wait(__wq)	evl_wait_timeout(__wq, EVL_INFINITE, EVL_REL)
+-
+ #define evl_wait_event_timeout(__wq, __timeout, __timeout_mode, __cond)	\
+ ({									\
+ 	int __ret = 0, __info = 0;					\
+-- 
+2.16.4
+

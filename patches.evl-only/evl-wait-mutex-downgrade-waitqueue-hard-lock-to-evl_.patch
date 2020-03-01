@@ -1,0 +1,96 @@
+From bc5b7cf7155168435b32d542d20006c7fbba66af Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 18:04:33 +0200
+Subject: [PATCH] evl/{wait, mutex}: downgrade waitqueue hard lock to
+ evl_spinlock_t
+
+Until the ugly nklock is totally phased out and replaced with per-rq
+hard locking, we need to nest it with wait queue locks as follows:
+
+spin_lock_irqsave(&wq->lock, outer_flags);
+  xnlock_get_irqsave(&nklock, inner_flags);
+  ...
+  xnlock_put_irqrestore(&nklock, inner_flags);
+spin_unlock_irqrestore(&wq->lock, outer_flags);
+
+The only way to maintain the consistency of the interrupt state in
+such a pattern is to resort to using evl_spinlock_t for protecting
+waitqueues (see details in evl/lock.h).
+---
+ include/evl/mutex.h | 4 ++--
+ include/evl/wait.h  | 4 ++--
+ kernel/evl/mutex.c  | 2 +-
+ kernel/evl/wait.c   | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 8f9bd4b924ab..0a001a98835f 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -31,7 +31,7 @@ struct evl_mutex {
+ 	struct evl_clock *clock;
+ 	atomic_t *fastlock;
+ 	u32 *ceiling_ref;
+-	hard_spinlock_t lock;
++	evl_spinlock_t lock;
+ 	struct evl_wait_channel wchan;
+ 	struct list_head next_booster; /* thread->boosters */
+ 	struct list_head next_tracker;   /* thread->trackers */
+@@ -92,7 +92,7 @@ struct evl_kmutex {
+ 			.wprio = -1,					\
+ 			.ceiling_ref = NULL,				\
+ 			.clock = &evl_mono_clock,			\
+-			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock), \
++			.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock), \
+ 			.wchan = {					\
+ 				.abort_wait = evl_abort_mutex_wait,	\
+ 				.reorder_wait = evl_reorder_mutex_wait,	\
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 03108ab70a10..1a94d47183fd 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -26,13 +26,13 @@ struct evl_wait_queue {
+ 	int flags;
+ 	struct evl_clock *clock;
+ 	struct evl_wait_channel wchan;
+-	hard_spinlock_t lock;
++	evl_spinlock_t lock;
+ };
+ 
+ #define EVL_WAIT_INITIALIZER(__name) {					\
+ 		.flags = EVL_WAIT_PRIO,					\
+ 		.clock = &evl_mono_clock,				\
+-		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
++		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
+ 		.wchan = {						\
+ 			.abort_wait = evl_abort_wait,			\
+ 			.reorder_wait = evl_reorder_wait,		\
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 13d8420867b7..bb8787bc8ba3 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -377,7 +377,7 @@ static void init_mutex(struct evl_mutex *mutex,
+ 	mutex->wchan.abort_wait = evl_abort_mutex_wait;
+ 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
+ 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
+-	raw_spin_lock_init(&mutex->lock);
++	evl_spin_lock_init(&mutex->lock);
+ }
+ 
+ void evl_init_mutex_pi(struct evl_mutex *mutex,
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index cd76f88a24dc..5b16b7946a5a 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -18,7 +18,7 @@ void evl_init_wait(struct evl_wait_queue *wq,
+ 	no_ugly_lock();
+ 	wq->flags = flags;
+ 	wq->clock = clock;
+-	raw_spin_lock_init(&wq->lock);
++	evl_spin_lock_init(&wq->lock);
+ 	wq->wchan.abort_wait = evl_abort_wait;
+ 	wq->wchan.reorder_wait = evl_reorder_wait;
+ 	INIT_LIST_HEAD(&wq->wchan.wait_list);
+-- 
+2.16.4
+

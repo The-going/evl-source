@@ -1,0 +1,58 @@
+From 2532e6c50816ed66f633be0e92ac4cdb441e64ce Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 23 Oct 2019 12:14:23 +0200
+Subject: [PATCH] evl/ksem: convert to per-waitqueue lock
+
+---
+ include/evl/sem.h | 2 +-
+ kernel/evl/sem.c  | 9 ++++-----
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/include/evl/sem.h b/include/evl/sem.h
+index 99bec2d587f4..2db96de9530a 100644
+--- a/include/evl/sem.h
++++ b/include/evl/sem.h
+@@ -25,7 +25,7 @@ struct evl_ksem {
+ 
+ static inline void evl_init_ksem(struct evl_ksem *ksem, unsigned int value)
+ {
+-	*ksem = (struct evl_ksem)EVL_KSEM_INITIALIZER(*ksem, value);
++	evl_init_wait(&ksem->wait, &evl_mono_clock, EVL_WAIT_PRIO);
+ }
+ 
+ static inline void evl_destroy_ksem(struct evl_ksem *ksem)
+diff --git a/kernel/evl/sem.c b/kernel/evl/sem.c
+index 43c7b38d865c..ac7381e4fc09 100644
+--- a/kernel/evl/sem.c
++++ b/kernel/evl/sem.c
+@@ -39,9 +39,9 @@ int evl_trydown(struct evl_ksem *ksem)
+ 	unsigned long flags;
+ 	bool ret;
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
+ 	ret = down_ksem(ksem);
+-	xnlock_put_irqrestore(&nklock, flags);
++	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
+ 
+ 	return ret ? 0 : -EAGAIN;
+ }
+@@ -51,13 +51,12 @@ void evl_up(struct evl_ksem *ksem)
+ {
+ 	unsigned long flags;
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_spin_lock_irqsave(&ksem->wait.lock, flags);
+ 
+ 	if (!evl_wake_up_head(&ksem->wait))
+ 		ksem->value++;
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
+-
++	evl_spin_unlock_irqrestore(&ksem->wait.lock, flags);
+ 	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_up);
+-- 
+2.16.4
+

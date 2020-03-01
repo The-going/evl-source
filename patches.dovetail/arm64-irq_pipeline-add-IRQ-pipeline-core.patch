@@ -1,4 +1,4 @@
-From 3753ed861a945455984faa8e6fcb8d32d9b6bb4d Mon Sep 17 00:00:00 2001
+From 2ec86ac1aead55bf7b727da7561b6fa8b8e98ac7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 24 Aug 2017 19:39:20 +0200
 Subject: [PATCH] arm64: irq_pipeline: add IRQ pipeline core
@@ -26,10 +26,10 @@ Subject: [PATCH] arm64: irq_pipeline: add IRQ pipeline core
  create mode 100644 arch/arm64/kernel/irq_pipeline.c
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 41a9b4257b72..18799fb78343 100644
+index 3f047afb982c..ff64124236ca 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -152,6 +152,7 @@ config ARM64
+@@ -151,6 +151,7 @@ config ARM64
  	select HAVE_FUNCTION_GRAPH_TRACER
  	select HAVE_GCC_PLUGINS
  	select HAVE_HW_BREAKPOINT if PERF_EVENTS
@@ -412,7 +412,7 @@ index 478491f07b4f..7028bca90cc2 100644
  obj-$(CONFIG_HIBERNATION)		+= hibernate.o hibernate-asm.o
  obj-$(CONFIG_KEXEC_CORE)		+= machine_kexec.o relocate_kernel.o	\
 diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-index 84a822748c84..fb23b4e1b137 100644
+index cf3bd2976e57..0d61832e7578 100644
 --- a/arch/arm64/kernel/entry.S
 +++ b/arch/arm64/kernel/entry.S
 @@ -384,6 +384,21 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
@@ -504,7 +504,7 @@ index 84a822748c84..fb23b4e1b137 100644
  1:
  #endif
  
-@@ -939,13 +971,24 @@ el0_irq_naked:
+@@ -940,13 +972,24 @@ el0_irq_naked:
  1:
  #endif
  	irq_handler
@@ -532,7 +532,7 @@ index 84a822748c84..fb23b4e1b137 100644
  el1_error:
  	kernel_entry 1
  	mrs	x1, esr_el1
-@@ -979,6 +1022,7 @@ work_pending:
+@@ -980,6 +1023,7 @@ work_pending:
  #ifdef CONFIG_TRACE_IRQFLAGS
  	bl	trace_hardirqs_on		// enabled while in userspace
  #endif
@@ -540,7 +540,7 @@ index 84a822748c84..fb23b4e1b137 100644
  	ldr	x1, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
  	b	finish_ret_to_user
  /*
-@@ -987,6 +1031,12 @@ work_pending:
+@@ -988,6 +1032,12 @@ work_pending:
  ret_to_user:
  	disable_daif
  	gic_prio_kentry_setup tmp=x3
@@ -553,7 +553,7 @@ index 84a822748c84..fb23b4e1b137 100644
  	ldr	x1, [tsk, #TSK_TI_FLAGS]
  	and	x2, x1, #_TIF_WORK_MASK
  	cbnz	x2, work_pending
-@@ -1160,6 +1210,7 @@ NOKPROBE(cpu_switch_to)
+@@ -1163,6 +1213,7 @@ NOKPROBE(cpu_switch_to)
   * This is how we return from a fork.
   */
  ENTRY(ret_from_fork)
@@ -693,10 +693,10 @@ index 000000000000..b41b5ff52ac4
 +	do_domain_irq(irq, regs);
 +}
 diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index a47462def04b..fa8de3be57d9 100644
+index 71f788cd2b18..2a285dc3edd5 100644
 --- a/arch/arm64/kernel/process.c
 +++ b/arch/arm64/kernel/process.c
-@@ -121,7 +121,7 @@ void arch_cpu_idle(void)
+@@ -123,7 +123,7 @@ void arch_cpu_idle(void)
  	 */
  	trace_cpu_idle_rcuidle(1, smp_processor_id());
  	cpu_do_idle();
@@ -913,7 +913,7 @@ index 34739e80211b..2c38ec27c4bc 100644
  void register_undef_hook(struct undef_hook *hook)
  {
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 115d7a0e4b08..4a7c51c96200 100644
+index 9fc6db0bcbad..289dc642a241 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
 @@ -13,6 +13,7 @@
@@ -1001,7 +1001,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  static void data_abort_decode(unsigned int esr)
  {
  	pr_alert("Data abort info:\n");
-@@ -273,6 +344,8 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
+@@ -286,6 +357,8 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
  static void die_kernel_fault(const char *msg, unsigned long addr,
  			     unsigned int esr, struct pt_regs *regs)
  {
@@ -1010,7 +1010,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	bust_spinlocks(1);
  
  	pr_alert("Unable to handle kernel %s at virtual address %016lx\n", msg,
-@@ -381,11 +454,19 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
+@@ -394,11 +467,19 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
  	 */
  	if (user_mode(regs)) {
  		const struct fault_info *inf = esr_to_fault_info(esr);
@@ -1030,7 +1030,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  		__do_kernel_fault(addr, esr, regs);
  	}
  }
-@@ -441,11 +522,13 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -454,11 +535,13 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  	const struct fault_info *inf;
  	struct mm_struct *mm = current->mm;
  	vm_fault_t fault, major = 0;
@@ -1046,7 +1046,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  
  	/*
  	 * If we're in an interrupt or have no user context, we must not take
-@@ -519,7 +602,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -532,7 +615,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  		if (fatal_signal_pending(current)) {
  			if (!user_mode(regs))
  				goto no_context;
@@ -1055,7 +1055,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  		}
  
  		/*
-@@ -555,7 +638,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -568,7 +651,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  				      addr);
  		}
  
@@ -1064,7 +1064,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	}
  
  	/*
-@@ -572,7 +655,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -585,7 +668,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  		 * oom-killed).
  		 */
  		pagefault_out_of_memory();
@@ -1073,7 +1073,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	}
  
  	inf = esr_to_fault_info(esr);
-@@ -603,18 +686,22 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -616,18 +699,22 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  				      (void __user *)addr,
  				      inf->name);
  	}
@@ -1097,7 +1097,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	if (is_ttbr0_addr(addr))
  		return do_page_fault(addr, esr, regs);
  
-@@ -637,8 +724,11 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+@@ -650,8 +737,11 @@ static int do_bad(unsigned long addr, unsigned int esr, struct pt_regs *regs)
  static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
  {
  	const struct fault_info *inf;
@@ -1109,7 +1109,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	inf = esr_to_fault_info(esr);
  
  	/*
-@@ -653,6 +743,8 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+@@ -666,6 +756,8 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
  		siaddr  = (void __user *)addr;
  	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
  
@@ -1118,7 +1118,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	return 0;
  }
  
-@@ -727,10 +819,13 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+@@ -740,10 +832,13 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
  					 struct pt_regs *regs)
  {
  	const struct fault_info *inf = esr_to_fault_info(esr);
@@ -1132,7 +1132,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	if (!user_mode(regs)) {
  		pr_alert("Unhandled fault at 0x%016lx\n", addr);
  		mem_abort_decode(esr);
-@@ -739,11 +834,17 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+@@ -752,11 +847,17 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
  
  	arm64_notify_die(inf->name, regs,
  			 inf->sig, inf->code, (void __user *)addr, esr);
@@ -1151,7 +1151,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  	arm64_apply_bp_hardening();
  }
  
-@@ -768,14 +869,20 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
+@@ -781,14 +882,20 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
  					   unsigned int esr,
  					   struct pt_regs *regs)
  {
@@ -1172,7 +1172,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  }
  
  int __init early_brk64(unsigned long addr, unsigned int esr,
-@@ -892,6 +999,7 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
+@@ -905,6 +1012,7 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
  {
  	const struct fault_info *inf = esr_to_debug_fault_info(esr);
  	unsigned long pc = instruction_pointer(regs);
@@ -1180,7 +1180,7 @@ index 115d7a0e4b08..4a7c51c96200 100644
  
  	if (cortex_a76_erratum_1463225_debug_handler(regs))
  		return;
-@@ -901,11 +1009,15 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
+@@ -914,11 +1022,15 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
  	if (user_mode(regs) && !is_ttbr0_addr(pc))
  		arm64_apply_bp_hardening();
  

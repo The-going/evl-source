@@ -1,0 +1,50 @@
+From e4b874bede15b5efc675f4d30dca88a103126018 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 26 Oct 2019 15:54:33 +0200
+Subject: [PATCH] evl/sched: drop sched_yield service
+
+Manual round-robin is a relic from the dark ages, in most cases used
+to paper over an implementation issue, which eventually yields to
+sub-optimal scheduling or even disfunctioning systems. Drop this.
+---
+ include/evl/sched.h     |  2 --
+ kernel/evl/sched/core.c | 10 ----------
+ 2 files changed, 12 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index db3c74ec3094..ce2fd02803cc 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -541,8 +541,6 @@ evl_find_sched_class(union evl_sched_param *param,
+ 		     const struct evl_sched_attrs *attrs,
+ 		     ktime_t *tslice_r);
+ 
+-bool evl_sched_yield(void);
+-
+ int __init evl_init_sched(void);
+ 
+ void __init evl_cleanup_sched(void);
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 51a59dd794dd..3b406d9afa78 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -776,16 +776,6 @@ evl_find_sched_class(union evl_sched_param *param,
+ 	return sched_class;
+ }
+ 
+-bool evl_sched_yield(void)
+-{
+-	struct evl_thread *curr = evl_current();
+-
+-	evl_release_thread(curr, 0, 0);
+-
+-	return evl_schedule();
+-}
+-EXPORT_SYMBOL_GPL(evl_sched_yield);
+-
+ #ifdef CONFIG_TRACING
+ 
+ const char *evl_trace_sched_attrs(struct trace_seq *p,
+-- 
+2.16.4
+

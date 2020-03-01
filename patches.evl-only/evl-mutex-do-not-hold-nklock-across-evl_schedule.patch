@@ -1,0 +1,29 @@
+From 40904bfe31a3eb3895da1bd8588627fbf9ed2da1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 10:52:55 +0200
+Subject: [PATCH] evl/mutex: do not hold nklock across evl_schedule()
+
+We don't need so, provided that managing the mutex state and calling
+evl_sleep_on() appeared as a single atomically operation prior to
+rescheduling.
+---
+ kernel/evl/mutex.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index de7b378becc4..a06b66eb9cb6 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -587,7 +587,9 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 		list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
+ 
+ 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
++	xnlock_put_irqrestore(&nklock, flags);
+ 	evl_schedule();
++	xnlock_get_irqsave(&nklock, flags);
+ 	ret = curr->info & (T_RMID|T_TIMEO|T_BREAK);
+ 	curr->wwake = NULL;
+ 	curr->info &= ~T_WAKEN;
+-- 
+2.16.4
+

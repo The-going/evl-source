@@ -1,0 +1,25 @@
+From f95d6609192c9734be52476c5d019baef15133a4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 15:32:05 +0200
+Subject: [PATCH] evl/sched: assert __evl_schedule() call sites are nklock free
+
+---
+ kernel/evl/sched/core.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index dfd2cf027dd7..5f7ea5c07efc 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -633,6 +633,8 @@ bool __evl_schedule(struct evl_rq *this_rq)
+ 	struct evl_thread *prev, *next, *curr;
+ 	unsigned long flags;
+ 
++	no_ugly_lock();
++
+ 	trace_evl_schedule(this_rq);
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+-- 
+2.16.4
+

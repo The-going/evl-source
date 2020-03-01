@@ -1,0 +1,127 @@
+From e80bb92b44b984fa00b68059517b9ffb1b35576f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Nov 2019 19:12:24 +0100
+Subject: [PATCH] evl/thread: cleanup breakpoint trap identification
+
+---
+ arch/arm/include/asm/evl/thread.h   |  9 ++++-----
+ arch/arm64/include/asm/evl/thread.h |  9 ++++-----
+ arch/x86/include/asm/evl/thread.h   |  9 ++++-----
+ include/evl/thread.h                |  1 +
+ kernel/evl/thread.c                 | 16 +++++++++-------
+ 5 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/arch/arm/include/asm/evl/thread.h b/arch/arm/include/asm/evl/thread.h
+index bde236884c49..393aa65a461a 100644
+--- a/arch/arm/include/asm/evl/thread.h
++++ b/arch/arm/include/asm/evl/thread.h
+@@ -5,10 +5,9 @@
+ #ifndef _EVL_ARM_ASM_THREAD_H
+ #define _EVL_ARM_ASM_THREAD_H
+ 
+-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+-					 (__trapnr == ARM_TRAP_BREAK || \
+-					  (__trapnr) == ARM_TRAP_UNDEFINSTR))
+-
+-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
++static inline bool evl_is_breakpoint(int trapnr)
++{
++	return trapnr == ARM_TRAP_BREAK || trapnr == ARM_TRAP_UNDEFINSTR;
++}
+ 
+ #endif /* !_EVL_ARM_ASM_THREAD_H */
+diff --git a/arch/arm64/include/asm/evl/thread.h b/arch/arm64/include/asm/evl/thread.h
+index 78a7f77d7ebc..3939cdbd110e 100644
+--- a/arch/arm64/include/asm/evl/thread.h
++++ b/arch/arm64/include/asm/evl/thread.h
+@@ -2,10 +2,9 @@
+ #ifndef _EVL_ARM64_ASM_THREAD_H
+ #define _EVL_ARM64_ASM_THREAD_H
+ 
+-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+-					 (__trapnr == ARM64_TRAP_DEBUG || \
+-					  (__trapnr) == ARM64_TRAP_UNDI))
+-
+-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
++static inline bool evl_is_breakpoint(int trapnr)
++{
++	return trapnr == ARM64_TRAP_DEBUG || trapnr == ARM64_TRAP_UNDI;
++}
+ 
+ #endif /* !_EVL_ARM64_ASM_THREAD_H */
+diff --git a/arch/x86/include/asm/evl/thread.h b/arch/x86/include/asm/evl/thread.h
+index e07cb475e109..50c07d74f94e 100644
+--- a/arch/x86/include/asm/evl/thread.h
++++ b/arch/x86/include/asm/evl/thread.h
+@@ -4,10 +4,9 @@
+ 
+ #include <asm/traps.h>
+ 
+-#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+-					(__trapnr == X86_TRAP_DB ||	\
+-						(__trapnr) == X86_TRAP_BP))
+-
+-#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
++static inline bool evl_is_breakpoint(int trapnr)
++{
++	return trapnr == X86_TRAP_DB || trapnr == X86_TRAP_BP;
++}
+ 
+ #endif /* !_EVL_X86_ASM_THREAD_H */
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index f2c6013ee7af..707b46dcbc57 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -15,6 +15,7 @@
+ #include <linux/irq_work.h>
+ #include <linux/atomic.h>
+ #include <linux/spinlock.h>
++#include <linux/ptrace.h>
+ #include <evl/list.h>
+ #include <evl/lock.h>
+ #include <evl/stat.h>
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index d4f0cf23ee51..357234462d61 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1424,10 +1424,11 @@ static inline void note_trap(struct evl_thread *curr,
+ 			(void *)instruction_pointer(regs));
+ }
+ 
+-/* hard irqs off. */
++/* oob stalled. */
+ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ {
+ 	struct evl_thread *curr;
++	bool is_bp = false;
+ 
+ 	oob_context_only();
+ 
+@@ -1441,17 +1442,18 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 
+ 	trace_evl_thread_fault(trapnr, regs);
+ 
+-	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) &&
+-		xnarch_fault_notify(trapnr))
++	if (current->ptrace & PT_PTRACED)
++		is_bp = evl_is_breakpoint(trapnr);
++
++	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) && !is_bp)
+ 		note_trap(curr, trapnr, regs, "switching in-band");
+ 
+ 	/*
+ 	 * We received a trap on the oob stage, switch to in-band
+-	 * before handling the exception.
++	 * before handling the exception. Don't emit SIGDEBUG if the
++	 * fault was caused by a debugger breakpoint.
+ 	 */
+-	evl_switch_inband(xnarch_fault_notify(trapnr) ?
+-			SIGDEBUG_MIGRATE_FAULT :
+-			SIGDEBUG_NONE);
++	evl_switch_inband(is_bp ? SIGDEBUG_NONE : SIGDEBUG_MIGRATE_FAULT);
+ 
+ 	curr->local_info &= ~T_INFAULT;
+ }
+-- 
+2.16.4
+

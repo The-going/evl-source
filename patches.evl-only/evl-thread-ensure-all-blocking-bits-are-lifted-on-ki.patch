@@ -1,0 +1,115 @@
+From a60b5fcabc05c7bffe1d24f18471e00762d23e8c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 12 Oct 2019 12:10:06 +0200
+Subject: [PATCH] evl/thread: ensure all blocking bits are lifted on kick
+
+We must unblock _and_ release a thread which is being kicked out the
+out-of-band stage (*), since these conditions are cumulative. As a
+consequence, get rid of the pointless return value of
+evl_wakeup_thread() and evl_unblock_thread().
+
+(*) the additional round-robin effect we may get from
+evl_release_thread() for the kicked thread is a non-issue, since it is
+eventually going to switch inband anyway, so this is still correct
+priority-wise.
+---
+ include/evl/thread.h |  4 ++--
+ kernel/evl/thread.c  | 20 +++++---------------
+ 2 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 7188856d8ecc..55e8a7f5c9c8 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -231,7 +231,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_clock *clock,
+ 		struct evl_wait_channel *wchan);
+ 
+-bool evl_wakeup_thread(struct evl_thread *thread,
++void evl_wakeup_thread(struct evl_thread *thread,
+ 		int mask, int info);
+ 
+ void evl_hold_thread(struct evl_thread *thread,
+@@ -240,7 +240,7 @@ void evl_hold_thread(struct evl_thread *thread,
+ void evl_release_thread(struct evl_thread *thread,
+ 			int mask, int info);
+ 
+-bool evl_unblock_thread(struct evl_thread *thread,
++void evl_unblock_thread(struct evl_thread *thread,
+ 			int reason);
+ 
+ ktime_t evl_delay_thread(ktime_t timeout,
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index e87fb0e660bc..80ac6f7d7f28 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -541,14 +541,13 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+-bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
++void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ {
+ 	unsigned long oldstate, flags;
+ 	struct evl_rq *rq;
+-	bool ret = false;
+ 
+ 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
+-		return false;
++		return;
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+@@ -570,7 +569,6 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ 			abort_wait(thread);
+ 
+ 		thread->info |= info;
+-		ret = true;
+ 
+ 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
+ 			evl_enqueue_thread(thread);
+@@ -582,8 +580,6 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ 	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+-
+-	return ret;
+ }
+ 
+ void evl_hold_thread(struct evl_thread *thread, int mask)
+@@ -1267,7 +1263,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
+ 	}
+ }
+ 
+-bool evl_unblock_thread(struct evl_thread *thread, int reason)
++void evl_unblock_thread(struct evl_thread *thread, int reason)
+ {
+ 	no_ugly_lock();
+ 
+@@ -1285,7 +1281,7 @@ bool evl_unblock_thread(struct evl_thread *thread, int reason)
+ 	 * evl_wakeup_thread() guarantees this by updating the info
+ 	 * bits only if any of the mask bits is set.
+ 	 */
+-	return evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT, reason|T_BREAK);
++	evl_wakeup_thread(thread, T_DELAY|T_PEND|T_WAIT, reason|T_BREAK);
+ }
+ EXPORT_SYMBOL_GPL(evl_unblock_thread);
+ 
+@@ -1299,13 +1295,7 @@ void evl_kick_thread(struct evl_thread *thread)
+ 	if (thread->state & T_INBAND) /* nop? */
+ 		return;
+ 
+-	/*
+-	 * First, try to kick the thread out of any blocking syscall
+-	 * EVL-wise. If that succeeds, then the thread will switch to
+-	 * in-band context on its return path to user-space.
+-	 */
+-	if (evl_unblock_thread(thread, T_KICKED))
+-		return;
++	evl_unblock_thread(thread, T_KICKED);
+ 
+ 	/*
+ 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
+-- 
+2.16.4
+

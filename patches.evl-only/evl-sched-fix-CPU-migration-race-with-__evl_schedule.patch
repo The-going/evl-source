@@ -1,0 +1,114 @@
+From 97bf36ab9d14c2ecd690a139998f1117271ce1c3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 26 Oct 2019 16:05:16 +0200
+Subject: [PATCH] evl/sched: fix CPU migration race with __evl_schedule()
+
+We cannot use the rq determined by evl_schedule() in its inner helper,
+since a migration might have taken place if the former was called from
+inband context. Re-fetch the current rq pointer in __evl_schedule()
+instead.
+---
+ include/evl/sched.h     | 14 ++++++++------
+ kernel/evl/sched/core.c | 15 +++++++--------
+ kernel/evl/thread.c     |  2 +-
+ 3 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index ce2fd02803cc..b34fcaaca410 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -256,9 +256,9 @@ static inline bool is_threading_cpu(int cpu)
+ 	for_each_online_cpu(cpu)	\
+ 		if (is_evl_cpu(cpu))
+ 
+-bool __evl_schedule(struct evl_rq *this_rq);
++void __evl_schedule(void);
+ 
+-static inline bool evl_schedule(void)
++static inline void evl_schedule(void)
+ {
+ 	struct evl_rq *this_rq = this_evl_rq();
+ 
+@@ -277,12 +277,14 @@ static inline bool evl_schedule(void)
+ 	 * an out-of-band interrupt, there is no coherence issue.
+ 	 */
+ 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
+-		return false;
++		return;
+ 
+-	if (running_oob())
+-		return __evl_schedule(this_rq);
++	if (likely(running_oob())) {
++		__evl_schedule();
++		return;
++	}
+ 
+-	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
++	run_oob_call((int (*)(void *))__evl_schedule, NULL);
+ }
+ 
+ static inline int evl_preempt_count(void)
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 3b406d9afa78..b5aae82d812e 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -627,14 +627,18 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+  * may not still be the current one. Use "current" for disambiguating
+  * if you need to refer to the underlying inband task.
+  */
+-bool __evl_schedule(struct evl_rq *this_rq)
++void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
+ {
+-	bool switched, leaving_inband, inband_tail;
++	struct evl_rq *this_rq = this_evl_rq();
+ 	struct evl_thread *prev, *next, *curr;
++	bool leaving_inband, inband_tail;
+ 	unsigned long flags;
+ 
+ 	no_ugly_lock();
+ 
++	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !oob_irqs_disabled()))
++		return;
++
+ 	trace_evl_schedule(this_rq);
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+@@ -655,7 +659,6 @@ bool __evl_schedule(struct evl_rq *this_rq)
+ 		}
+ 	}
+ 
+-	switched = false;
+ 	if (!test_resched(this_rq))
+ 		goto out;
+ 
+@@ -702,13 +705,9 @@ bool __evl_schedule(struct evl_rq *this_rq)
+ 	 *                               back from dovetail_context_switch()
+ 	 */
+ 	if (inband_tail)
+-		return true;
+-
+-	switched = true;
++		return;
+ out:
+ 	xnlock_put_irqrestore(&nklock, flags);
+-
+-	return switched;
+ }
+ EXPORT_SYMBOL_GPL(__evl_schedule);
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index b45de72b45fe..d260c022780e 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -725,7 +725,7 @@ void evl_switch_inband(int cause)
+ 	evl_set_resched(rq);
+ 	dovetail_leave_oob();
+ 	xnlock_put(&nklock);
+-	__evl_schedule(rq);
++	__evl_schedule();
+ 	oob_irq_enable();
+ 	dovetail_resume_inband();
+ 
+-- 
+2.16.4
+

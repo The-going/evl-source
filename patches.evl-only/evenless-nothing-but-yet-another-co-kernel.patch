@@ -1,4 +1,4 @@
-From ebfe5faf9ca4eb6b774b13ef3bc8ebb88cc4cd5f Mon Sep 17 00:00:00 2001
+From df2d727344fa96e1a5bd1759a784099567dc8b10 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 23 Apr 2017 11:48:58 +0200
 Subject: [PATCH] evenless: nothing but yet another co-kernel
@@ -416,10 +416,10 @@ index 000000000000..c1d7f37642fd
 +
 +#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 5fdb7086af71..a5ce497a98f0 100644
+index 4a2a4859a8f4..2d2fd7c8765f 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -133,6 +133,7 @@ config ARM64
+@@ -132,6 +132,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
@@ -427,7 +427,7 @@ index 5fdb7086af71..a5ce497a98f0 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1552,6 +1553,8 @@ config STACKPROTECTOR_PER_TASK
+@@ -1580,6 +1581,8 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -437,10 +437,10 @@ index 5fdb7086af71..a5ce497a98f0 100644
  
  config ARM64_ACPI_PARKING_PROTOCOL
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 84a3d502c5a5..2811ff9da857 100644
+index 2c0238ce0551..c3ef1476453b 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -107,6 +107,10 @@ endif
+@@ -91,6 +91,10 @@ endif
  
  CHECKFLAGS	+= -D__aarch64__
  

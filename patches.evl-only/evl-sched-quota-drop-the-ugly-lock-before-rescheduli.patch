@@ -1,0 +1,33 @@
+From 59c66c0810fac5535c2d91f2c6b0c49d304f7e6c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 31 Oct 2019 17:38:55 +0100
+Subject: [PATCH] evl/sched: quota: drop the ugly lock before rescheduling
+
+---
+ kernel/evl/sched/quota.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evl/sched/quota.c b/kernel/evl/sched/quota.c
+index 1b0a1a4e348f..d184afd797a1 100644
+--- a/kernel/evl/sched/quota.c
++++ b/kernel/evl/sched/quota.c
+@@ -612,7 +612,6 @@ static void quota_set_limit(struct evl_quota_group *tg,
+ 	 * group is currently running.
+ 	 */
+ 	evl_set_resched(tg->rq);
+-	evl_schedule();
+ }
+ 
+ static struct evl_quota_group *
+@@ -710,6 +709,8 @@ static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 	iq->quota_sum = quota_sum;
+ 
++	evl_schedule();
++
+ 	return 0;
+ bad_tgid:
+ 	xnlock_put_irqrestore(&nklock, flags);
+-- 
+2.16.4
+

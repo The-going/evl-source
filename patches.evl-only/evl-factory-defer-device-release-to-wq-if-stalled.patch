@@ -1,0 +1,33 @@
+From a13a6c142b771ffd723e9e59ab7109fc5a8099bc Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 30 Oct 2019 17:12:36 +0100
+Subject: [PATCH] evl/factory: defer device release to wq if stalled
+
+We may not use the inband infrastructure when the out-of-band stage is
+stalled. If oob is stalled upon release of the last reference to an
+element, defer the device cleanup via the workqueue trampoline.
+---
+ kernel/evl/factory.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evl/factory.c b/kernel/evl/factory.c
+index 3a4d99f496f5..632cfb3370ac 100644
+--- a/kernel/evl/factory.c
++++ b/kernel/evl/factory.c
+@@ -179,11 +179,11 @@ static void put_element(struct evl_element *e)
+ 	 * These trampolines may look like a bit cheesy but we have no
+ 	 * choice but offloading the disposal to an in-band task
+ 	 * context. In (the rare) case the last ref. to an element was
+-	 * dropped from OOB context, we need to go via an
++	 * dropped from OOB(-protected) context, we need to go via an
+ 	 * irq_work->workqueue chain in order to run __put_element()
+ 	 * eventually.
+ 	 */
+-	if (unlikely(running_oob())) {
++	if (unlikely(running_oob() || oob_irqs_disabled())) {
+ 		init_irq_work(&e->irq_work, put_element_irq);
+ 		irq_work_queue(&e->irq_work);
+ 	} else
+-- 
+2.16.4
+

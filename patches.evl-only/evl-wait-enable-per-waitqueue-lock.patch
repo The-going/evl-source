@@ -1,0 +1,1342 @@
+From 64d10f991cd13cf922c0b8ee399ffc8745e34a7b Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 21:44:06 +0200
+Subject: [PATCH] evl/wait: enable per-waitqueue lock
+
+Get rid of the ugly big lock for protecting access to wait queues,
+using a per-waitqueue lock instead. The valid locking order is
+waitqueue lock first (outer), ugly lock next (innermost).
+
+Next step should get rid of the ugly lock for protecting the mutex
+core code as well.
+---
+ include/evl/flag.h   |  28 ++++--
+ include/evl/poll.h   |   2 +-
+ include/evl/sched.h  |   1 -
+ include/evl/thread.h |   4 +-
+ include/evl/wait.h   |  28 ++++--
+ kernel/evl/monitor.c | 125 +++++++++++++++---------
+ kernel/evl/mutex.c   |  49 ++++++++--
+ kernel/evl/poll.c    |   8 +-
+ kernel/evl/proxy.c   |   5 +-
+ kernel/evl/wait.c    |  42 ++++----
+ kernel/evl/xbuf.c    | 264 +++++++++++++++++++++++++--------------------------
+ 11 files changed, 324 insertions(+), 232 deletions(-)
+
+diff --git a/include/evl/flag.h b/include/evl/flag.h
+index aa6510c19aa4..119c61125c04 100644
+--- a/include/evl/flag.h
++++ b/include/evl/flag.h
+@@ -25,7 +25,8 @@ struct evl_flag {
+ 
+ static inline void evl_init_flag(struct evl_flag *wf)
+ {
+-	*wf = (struct evl_flag)EVL_FLAG_INITIALIZER(*wf);
++	evl_init_wait(&wf->wait, &evl_mono_clock, EVL_WAIT_PRIO);
++	wf->raised = false;
+ }
+ 
+ static inline void evl_destroy_flag(struct evl_flag *wf)
+@@ -43,6 +44,12 @@ static inline bool evl_read_flag(struct evl_flag *wf)
+ 	return false;
+ }
+ 
++#define evl_lock_flag(__wf, __flags)		\
++	evl_spin_lock_irqsave(&(__wf)->wait.lock, __flags)
++
++#define evl_unlock_flag(__wf, __flags)		\
++	evl_spin_unlock_irqrestore(&(__wf)->wait.lock, __flags)
++
+ static inline
+ int evl_wait_flag_timeout(struct evl_flag *wf,
+ 			ktime_t timeout, enum evl_tmode timeout_mode)
+@@ -56,12 +63,13 @@ static inline int evl_wait_flag(struct evl_flag *wf)
+ 	return evl_wait_flag_timeout(wf, EVL_INFINITE, EVL_REL);
+ }
+ 
+-static inline			/* nklock held. */
+-struct evl_thread *evl_wait_flag_head(struct evl_flag *wf)
++/* wf->wait.lock held, irqs off */
++static inline struct evl_thread *evl_wait_flag_head(struct evl_flag *wf)
+ {
+ 	return evl_wait_head(&wf->wait);
+ }
+ 
++/* wf->wait.lock held, irqs off */
+ static inline void evl_raise_flag_locked(struct evl_flag *wf)
+ {
+ 	wf->raised = true;
+@@ -73,9 +81,9 @@ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
+ 	unsigned long flags;
+ 
+ 	/* no_ugly_lock() */
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_lock_flag(wf, flags);
+ 	evl_raise_flag_locked(wf);
+-	xnlock_put_irqrestore(&nklock, flags);
++	evl_unlock_flag(wf, flags);
+ }
+ 
+ static inline void evl_raise_flag(struct evl_flag *wf)
+@@ -84,6 +92,7 @@ static inline void evl_raise_flag(struct evl_flag *wf)
+ 	evl_schedule();
+ }
+ 
++/* wf->wait.lock held, irqs off */
+ static inline void evl_pulse_flag_locked(struct evl_flag *wf)
+ {
+ 	evl_flush_wait_locked(&wf->wait, T_BCAST);
+@@ -94,9 +103,9 @@ static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
+ 	unsigned long flags;
+ 
+ 	no_ugly_lock();
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_lock_flag(wf, flags);
+ 	evl_pulse_flag_locked(wf);
+-	xnlock_put_irqrestore(&nklock, flags);
++	evl_unlock_flag(wf, flags);
+ }
+ 
+ static inline void evl_pulse_flag(struct evl_flag *wf)
+@@ -105,6 +114,7 @@ static inline void evl_pulse_flag(struct evl_flag *wf)
+ 	evl_schedule();
+ }
+ 
++/* wf->wait.lock held, irqs off */
+ static inline void evl_flush_flag_locked(struct evl_flag *wf, int reason)
+ {
+ 	evl_flush_wait_locked(&wf->wait, reason);
+@@ -115,9 +125,9 @@ static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
+ 	unsigned long flags;
+ 
+ 	no_ugly_lock();
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_lock_flag(wf, flags);
+ 	evl_flush_flag_locked(wf, reason);
+-	xnlock_put_irqrestore(&nklock, flags);
++	evl_unlock_flag(wf, flags);
+ }
+ 
+ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
+diff --git a/include/evl/poll.h b/include/evl/poll.h
+index d0439f42f9b2..522229a3559a 100644
+--- a/include/evl/poll.h
++++ b/include/evl/poll.h
+@@ -21,7 +21,7 @@ struct file;
+ 
+ #define EVL_POLLHEAD_INITIALIZER(__name) {				\
+ 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
+-		lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
++		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
+ 	}
+ 
+ struct evl_poll_head {
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 50d526830d5f..db3c74ec3094 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -12,7 +12,6 @@
+ #include <linux/list.h>
+ #include <evl/lock.h>
+ #include <evl/thread.h>
+-#include <evl/wait.h>
+ #include <evl/sched/queue.h>
+ #include <evl/sched/weak.h>
+ #include <evl/sched/quota.h>
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 226b32f6f960..3a41cc2341bc 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -96,8 +96,8 @@ struct evl_thread {
+ 	 *
+ 	 * - they require immediate priority ceiling (EVL_MUTEX_PP).
+ 	 *
+-	 * This list is ordered by decreasing (weighted) thread
+-	 * priorities.
++	 * This list is ordered by decreasing (weighted) priorities of
++	 * waiters.
+ 	 */
+ 	struct list_head boosters;
+ 
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 4d6bef86e8a2..cf935723ec76 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -56,7 +56,7 @@ struct evl_wait_queue {
+ 	unsigned long __flags;						\
+ 									\
+ 	no_ugly_lock();							\
+-	xnlock_get_irqsave(&nklock, __flags);				\
++	evl_spin_lock_irqsave(&(__wq)->lock, __flags);			\
+ 	if (!(__cond)) {						\
+ 		if (timeout_nonblock(__timeout))			\
+ 			__ret = -EAGAIN;				\
+@@ -64,14 +64,14 @@ struct evl_wait_queue {
+ 			do {						\
+ 				evl_add_wait_queue(__wq, __timeout,	\
+ 						__timeout_mode);	\
+-				xnlock_put_irqrestore(&nklock, __flags); \
+-				__ret = evl_wait_schedule();		\
++				evl_spin_unlock_irqrestore(&(__wq)->lock, __flags); \
++				__ret = evl_wait_schedule(__wq);	\
+ 				__bcast = evl_current()->info & T_BCAST; \
+-				xnlock_get_irqsave(&nklock, __flags);	\
++				evl_spin_lock_irqsave(&(__wq)->lock, __flags); \
+ 			} while (!__ret && !__bcast && !(__cond));	\
+ 		}							\
+ 	}								\
+-	xnlock_put_irqrestore(&nklock, __flags);			\
++	evl_spin_unlock_irqrestore(&(__wq)->lock, __flags);		\
+ 	__ret;								\
+ })
+ 
+@@ -82,25 +82,33 @@ void evl_add_wait_queue(struct evl_wait_queue *wq,
+ 			ktime_t timeout,
+ 			enum evl_tmode timeout_mode);
+ 
+-int evl_wait_schedule(void);
++int evl_wait_schedule(struct evl_wait_queue *wq);
+ 
+ static inline bool evl_wait_active(struct evl_wait_queue *wq)
+ {
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 	return !list_empty(&wq->wchan.wait_list);
+ }
+ 
+ static inline
+ struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
+ {
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 	return list_first_entry_or_null(&wq->wchan.wait_list,
+ 					struct evl_thread, wait_next);
+ }
+ 
+-void evl_init_wait(struct evl_wait_queue *wq,
++void __evl_init_wait(struct evl_wait_queue *wq,
+ 		struct evl_clock *clock,
+-		int flags);
++		int flags,
++		const char *name,
++		struct lock_class_key *key);
++
++#define evl_init_wait(__wq, __clock, __flags)				\
++	do {								\
++		static struct lock_class_key __key;			\
++		__evl_init_wait(__wq, __clock, __flags, #__wq, &__key); \
++	} while (0)
+ 
+ void evl_destroy_wait(struct evl_wait_queue *wq);
+ 
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 8dce3de0cae9..9f2f7866ed8d 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -30,8 +30,9 @@ struct evl_monitor {
+ 	    protocol : 4;
+ 	union {
+ 		struct {
+-			struct evl_mutex lock;
++			struct evl_mutex mutex;
+ 			struct list_head events;
++			evl_spinlock_t lock;
+ 		};
+ 		struct {
+ 			struct evl_wait_queue wait_queue;
+@@ -73,20 +74,20 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
+ 		goto out;
+ 	}
+ 
+-	xnlock_get_irqsave(&nklock, flags);
+-
+ 	/*
+ 	 * Current ought to hold the gate lock before calling us; if
+ 	 * not, we might race updating the state flags, possibly
+ 	 * loosing events. Too bad.
+ 	 */
+ 	if (target->wchan == &event->wait_queue.wchan) {
+-		target->info |= T_SIGNAL;
++		xnlock_get_irqsave(&nklock, flags);
++		target->info |= T_SIGNAL; /* CAUTION: depends on nklock held ATM */
++		xnlock_put_irqrestore(&nklock, flags);
++		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
+ 		event->state->flags |= (EVL_MONITOR_TARGETED|
+ 					EVL_MONITOR_SIGNALED);
++		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+ 	}
+-
+-	xnlock_put_irqrestore(&nklock, flags);
+ out:
+ 	evl_put_file(efilp);
+ 
+@@ -111,14 +112,15 @@ void __evl_commit_monitor_ceiling(void)
+ 		goto out;
+ 
+ 	if (gate->protocol == EVL_GATE_PP)
+-		evl_commit_mutex_ceiling(&gate->lock);
++		evl_commit_mutex_ceiling(&gate->mutex);
+ 
+ 	evl_put_element(&gate->element);
+ out:
+ 	curr->u_window->pp_pending = EVL_NO_HANDLE;
+ }
+ 
+-static void untrack_event(struct evl_monitor *event)
++/* event->gate->lock and event->wait_queue.lock held, irqs off */
++static void __untrack_event(struct evl_monitor *event)
+ {
+ 	/*
+ 	 * If no more waiter is pending on this event, have the gate
+@@ -131,7 +133,19 @@ static void untrack_event(struct evl_monitor *event)
+ 	}
+ }
+ 
+-/* nklock held, irqs off */
++static void untrack_event(struct evl_monitor *event)
++{
++	struct evl_monitor *gate = event->gate;
++	unsigned long flags;
++
++	evl_spin_lock_irqsave(&gate->lock, flags);
++	evl_spin_lock(&event->wait_queue.lock);
++	__untrack_event(event);
++	evl_spin_unlock(&event->wait_queue.lock);
++	evl_spin_unlock_irqrestore(&gate->lock, flags);
++}
++
++/* event->gate->lock and event->wait_queue.lock held, irqs off */
+ static void wakeup_waiters(struct evl_monitor *event)
+ {
+ 	struct evl_monitor_state *state = event->state;
+@@ -172,7 +186,7 @@ static void wakeup_waiters(struct evl_monitor *event)
+ 		} else
+ 			evl_wake_up_head(&event->wait_queue);
+ 
+-		untrack_event(event);
++		__untrack_event(event);
+ 	} /* Otherwise, spurious wakeup (fine, might happen). */
+ 
+ 	state->flags &= ~(EVL_MONITOR_SIGNALED|
+@@ -196,7 +210,7 @@ static int __enter_monitor(struct evl_monitor *gate,
+ 
+ 	tmode = timeout ? EVL_ABS : EVL_REL;
+ 
+-	return evl_lock_mutex_timeout(&gate->lock, timeout, tmode);
++	return evl_lock_mutex_timeout(&gate->mutex, timeout, tmode);
+ }
+ 
+ static int enter_monitor(struct evl_monitor *gate,
+@@ -209,7 +223,7 @@ static int enter_monitor(struct evl_monitor *gate,
+ 	if (gate->type != EVL_MONITOR_GATE)
+ 		return -EINVAL;
+ 
+-	if (evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
++	if (evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr)))
+ 		return -EDEADLK; /* Deny recursive locking. */
+ 
+ 	evl_commit_monitor_ceiling();
+@@ -226,7 +240,7 @@ static int tryenter_monitor(struct evl_monitor *gate)
+ 
+ 	evl_commit_monitor_ceiling();
+ 
+-	return evl_trylock_mutex(&gate->lock);
++	return evl_trylock_mutex(&gate->mutex);
+ }
+ 
+ static void __exit_monitor(struct evl_monitor *gate,
+@@ -242,7 +256,7 @@ static void __exit_monitor(struct evl_monitor *gate,
+ 	if (fundle_of(gate) == curr->u_window->pp_pending)
+ 		curr->u_window->pp_pending = EVL_NO_HANDLE;
+ 
+-	__evl_unlock_mutex(&gate->lock);
++	__evl_unlock_mutex(&gate->mutex);
+ }
+ 
+ static int exit_monitor(struct evl_monitor *gate)
+@@ -255,20 +269,32 @@ static int exit_monitor(struct evl_monitor *gate)
+ 	if (gate->type != EVL_MONITOR_GATE)
+ 		return -EINVAL;
+ 
+-	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr)))
++	if (!evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr)))
+ 		return -EPERM;
+ 
++	/*
++	 * Locking order is gate lock first, depending event lock(s)
++	 * next.
++	 */
++	evl_spin_lock_irqsave(&gate->lock, flags);
++
++	__exit_monitor(gate, curr);
++
+ 	if (state->flags & EVL_MONITOR_SIGNALED) {
+-		xnlock_get_irqsave(&nklock, flags);
++		/*
++		 * gate.mutex is held by current, so we are covered
++		 * against races with userland manipulating the flags.
++		 */
+ 		state->flags &= ~EVL_MONITOR_SIGNALED;
+ 		list_for_each_entry_safe(event, n, &gate->events, next) {
++			evl_spin_lock(&event->wait_queue.lock);
+ 			if (event->state->flags & EVL_MONITOR_SIGNALED)
+ 				wakeup_waiters(event);
++			evl_spin_unlock(&event->wait_queue.lock);
+ 		}
+-		xnlock_put_irqrestore(&nklock, flags);
+ 	}
+ 
+-	__exit_monitor(gate, curr);
++	evl_spin_unlock_irqrestore(&gate->lock, flags);
+ 
+ 	evl_schedule();
+ 
+@@ -319,16 +345,18 @@ static int wait_monitor_ungated(struct file *filp,
+ 			if (atomic_dec_return(&state->u.event.value) < 0)
+ 				ret = -EAGAIN;
+ 		} else {
+-			xnlock_get_irqsave(&nklock, flags);
++			evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
+ 			if (atomic_dec_return(&state->u.event.value) < 0) {
+ 				evl_add_wait_queue(&event->wait_queue,
+ 						timeout, tmode);
+-				xnlock_put_irqrestore(&nklock, flags);
+-				ret = evl_wait_schedule();
++				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
++							flags);
++				ret = evl_wait_schedule(&event->wait_queue);
+ 				if (ret) /* Rollback decrement if failed. */
+ 					atomic_inc(&state->u.event.value);
+ 			} else
+-				xnlock_put_irqrestore(&nklock, flags);
++				evl_spin_unlock_irqrestore(&event->wait_queue.lock,
++							flags);
+ 		}
+ 		break;
+ 	case EVL_EVENT_MASK:
+@@ -337,9 +365,11 @@ static int wait_monitor_ungated(struct file *filp,
+ 		ret = evl_wait_event_timeout(&event->wait_queue,
+ 					timeout, tmode,
+ 					test_event_mask(state, r_value));
+-		if (!ret) /* POLLOUT if flags have been received. */
++		if (!ret) { /* POLLOUT if flags have been received. */
+ 			evl_signal_poll_events(&event->poll_head,
+ 					POLLOUT|POLLWRNORM);
++			evl_schedule();
++		}
+ 		break;
+ 	default:
+ 		ret = -EINVAL;	/* uh? brace for rollercoaster. */
+@@ -378,30 +408,28 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
+ 	 * triggering a wakeup check and/or poll notification without
+ 	 * changing the event value.
+ 	 *
+-	 * Also, we still serialize on the nklock until we can get rid
+-	 * of it, using the per-waitqueue lock instead. In any case,
+-	 * we have to serialize against the read side not to lose wake
+-	 * up events.
++	 * In any case, we serialize against the read side not to lose
++	 * wake up events.
+ 	 */
+ 	switch (event->protocol) {
+ 	case EVL_EVENT_COUNT:
+ 		if (!sigval)
+ 			break;
+-		xnlock_get_irqsave(&nklock, flags);
++		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
+ 		if (atomic_inc_return(&state->u.event.value) <= 0) {
+ 			evl_wake_up_head(&event->wait_queue);
+ 			pollable = false;
+ 		}
+-		xnlock_put_irqrestore(&nklock, flags);
++		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+ 		break;
+ 	case EVL_EVENT_MASK:
+-		xnlock_get_irqsave(&nklock, flags);
++		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
+ 		val = set_event_mask(state, (int)sigval);
+ 		if (val)
+ 			evl_flush_wait_locked(&event->wait_queue, 0);
+ 		else
+ 			pollable = false;
+-		xnlock_put_irqrestore(&nklock, flags);
++		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+ 		break;
+ 	default:
+ 		return -EINVAL;
+@@ -462,12 +490,13 @@ static int wait_monitor(struct file *filp,
+ 	}
+ 
+ 	/* Make sure we actually passed the gate. */
+-	if (!evl_is_mutex_owner(gate->lock.fastlock, fundle_of(curr))) {
++	if (!evl_is_mutex_owner(gate->mutex.fastlock, fundle_of(curr))) {
+ 		op_ret = -EPERM;
+ 		goto put;
+ 	}
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_spin_lock_irqsave(&gate->lock, flags);
++	evl_spin_lock(&event->wait_queue.lock);
+ 
+ 	/*
+ 	 * Track event monitors the gate protects. When multiple
+@@ -481,17 +510,20 @@ static int wait_monitor(struct file *filp,
+ 		event->gate = gate;
+ 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
+ 	} else if (event->gate != gate) {
+-		xnlock_put_irqrestore(&nklock, flags);
++		evl_spin_unlock(&event->wait_queue.lock);
++		evl_spin_unlock_irqrestore(&gate->lock, flags);
+ 		op_ret = -EBADFD;
+ 		goto put;
+ 	}
+ 
+ 	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
+-	curr->info &= ~T_SIGNAL; /* CAUTION: depends on nklock held ATM */
+-
+-	xnlock_put_irqrestore(&nklock, flags);
+ 
++	xnlock_get(&nklock);
++	curr->info &= ~T_SIGNAL; /* CAUTION: depends on nklock held ATM */
++	xnlock_put(&nklock);
++	evl_spin_unlock(&event->wait_queue.lock);
+ 	__exit_monitor(gate, curr);
++	evl_spin_unlock_irqrestore(&gate->lock, flags);
+ 
+ 	/*
+ 	 * Actually wait on the event. If a break condition is raised
+@@ -503,11 +535,9 @@ static int wait_monitor(struct file *filp,
+ 	 * userland to issue UNWAIT to recover (or exit, whichever
+ 	 * comes first).
+ 	 */
+-	ret = evl_wait_schedule();
++	ret = evl_wait_schedule(&event->wait_queue);
+ 	if (ret) {
+-		xnlock_get_irqsave(&nklock, flags);
+ 		untrack_event(event);
+-		xnlock_put_irqrestore(&nklock, flags);
+ 		if (ret == -EINTR)
+ 			goto put;
+ 		op_ret = ret;
+@@ -707,7 +737,7 @@ static int monitor_release(struct inode *inode, struct file *filp)
+ 	if (mon->type == EVL_MONITOR_EVENT)
+ 		evl_flush_wait(&mon->wait_queue, T_RMID);
+ 	else
+-		evl_flush_mutex(&mon->lock, T_RMID);
++		evl_flush_mutex(&mon->mutex, T_RMID);
+ 
+ 	return evl_release_element(inode, filp);
+ }
+@@ -789,17 +819,18 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
+ 		switch (attrs.protocol) {
+ 		case EVL_GATE_PP:
+ 			state->u.gate.ceiling = attrs.initval;
+-			evl_init_mutex_pp(&mon->lock, clock,
++			evl_init_mutex_pp(&mon->mutex, clock,
+ 					&state->u.gate.owner,
+ 					&state->u.gate.ceiling);
+ 			INIT_LIST_HEAD(&mon->events);
+ 			break;
+ 		case EVL_GATE_PI:
+-			evl_init_mutex_pi(&mon->lock, clock,
++			evl_init_mutex_pi(&mon->mutex, clock,
+ 					&state->u.gate.owner);
+ 			INIT_LIST_HEAD(&mon->events);
+ 			break;
+ 		}
++		evl_spin_lock_init(&mon->lock);
+ 		break;
+ 	case EVL_MONITOR_EVENT:
+ 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
+@@ -844,13 +875,13 @@ static void monitor_factory_dispose(struct evl_element *e)
+ 		evl_put_clock(mon->wait_queue.clock);
+ 		evl_destroy_wait(&mon->wait_queue);
+ 		if (mon->gate) {
+-			xnlock_get_irqsave(&nklock, flags);
++			evl_spin_lock_irqsave(&mon->gate->lock, flags);
+ 			list_del(&mon->next);
+-			xnlock_put_irqrestore(&nklock, flags);
++			evl_spin_unlock_irqrestore(&mon->gate->lock, flags);
+ 		}
+ 	} else {
+-		evl_put_clock(mon->lock.clock);
+-		evl_destroy_mutex(&mon->lock);
++		evl_put_clock(mon->mutex.clock);
++		evl_destroy_mutex(&mon->mutex);
+ 	}
+ 
+ 	evl_free_chunk(&evl_shared_heap, mon->state);
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 707f32bbd353..1113eb1811b8 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -459,8 +459,45 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
+ }
+ EXPORT_SYMBOL_GPL(evl_trylock_mutex);
+ 
++static int wait_mutex_schedule(void)
++{
++	struct evl_thread *curr = evl_current();
++	unsigned long flags;
++	int ret = 0, info;
++
++	/* FIXME: to be rebased on waitqueues. */
++
++	no_ugly_lock();
++
++	evl_schedule();
++
++	info = evl_current()->info;
++	if (info & T_RMID)
++		return -EIDRM;
++
++	if (info & (T_TIMEO|T_BREAK)) {
++		xnlock_get_irqsave(&nklock, flags);
++		if (!list_empty(&curr->wait_next)) {
++			list_del_init(&curr->wait_next);
++			if (info & T_TIMEO)
++				ret = -ETIMEDOUT;
++			else if (info & T_BREAK)
++				ret = -EINTR;
++		}
++		xnlock_put_irqrestore(&nklock, flags);
++	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
++		bool empty;
++		xnlock_get_irqsave(&nklock, flags);
++		empty = list_empty(&curr->wait_next);
++		xnlock_put_irqrestore(&nklock, flags);
++		EVL_WARN_ON_ONCE(CORE, !empty);
++	}
++
++	return ret;
++}
++
+ /* nklock held, irqs off */
+-static void finish_wait(struct evl_mutex *mutex)
++static void finish_mutex_wait(struct evl_mutex *mutex)
+ {
+ 	struct evl_thread *owner, *target;
+ 
+@@ -487,9 +524,9 @@ static void finish_wait(struct evl_mutex *mutex)
+ 	}
+ 
+ 	/*
+-	 * Reorder the booster queue of the current owner after we
+-	 * left the wait list, then set its priority to the new
+-	 * required minimum required to prevent priority inversion.
++	 * Reorder the booster queue of current after we left the wait
++	 * list, then set its priority to the new required minimum
++	 * required to prevent priority inversion.
+ 	 */
+ 	target = list_first_entry(&mutex->wchan.wait_list,
+ 				struct evl_thread, wait_next);
+@@ -630,9 +667,9 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 
+ 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
+ 	xnlock_put_irqrestore(&nklock, flags);
+-	ret = evl_wait_schedule();
++	ret = wait_mutex_schedule();
+ 	xnlock_get_irqsave(&nklock, flags);
+-	finish_wait(mutex);
++	finish_mutex_wait(mutex);
+ 	curr->wwake = NULL;
+ 	curr->info &= ~T_WAKEN;
+ 
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index 6ff002e4de62..5e2b785e100d 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -60,7 +60,7 @@ void evl_poll_watch(struct evl_poll_head *head,
+ 	evl_spin_lock_irqsave(&head->lock, flags);
+ 	wpt->head = head;
+ 	wpt->events_received = 0;
+-	wpt->unwatch = unwatch;
++	wpt->unwatch = unwatch;	/* must NOT reschedule. */
+ 	list_add(&wait->next, &head->watchpoints);
+ 	evl_spin_unlock_irqrestore(&head->lock, flags);
+ }
+@@ -466,6 +466,12 @@ static inline void clear_wait(void)
+ 	 * wpt->head->lock serializes with __evl_signal_poll_events().
+ 	 * Any watchpoint which does not bear the POLLNVAL bit is
+ 	 * monitoring a still valid file by construction.
++	 *
++	 * A watchpoint might no be attached to any poll head in case
++	 * oob_poll() is undefined for the device, or the related fd
++	 * is stale. Since only the caller may update the linkage of
++	 * its watchpoints, using list_empty() locklessly is safe
++	 * here.
+ 	 */
+ 	for (n = 0, wpt = curr->poll_context.table;
+ 	     n < curr->poll_context.nr; n++, wpt++) {
+diff --git a/kernel/evl/proxy.c b/kernel/evl/proxy.c
+index e37436476e62..9e86292ceb80 100644
+--- a/kernel/evl/proxy.c
++++ b/kernel/evl/proxy.c
+@@ -98,9 +98,10 @@ static void relay_output(struct work_struct *work)
+ 
+ 	/* Give precedence to oob waiters for wakeups. */
+ 	if (count < ring->bufsz) {
+-		evl_raise_flag(&out->oob_drained);
++		evl_raise_flag(&out->oob_drained); /* Reschedules. */
+ 		wake_up(&out->inband_drained);
+-	}
++	} else
++		evl_schedule();	/* Covers evl_signal_poll_events() */
+ }
+ 
+ static void relay_output_irq(struct irq_work *work)
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index 870fccf4bad1..5bd54ecce43a 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -12,8 +12,9 @@
+ #include <uapi/evl/signal.h>
+ #include <trace/events/evl.h>
+ 
+-void evl_init_wait(struct evl_wait_queue *wq,
+-		struct evl_clock *clock, int flags)
++void __evl_init_wait(struct evl_wait_queue *wq,
++		struct evl_clock *clock, int flags,
++		const char *name, struct lock_class_key *key)
+ {
+ 	no_ugly_lock();
+ 	wq->flags = flags;
+@@ -21,8 +22,9 @@ void evl_init_wait(struct evl_wait_queue *wq,
+ 	evl_spin_lock_init(&wq->lock);
+ 	wq->wchan.reorder_wait = evl_reorder_wait;
+ 	INIT_LIST_HEAD(&wq->wchan.wait_list);
++	lockdep_set_class_and_name(&wq->lock._lock, key, name);
+ }
+-EXPORT_SYMBOL_GPL(evl_init_wait);
++EXPORT_SYMBOL_GPL(__evl_init_wait);
+ 
+ void evl_destroy_wait(struct evl_wait_queue *wq)
+ {
+@@ -32,13 +34,13 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
+ }
+ EXPORT_SYMBOL_GPL(evl_destroy_wait);
+ 
+-/* nklock held, irqs off */
++/* wq->lock held, irqs off */
+ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+ 			enum evl_tmode timeout_mode)
+ {
+ 	struct evl_thread *curr = evl_current();
+ 
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 
+ 	trace_evl_wait(wq);
+ 
+@@ -55,11 +57,11 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+ }
+ EXPORT_SYMBOL_GPL(evl_add_wait_queue);
+ 
+-/* nklock held, irqs off */
++/* wq->lock held, irqs off */
+ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 			struct evl_thread *waiter)
+ {
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 
+ 	trace_evl_wake_up(wq);
+ 
+@@ -77,12 +79,12 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ }
+ EXPORT_SYMBOL_GPL(evl_wake_up);
+ 
+-/* nklock held, irqs off */
++/* wq->lock held, irqs off */
+ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
+ {
+ 	struct evl_thread *waiter, *tmp;
+ 
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 
+ 	trace_evl_flush_wait(wq);
+ 
+@@ -98,9 +100,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ 	unsigned long flags;
+ 
+ 	no_ugly_lock();
+-	xnlock_get_irqsave(&nklock, flags);
++	evl_spin_lock_irqsave(&wq->lock, flags);
+ 	evl_flush_wait_locked(wq, reason);
+-	xnlock_put_irqrestore(&nklock, flags);
++	evl_spin_unlock_irqrestore(&wq->lock, flags);
+ }
+ EXPORT_SYMBOL_GPL(evl_flush_wait);
+ 
+@@ -110,12 +112,12 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
+ 	return container_of(wchan, struct evl_wait_queue, wchan);
+ }
+ 
+-/* nklock held, irqs off */
++/* wq->lock held, irqs off */
+ void evl_reorder_wait(struct evl_thread *thread)
+ {
+ 	struct evl_wait_queue *wq = wchan_to_wait_queue(thread->wchan);
+ 
+-	requires_ugly_lock();
++	assert_evl_lock(&wq->lock);
+ 
+ 	if (wq->flags & EVL_WAIT_PRIO) {
+ 		list_del(&thread->wait_next);
+@@ -124,7 +126,7 @@ void evl_reorder_wait(struct evl_thread *thread)
+ }
+ EXPORT_SYMBOL_GPL(evl_reorder_wait);
+ 
+-int evl_wait_schedule(void)
++int evl_wait_schedule(struct evl_wait_queue *wq)
+ {
+ 	struct evl_thread *curr = evl_current();
+ 	unsigned long flags;
+@@ -172,7 +174,7 @@ int evl_wait_schedule(void)
+ 		return -EIDRM;
+ 
+ 	if (info & (T_TIMEO|T_BREAK)) {
+-		xnlock_get_irqsave(&nklock, flags);
++		evl_spin_lock_irqsave(&wq->lock, flags);
+ 		if (!list_empty(&curr->wait_next)) {
+ 			list_del_init(&curr->wait_next);
+ 			if (info & T_TIMEO)
+@@ -180,11 +182,13 @@ int evl_wait_schedule(void)
+ 			else if (info & T_BREAK)
+ 				ret = -EINTR;
+ 		}
+-		xnlock_put_irqrestore(&nklock, flags);
++		evl_spin_unlock_irqrestore(&wq->lock, flags);
+ 	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
+-		xnlock_get_irqsave(&nklock, flags);
+-		EVL_WARN_ON_ONCE(CORE, !list_empty(&curr->wait_next));
+-		xnlock_put_irqrestore(&nklock, flags);
++		bool empty;
++		evl_spin_lock_irqsave(&wq->lock, flags);
++		empty = list_empty(&curr->wait_next);
++		evl_spin_unlock_irqrestore(&wq->lock, flags);
++		EVL_WARN_ON_ONCE(CORE, !empty);
+ 	}
+ 
+ 	return ret;
+diff --git a/kernel/evl/xbuf.c b/kernel/evl/xbuf.c
+index 015b4c973884..7f01e74fb907 100644
+--- a/kernel/evl/xbuf.c
++++ b/kernel/evl/xbuf.c
+@@ -34,12 +34,12 @@ struct xbuf_ring {
+ 	unsigned int wroff;
+ 	unsigned int wrrsvd;
+ 	int wrpending;
+-	int (*wait_input)(struct xbuf_ring *ring, size_t len);
+-	void (*signal_input)(struct xbuf_ring *ring);
++	unsigned long (*lock)(struct xbuf_ring *ring);
++	void (*unlock)(struct xbuf_ring *ring, unsigned long flags);
++	int (*wait_input)(struct xbuf_ring *ring, size_t len, size_t avail);
++	void (*signal_input)(struct xbuf_ring *ring, bool sigpoll);
+ 	int (*wait_output)(struct xbuf_ring *ring, size_t len);
+-	void (*unblock_output)(struct xbuf_ring *ring);
+-	bool (*in_output_contention)(struct xbuf_ring *ring);
+-	void (*signal_pollable)(struct xbuf_ring *ring, int events);
++	void (*signal_output)(struct xbuf_ring *ring, bool sigpoll);
+ };
+ 
+ struct xbuf_inbound {		/* oob_write->read */
+@@ -47,10 +47,11 @@ struct xbuf_inbound {		/* oob_write->read */
+ 	struct evl_flag o_event;
+ 	struct irq_work irq_work;
+ 	struct xbuf_ring ring;
++	evl_spinlock_t lock;
+ };
+ 
+ struct xbuf_outbound {		/* write->oob_read */
+-	struct evl_flag i_event;
++	struct evl_wait_queue i_event;
+ 	struct wait_queue_head o_event;
+ 	struct irq_work irq_work;
+ 	struct xbuf_ring ring;
+@@ -63,10 +64,6 @@ struct evl_xbuf {
+ 	struct evl_poll_head poll_head;
+ };
+ 
+-struct xbuf_wait_data {
+-	size_t len;
+-};
+-
+ struct xbuf_rdesc {
+ 	char *buf;
+ 	char *buf_ptr;
+@@ -111,6 +108,7 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 	ssize_t len, ret, rbytes, n;
+ 	unsigned int rdoff, avail;
+ 	unsigned long flags;
++	bool sigpoll;
+ 	int xret;
+ 
+ 	len = rd->count;
+@@ -123,7 +121,7 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 	rd->buf_ptr = rd->buf;
+ 
+ 	for (;;) {
+-		xnlock_get_irqsave(&nklock, flags);
++		flags = ring->lock(ring);
+ 		/*
+ 		 * We should be able to read a complete message of the
+ 		 * requested length if O_NONBLOCK is clear. If set and
+@@ -145,28 +143,15 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 					ret = -EINVAL;
+ 					break;
+ 				}
+-				/*
+-				 * Check whether writers are already
+-				 * waiting for sending data, while we
+-				 * are about to wait for receiving
+-				 * some. In such a case, we have a
+-				 * pathological use of the buffer due
+-				 * to a miscalculated size. We must
+-				 * allow for a short read to prevent a
+-				 * deadlock.
+-				 */
+-				if (avail > 0 && ring->in_output_contention(ring)) {
+-					xnlock_put_irqrestore(&nklock, flags);
+-					len = avail;
+-					goto retry;
+-				}
+-
+-				xnlock_put_irqrestore(&nklock, flags);
+-
+-				ret = ring->wait_input(ring, len);
+-				if (unlikely(ret))
++				ring->unlock(ring, flags);
++				ret = ring->wait_input(ring, len, avail);
++				if (unlikely(ret)) {
++					if (ret == -EAGAIN) {
++						len = avail;
++						goto retry;
++					}
+ 					return ret;
+-
++				}
+ 				continue;
+ 			}
+ 		}
+@@ -190,34 +175,29 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 			 * case: the non-copied portion of the message
+ 			 * is lost on bad write.
+ 			 */
+-			xnlock_put_irqrestore(&nklock, flags);
++			ring->unlock(ring, flags);
+ 
+ 			xret = rd->xfer(rd, ring->bufmem + rdoff, n);
+ 			if (xret)
+ 				return -EFAULT;
+ 
+-			xnlock_get_irqsave(&nklock, flags);
++			flags = ring->lock(ring);
+ 			rd->buf_ptr += n;
+ 			rbytes -= n;
+ 			rdoff = (rdoff + n) % ring->bufsz;
+ 		} while (rbytes > 0);
+ 
+ 		if (--ring->rdpending == 0) {
++			/* sigpoll := full -> non-full transition. */
++			sigpoll = ring->fillsz == ring->bufsz;
+ 			ring->fillsz -= ring->rdrsvd;
+ 			ring->rdrsvd = 0;
+-			if (ring->fillsz == ring->bufsz)
+-				/* -> writable */
+-				ring->signal_pollable(ring, POLLOUT|POLLWRNORM);
+-			/*
+-			 * Wake up the thread heading the output wait queue if
+-			 * we freed enough room to post its message.
+-			 */
+-			ring->unblock_output(ring);
++			ring->signal_output(ring, sigpoll);
+ 		}
+ 		break;
+ 	}
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
++	ring->unlock(ring, flags);
+ 
+ 	evl_schedule();
+ 
+@@ -242,14 +222,14 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 	wd->buf_ptr = wd->buf;
+ 
+ 	for (;;) {
+-		xnlock_get_irqsave(&nklock, flags);
++		flags = ring->lock(ring);
+ 		/*
+ 		 * No short or scattered writes: we should write the
+ 		 * entire message atomically or block.
+ 		 */
+ 		avail = ring->fillsz + ring->wrrsvd;
+ 		if (avail + len > ring->bufsz) {
+-			xnlock_put_irqrestore(&nklock, flags);
++			ring->unlock(ring, flags);
+ 
+ 			if (f_flags & O_NONBLOCK)
+ 				return -EAGAIN;
+@@ -282,12 +262,12 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 			 * write slot already: bluntly clear the
+ 			 * unavailable bytes on copy error.
+ 			 */
+-			xnlock_put_irqrestore(&nklock, flags);
++			ring->unlock(ring, flags);
+ 			xret = wd->xfer(ring->bufmem + wroff, wd, n);
+-			xnlock_get_irqsave(&nklock, flags);
++			flags = ring->lock(ring);
+ 			if (xret) {
+ 				memset(ring->bufmem + wroff + n - xret, 0, xret);
+-				xnlock_put_irqrestore(&nklock, flags);
++				ring->unlock(ring, flags);
+ 				return -EFAULT;
+ 			}
+ 
+@@ -299,14 +279,10 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 		if (--ring->wrpending == 0) {
+ 			ring->fillsz += ring->wrrsvd;
+ 			ring->wrrsvd = 0;
+-			if (ring->fillsz == len)
+-				/* -> readable */
+-				ring->signal_pollable(ring, POLLIN|POLLRDNORM);
+-
+-			ring->signal_input(ring);
++			ring->signal_input(ring, ring->fillsz == len);
+ 		}
+ 
+-		xnlock_put_irqrestore(&nklock, flags);
++		ring->unlock(ring, flags);
+ 		break;
+ 	}
+ 
+@@ -315,68 +291,78 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 	return ret;
+ }
+ 
+-static int inbound_wait_input(struct xbuf_ring *ring, size_t len)
++static unsigned long inbound_lock(struct xbuf_ring *ring)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
++	unsigned long flags;
+ 
+-	return wait_event_interruptible(xbuf->ibnd.i_event,
+-					ring->fillsz >= len);
++	evl_spin_lock_irqsave(&xbuf->ibnd.lock, flags);
++
++	return flags;
+ }
+ 
+-static void resume_inband_reader(struct irq_work *work)
++static void inbound_unlock(struct xbuf_ring *ring, unsigned long flags)
+ {
+-	struct evl_xbuf *xbuf = container_of(work, struct evl_xbuf, ibnd.irq_work);
++	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+ 
+-	wake_up(&xbuf->ibnd.i_event);
++	evl_spin_unlock_irqrestore(&xbuf->ibnd.lock, flags);
+ }
+ 
+-static void inbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
++static int inbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
++	struct xbuf_inbound *ibnd = &xbuf->ibnd;
++	unsigned long flags;
++	bool o_blocked;
++
++	/*
++	 * Check whether writers are already waiting for sending data,
++	 * while we are about to wait for receiving some. In such a
++	 * case, we have a pathological use of the buffer due to a
++	 * miscalculated size. We must allow for a short read to
++	 * prevent a deadlock.
++	 */
++	if (avail > 0) {
++		evl_lock_flag(&ibnd->o_event, flags);
++		o_blocked = !!evl_wait_flag_head(&ibnd->o_event);
++		evl_unlock_flag(&ibnd->o_event, flags);
++		if (o_blocked)
++			return -EAGAIN;
++	}
+ 
+-	irq_work_queue(&xbuf->ibnd.irq_work);
++	return wait_event_interruptible(ibnd->i_event, ring->fillsz >= len);
+ }
+ 
+-static int inbound_wait_output(struct xbuf_ring *ring, size_t len)
++static void resume_inband_reader(struct irq_work *work)
+ {
+-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+-	struct evl_thread *curr = evl_current();
+-	struct xbuf_wait_data wait;
+-
+-	wait.len = len;
+-	curr->wait_data = &wait;
++	struct evl_xbuf *xbuf = container_of(work, struct evl_xbuf, ibnd.irq_work);
+ 
+-	return evl_wait_flag(&xbuf->ibnd.o_event);
++	wake_up(&xbuf->ibnd.i_event);
+ }
+ 
+-static void inbound_unblock_output(struct xbuf_ring *ring) /* nklock held, irqs off */
++/* ring locked, irqsoff */
++static void inbound_signal_input(struct xbuf_ring *ring, bool sigpoll)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+-	struct evl_thread *waiter;
+-	struct xbuf_wait_data *wc;
+-
+-	waiter = evl_wait_flag_head(&xbuf->ibnd.o_event);
+-	if (waiter == NULL)
+-		return;
+ 
+-	wc = waiter->wait_data;
+-	if (wc->len + ring->fillsz <= ring->bufsz)
+-		evl_raise_flag_locked(&xbuf->ibnd.o_event);
++	irq_work_queue(&xbuf->ibnd.irq_work);
+ }
+ 
+-static bool inbound_output_contention(struct xbuf_ring *ring)
++static int inbound_wait_output(struct xbuf_ring *ring, size_t len)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+ 
+-	return !!evl_wait_flag_head(&xbuf->ibnd.o_event);
++	return evl_wait_flag(&xbuf->ibnd.o_event);
+ }
+ 
+-static void inbound_signal_pollable(struct xbuf_ring *ring, int events)
++static void inbound_signal_output(struct xbuf_ring *ring, bool sigpoll)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
+ 
+-	if (events & POLLOUT)
+-		evl_signal_poll_events(&xbuf->poll_head, events);
++	if (sigpoll)
++		evl_signal_poll_events(&xbuf->poll_head, POLLOUT|POLLWRNORM);
++
++	evl_raise_flag(&xbuf->ibnd.o_event);
+ }
+ 
+ static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
+@@ -414,21 +400,27 @@ static long xbuf_ioctl(struct file *filp,
+ static __poll_t xbuf_poll(struct file *filp, poll_table *wait)
+ {
+ 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
++	struct xbuf_outbound *obnd = &xbuf->obnd;
++	struct xbuf_inbound *ibnd = &xbuf->ibnd;
+ 	unsigned long flags;
+ 	__poll_t ready = 0;
+ 
+-	poll_wait(filp, &xbuf->ibnd.i_event, wait);
+-	poll_wait(filp, &xbuf->obnd.o_event, wait);
++	poll_wait(filp, &ibnd->i_event, wait);
++	poll_wait(filp, &obnd->o_event, wait);
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	flags = ibnd->ring.lock(&ibnd->ring);
+ 
+-	if (xbuf->ibnd.ring.fillsz > 0)
++	if (ibnd->ring.fillsz > 0)
+ 		ready |= POLLIN|POLLRDNORM;
+ 
+-	if (xbuf->obnd.ring.fillsz < xbuf->obnd.ring.bufsz)
++	ibnd->ring.unlock(&ibnd->ring, flags);
++
++	flags = obnd->ring.lock(&obnd->ring);
++
++	if (obnd->ring.fillsz < obnd->ring.bufsz)
+ 		ready |= POLLOUT|POLLWRNORM;
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
++	obnd->ring.unlock(&obnd->ring, flags);
+ 
+ 	return ready;
+ }
+@@ -439,68 +431,65 @@ static long xbuf_oob_ioctl(struct file *filp,
+ 	return -ENOTTY;
+ }
+ 
+-static int outbound_wait_input(struct xbuf_ring *ring, size_t len)
++static unsigned long outbound_lock(struct xbuf_ring *ring)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+-	struct evl_thread *curr = evl_current();
+-	struct xbuf_wait_data wait;
++	unsigned long flags;
+ 
+-	wait.len = len;
+-	curr->wait_data = &wait;
++	evl_spin_lock_irqsave(&xbuf->obnd.i_event.lock, flags);
+ 
+-	return evl_wait_flag(&xbuf->obnd.i_event);
++	return flags;
+ }
+ 
+-static void outbound_signal_input(struct xbuf_ring *ring) /* nklock held, irqsoff */
++static void outbound_unlock(struct xbuf_ring *ring, unsigned long flags)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+-	struct evl_thread *waiter;
+-	struct xbuf_wait_data *wc;
+-
+-	waiter = evl_wait_flag_head(&xbuf->obnd.i_event);
+-	if (waiter == NULL)
+-		return;
+ 
+-	wc = waiter->wait_data;
+-	if (wc->len <= ring->fillsz)
+-		evl_raise_flag_locked(&xbuf->obnd.i_event);
++	evl_spin_unlock_irqrestore(&xbuf->obnd.i_event.lock, flags);
+ }
+ 
+-static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
++static int outbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
++	struct xbuf_outbound *obnd = &xbuf->obnd;
+ 
+-	return wait_event_interruptible(xbuf->obnd.o_event,
+-					ring->fillsz + len <= ring->bufsz);
++	if (avail > 0 && wq_has_sleeper(&obnd->o_event))
++		return -EAGAIN;
++
++	return evl_wait_event(&obnd->i_event, ring->fillsz >= len);
+ }
+ 
+-static void resume_inband_writer(struct irq_work *work)
++/* obnd.i_event locked, irqsoff */
++static void outbound_signal_input(struct xbuf_ring *ring, bool sigpoll)
+ {
+-	struct evl_xbuf *xbuf = container_of(work, struct evl_xbuf, obnd.irq_work);
++	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+ 
+-	wake_up(&xbuf->obnd.o_event);
++	if (sigpoll)
++		evl_signal_poll_events(&xbuf->poll_head, POLLIN|POLLRDNORM);
++
++	evl_flush_wait_locked(&xbuf->obnd.i_event, 0);
+ }
+ 
+-static void outbound_unblock_output(struct xbuf_ring *ring)
++static int outbound_wait_output(struct xbuf_ring *ring, size_t len)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+ 
+-	irq_work_queue(&xbuf->obnd.irq_work);
++	return wait_event_interruptible(xbuf->obnd.o_event,
++					ring->fillsz + len <= ring->bufsz);
+ }
+ 
+-static bool outbound_output_contention(struct xbuf_ring *ring)
++static void resume_inband_writer(struct irq_work *work)
+ {
+-	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
++	struct evl_xbuf *xbuf = container_of(work, struct evl_xbuf, obnd.irq_work);
+ 
+-	return wq_has_sleeper(&xbuf->obnd.o_event);
++	wake_up(&xbuf->obnd.o_event);
+ }
+ 
+-static void outbound_signal_pollable(struct xbuf_ring *ring, int events)
++static void outbound_signal_output(struct xbuf_ring *ring, bool sigpoll)
+ {
+ 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
+ 
+-	if (events & POLLIN)
+-		evl_signal_poll_events(&xbuf->poll_head, events);
++	irq_work_queue(&xbuf->obnd.irq_work);
+ }
+ 
+ static ssize_t xbuf_oob_read(struct file *filp,
+@@ -533,20 +522,26 @@ static __poll_t xbuf_oob_poll(struct file *filp,
+ 			struct oob_poll_wait *wait)
+ {
+ 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
++	struct xbuf_outbound *obnd = &xbuf->obnd;
++	struct xbuf_inbound *ibnd = &xbuf->ibnd;
+ 	unsigned long flags;
+ 	__poll_t ready = 0;
+ 
+ 	evl_poll_watch(&xbuf->poll_head, wait, NULL);
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	flags = obnd->ring.lock(&obnd->ring);
+ 
+-	if (xbuf->obnd.ring.fillsz > 0)
++	if (obnd->ring.fillsz > 0)
+ 		ready |= POLLIN|POLLRDNORM;
+ 
+-	if (xbuf->ibnd.ring.fillsz < xbuf->ibnd.ring.bufsz)
++	obnd->ring.unlock(&obnd->ring, flags);
++
++	flags = ibnd->ring.lock(&ibnd->ring);
++
++	if (ibnd->ring.fillsz < ibnd->ring.bufsz)
+ 		ready |= POLLOUT|POLLWRNORM;
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
++	ibnd->ring.unlock(&ibnd->ring, flags);
+ 
+ 	return ready;
+ }
+@@ -555,7 +550,7 @@ static int xbuf_release(struct inode *inode, struct file *filp)
+ {
+ 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
+ 
+-	evl_flush_flag(&xbuf->obnd.i_event, T_RMID);
++	evl_flush_wait(&xbuf->obnd.i_event, T_RMID);
+ 	evl_flush_flag(&xbuf->ibnd.o_event, T_RMID);
+ 
+ 	return evl_release_element(inode, filp);
+@@ -671,28 +666,29 @@ xbuf_factory_build(struct evl_factory *fac, const char *name,
+ 	/* Inbound traffic: oob_write() -> read(). */
+ 	init_waitqueue_head(&xbuf->ibnd.i_event);
+ 	evl_init_flag(&xbuf->ibnd.o_event);
++	evl_spin_lock_init(&xbuf->ibnd.lock);
+ 	init_irq_work(&xbuf->ibnd.irq_work, resume_inband_reader);
+ 	xbuf->ibnd.ring.bufmem = i_bufmem;
+ 	xbuf->ibnd.ring.bufsz = attrs.i_bufsz;
++	xbuf->ibnd.ring.lock = inbound_lock;
++	xbuf->ibnd.ring.unlock = inbound_unlock;
+ 	xbuf->ibnd.ring.wait_input = inbound_wait_input;
+ 	xbuf->ibnd.ring.signal_input = inbound_signal_input;
+ 	xbuf->ibnd.ring.wait_output = inbound_wait_output;
+-	xbuf->ibnd.ring.unblock_output = inbound_unblock_output;
+-	xbuf->ibnd.ring.in_output_contention = inbound_output_contention;
+-	xbuf->ibnd.ring.signal_pollable = inbound_signal_pollable;
++	xbuf->ibnd.ring.signal_output = inbound_signal_output;
+ 
+ 	/* Outbound traffic: write() -> oob_read(). */
+-	evl_init_flag(&xbuf->obnd.i_event);
++	evl_init_wait(&xbuf->obnd.i_event, &evl_mono_clock, EVL_WAIT_PRIO);
+ 	init_waitqueue_head(&xbuf->obnd.o_event);
+ 	init_irq_work(&xbuf->obnd.irq_work, resume_inband_writer);
+ 	xbuf->obnd.ring.bufmem = o_bufmem;
+ 	xbuf->obnd.ring.bufsz = attrs.o_bufsz;
++	xbuf->obnd.ring.lock = outbound_lock;
++	xbuf->obnd.ring.unlock = outbound_unlock;
+ 	xbuf->obnd.ring.wait_input = outbound_wait_input;
+ 	xbuf->obnd.ring.signal_input = outbound_signal_input;
+ 	xbuf->obnd.ring.wait_output = outbound_wait_output;
+-	xbuf->obnd.ring.unblock_output = outbound_unblock_output;
+-	xbuf->obnd.ring.in_output_contention = outbound_output_contention;
+-	xbuf->obnd.ring.signal_pollable = outbound_signal_pollable;
++	xbuf->obnd.ring.signal_output = outbound_signal_output;
+ 
+ 	evl_init_poll_head(&xbuf->poll_head);
+ 
+@@ -716,7 +712,7 @@ static void xbuf_factory_dispose(struct evl_element *e)
+ 
+ 	xbuf = container_of(e, struct evl_xbuf, element);
+ 
+-	evl_destroy_flag(&xbuf->obnd.i_event);
++	evl_destroy_wait(&xbuf->obnd.i_event);
+ 	evl_destroy_flag(&xbuf->ibnd.o_event);
+ 	evl_destroy_element(&xbuf->element);
+ 	if (xbuf->ibnd.ring.bufmem)
+-- 
+2.16.4
+

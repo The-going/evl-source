@@ -1,0 +1,85 @@
+From c33a98d698a6e7a0c9edff7fca1ba4a6955ca3d2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 26 Oct 2019 18:28:44 +0200
+Subject: [PATCH] evl/thread: drop obsolete page fault counter
+
+This is a Xenomai-originated relic we don't need. We can get reports
+of unexpected page faults yielding to stage switches to inband as
+follows:
+
+- dynamically by enabling T_WOSS on a per-thread basis.
+
+- statically by enabling the CONFIG_EVL_DEBUG_CORE build switch.
+---
+ arch/arm/include/asm/evl/thread.h   | 1 -
+ arch/arm64/include/asm/evl/thread.h | 1 -
+ arch/x86/include/asm/evl/thread.h   | 1 -
+ include/evl/thread.h                | 1 -
+ kernel/evl/thread.c                 | 3 ---
+ 5 files changed, 7 deletions(-)
+
+diff --git a/arch/arm/include/asm/evl/thread.h b/arch/arm/include/asm/evl/thread.h
+index 423ef75176e4..bde236884c49 100644
+--- a/arch/arm/include/asm/evl/thread.h
++++ b/arch/arm/include/asm/evl/thread.h
+@@ -5,7 +5,6 @@
+ #ifndef _EVL_ARM_ASM_THREAD_H
+ #define _EVL_ARM_ASM_THREAD_H
+ 
+-#define xnarch_fault_pf_p(__trapnr)	((__trapnr) == ARM_TRAP_ACCESS)
+ #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+ 					 (__trapnr == ARM_TRAP_BREAK || \
+ 					  (__trapnr) == ARM_TRAP_UNDEFINSTR))
+diff --git a/arch/arm64/include/asm/evl/thread.h b/arch/arm64/include/asm/evl/thread.h
+index 4e1938364a80..78a7f77d7ebc 100644
+--- a/arch/arm64/include/asm/evl/thread.h
++++ b/arch/arm64/include/asm/evl/thread.h
+@@ -2,7 +2,6 @@
+ #ifndef _EVL_ARM64_ASM_THREAD_H
+ #define _EVL_ARM64_ASM_THREAD_H
+ 
+-#define xnarch_fault_pf_p(__trapnr)	((__trapnr) == ARM64_TRAP_ACCESS)
+ #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+ 					 (__trapnr == ARM64_TRAP_DEBUG || \
+ 					  (__trapnr) == ARM64_TRAP_UNDI))
+diff --git a/arch/x86/include/asm/evl/thread.h b/arch/x86/include/asm/evl/thread.h
+index 956801d241cc..e07cb475e109 100644
+--- a/arch/x86/include/asm/evl/thread.h
++++ b/arch/x86/include/asm/evl/thread.h
+@@ -4,7 +4,6 @@
+ 
+ #include <asm/traps.h>
+ 
+-#define xnarch_fault_pf_p(__trapnr)	((__trapnr) == X86_TRAP_PF)
+ #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+ 					(__trapnr == X86_TRAP_DB ||	\
+ 						(__trapnr) == X86_TRAP_BP))
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 3a41cc2341bc..2f32c48537b2 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -123,7 +123,6 @@ struct evl_thread {
+ 		struct evl_counter csw;	/* context switches */
+ 		struct evl_counter sc;	/* OOB syscalls */
+ 		struct evl_counter rwa;	/* remote wakeups */
+-		struct evl_counter pf;	/* Number of page faults */
+ 		struct evl_account account; /* Execution time accounting entity */
+ 		struct evl_account lastperiod; /* Interval marker for execution time reports */
+ 	} stat;
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index d260c022780e..38f84b607a2d 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1622,9 +1622,6 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 		xnarch_fault_notify(trapnr))
+ 		note_trap(curr, trapnr, regs, "switching in-band");
+ 
+-	if (xnarch_fault_pf_p(trapnr))
+-		evl_inc_counter(&curr->stat.pf);
+-
+ 	/*
+ 	 * We received a trap on the oob stage, switch to in-band
+ 	 * before handling the exception.
+-- 
+2.16.4
+

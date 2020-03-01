@@ -1,0 +1,49 @@
+From d7faa9b18f0f8eed1244ef42679b809f24515ba3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 12 Oct 2019 11:08:51 +0200
+Subject: [PATCH] evl/thread: fix wakeup test for T_PEND condition
+
+evl_wakeup_thread(mask=T_PEND) may be called for a thread which is not
+blocked (i.e. from evl_unblock_thread()). Therefore we also need to
+check the actual thread->state for T_PEND to figure out whether a wait
+state is ongoing before attempting to abort it.
+
+T_DELAY is a non-issue since evl_stop_timer() silently ignores
+requests for inactive timers.
+---
+ kernel/evl/thread.c | 2 +-
+ kernel/evl/wait.c   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 0d3caeecd0ba..e87fb0e660bc 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -566,7 +566,7 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ 		if (mask & (T_DELAY|T_PEND))
+ 			evl_stop_timer(&thread->rtimer);
+ 
+-		if (mask & T_PEND)
++		if (mask & T_PEND & oldstate)
+ 			abort_wait(thread);
+ 
+ 		thread->info |= info;
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index 914e857b08c4..03762ead8df5 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -96,9 +96,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ 	unsigned long flags;
+ 
+ 	no_ugly_lock();
+-	evl_spin_lock_irqsave(&wq->lock, flags);
++	xnlock_get_irqsave(&nklock, flags);
+ 	evl_flush_wait_locked(wq, reason);
+-	evl_spin_unlock_irqrestore(&wq->lock, flags);
++	xnlock_put_irqrestore(&nklock, flags);
+ }
+ EXPORT_SYMBOL_GPL(evl_flush_wait);
+ 
+-- 
+2.16.4
+

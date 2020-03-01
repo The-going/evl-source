@@ -1,0 +1,714 @@
+From 12c1505f9e37e400e91b6853ddd8265a3e519acf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Nov 2019 18:57:19 +0100
+Subject: [PATCH] evl: remove obsolete nklock - aka "Xenomai's ugly big lock"
+
+With the new fine-grained locking model fully in place, there are no
+more users of the ugly big (nk)lock originally inherited from
+Xenomai's Cobalt core, drop it and its API altogether.
+
+Good riddance.
+---
+ include/evl/assert.h    |  10 ----
+ include/evl/flag.h      |   3 --
+ include/evl/lock.h      | 141 ++----------------------------------------------
+ include/evl/wait.h      |   1 -
+ kernel/evl/Makefile     |   1 -
+ kernel/evl/lock.c       |  19 -------
+ kernel/evl/monitor.c    |  10 ----
+ kernel/evl/mutex.c      |  34 ------------
+ kernel/evl/sched/core.c |   4 --
+ kernel/evl/thread.c     |  21 --------
+ kernel/evl/wait.c       |   6 ---
+ 11 files changed, 3 insertions(+), 247 deletions(-)
+ delete mode 100644 kernel/evl/lock.c
+
+diff --git a/include/evl/assert.h b/include/evl/assert.h
+index 2fff3c558112..842c8e430ae4 100644
+--- a/include/evl/assert.h
++++ b/include/evl/assert.h
+@@ -49,14 +49,4 @@
+ 		assert_evl_lock(&(__thread)->rq->lock);	\
+ 	} while (0)
+ 
+-/* TEMP: needed until we have gotten rid of the infamous nklock. */
+-#ifdef CONFIG_SMP
+-#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+-#define no_ugly_lock()		EVL_WARN_ON_ONCE(CORE, xnlock_is_owner(&nklock))
+-#else
+-/* We have no debug support for the ugly lock in !SMP, check for the basics. */
+-#define requires_ugly_lock()	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
+-#define no_ugly_lock()		do { } while (0)
+-#endif
+-
+ #endif /* !_EVL_ASSERT_H */
+diff --git a/include/evl/flag.h b/include/evl/flag.h
+index 119c61125c04..4a9ebed05174 100644
+--- a/include/evl/flag.h
++++ b/include/evl/flag.h
+@@ -80,7 +80,6 @@ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
+ {
+ 	unsigned long flags;
+ 
+-	/* no_ugly_lock() */
+ 	evl_lock_flag(wf, flags);
+ 	evl_raise_flag_locked(wf);
+ 	evl_unlock_flag(wf, flags);
+@@ -102,7 +101,6 @@ static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+ 	evl_lock_flag(wf, flags);
+ 	evl_pulse_flag_locked(wf);
+ 	evl_unlock_flag(wf, flags);
+@@ -124,7 +122,6 @@ static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+ 	evl_lock_flag(wf, flags);
+ 	evl_flush_flag_locked(wf, reason);
+ 	evl_unlock_flag(wf, flags);
+diff --git a/include/evl/lock.h b/include/evl/lock.h
+index 60cc99c21860..177ce71acbf8 100644
+--- a/include/evl/lock.h
++++ b/include/evl/lock.h
+@@ -1,151 +1,16 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt, https://xenomai.org/
+- * Copyright (C) 2001-2008, 2018 Philippe Gerum <rpm@xenomai.org>
+- * Copyright (C) 2004,2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+- *
+- * NOTE: this code is on its way out, the ugly superlock is the only
+- * remaining lock of this type. There is an ongoing effort for moving
+- * away from the inefficient single-lock model. Do NOT add more
+- * instances of such lock.
++ * Copyright (C) 2019 Philippe Gerum <rpm@xenomai.org>
+  */
+ #ifndef _EVL_LOCK_H
+ #define _EVL_LOCK_H
+ 
+ #include <linux/irq_pipeline.h>
+ 
+-#define splhigh(x)  ((x) = oob_irq_save())
+-#ifdef CONFIG_SMP
+-#define splexit(x)  oob_irq_restore(x)
+-#else /* !CONFIG_SMP */
+-#define splexit(x)  oob_irq_restore(x)
+-#endif /* !CONFIG_SMP */
+-
+-struct xnlock {
+-	unsigned owner;
+-	unsigned int nesting;
+-	arch_spinlock_t alock;
+-};
+-
+-#define XNARCH_LOCK_UNLOCKED			\
+-	(struct xnlock) {			\
+-		~0,				\
+-		0,				\
+-		__ARCH_SPIN_LOCK_UNLOCKED,	\
+-	}
+-
+-#if defined(CONFIG_SMP)
+-
+-#define xnlock_get(lock)		__xnlock_get(lock)
+-#define xnlock_put(lock)		__xnlock_put(lock)
+-#define xnlock_get_irqsave(lock,x) \
+-	((x) = __xnlock_get_irqsave(lock))
+-#define xnlock_put_irqrestore(lock,x) \
+-	__xnlock_put_irqrestore(lock,x)
+-
+-static inline void xnlock_init (struct xnlock *lock)
+-{
+-	*lock = XNARCH_LOCK_UNLOCKED;
+-}
+-
+-#define DECLARE_XNLOCK(lock)		struct xnlock lock
+-#define DECLARE_EXTERN_XNLOCK(lock)	extern struct xnlock lock
+-#define DEFINE_XNLOCK(lock)		struct xnlock lock = XNARCH_LOCK_UNLOCKED
+-#define DEFINE_PRIVATE_XNLOCK(lock)	static DEFINE_XNLOCK(lock)
+-
+-static inline void __xnlock_get(struct xnlock *lock)
+-{
+-	int cpu = raw_smp_processor_id();
+-
+-	if (lock->owner == cpu) {
+-		lock->nesting++;
+-		return;
+-	}
+-
+-	arch_spin_lock(&lock->alock);
+-	lock->owner = cpu;
+-	lock->nesting = 1;
+-}
+-
+-static inline void __xnlock_put(struct xnlock *lock)
+-{
+-	WARN_ON_ONCE(lock->nesting <= 0);
+-
+-	if (--lock->nesting == 0) {
+-		lock->owner = ~0U;
+-		arch_spin_unlock(&lock->alock);
+-	}
+-}
+-
+-static inline unsigned long
+-__xnlock_get_irqsave(struct xnlock *lock)
+-{
+-	unsigned long flags;
+-
+-	splhigh(flags);
+-	__xnlock_get(lock);
+-	return flags;
+-}
+-
+-static inline
+-void __xnlock_put_irqrestore(struct xnlock *lock, unsigned long flags)
+-{
+-	__xnlock_put(lock);
+-	splexit(flags);
+-}
+-
+-static inline void xnlock_clear_irqon(struct xnlock *lock)
+-{
+-	lock->nesting = 1;
+-	__xnlock_put(lock);
+-	splexit(0);
+-}
+-
+-static inline int xnlock_is_owner(struct xnlock *lock)
+-{
+-	return lock->owner == raw_smp_processor_id();
+-}
+-
+-#else /* !CONFIG_SMP */
+-
+-#define xnlock_init(lock)		do { } while(0)
+-#define xnlock_get(lock)		do { } while(0)
+-#define xnlock_put(lock)		do { } while(0)
+-#define xnlock_get_irqsave(lock,x)	splhigh(x)
+-#define xnlock_put_irqrestore(lock,x)	splexit(x)
+-#define xnlock_clear_irqon(lock)	oob_irq_enable()
+-#define xnlock_is_owner(lock)		1
+-
+-#define DECLARE_XNLOCK(lock)
+-#define DECLARE_EXTERN_XNLOCK(lock)
+-#define DEFINE_XNLOCK(lock)
+-#define DEFINE_PRIVATE_XNLOCK(lock)
+-
+-#endif /* !CONFIG_SMP */
+-
+-DECLARE_EXTERN_XNLOCK(nklock);
+-
+ /*
+- * This new spinlock API may be nested with the obsolete ugly lock
+- * API. Specifically, this lock _must_ be used in patterns like
+- * follows:
+- *
+- * evl_spin_lock--(&lock[, flags_outer]);
+- *    xnlock_get--(&nklock[, flags_inner]);
+- *    xnlock_put--(&nklock[, flags_inner]);
+- * evl_spin_unlock--(&lock[, flags_outer]);
+- *
+- * In addition to preventing unwanted rescheduling, this construct
+- * makes sure xnlock_put_irq* will not re-enable irqs unexpectedly, by
+- * having evl_spin_lock_irq* update the OOB stall bit, which the
+- * xnlock* API tests and saves.
+- *
+- * Conversely, when the protected section is guaranteed not to call
+- * evl_schedule() either directly or indirectly, does not traverse any
+- * code altering the OOB stall bit (including as a consequence of
+- * nesting the ugly nklock), Dovetail's hard spinlock API may be used
+- * instead.
++ * The spinlock API used in the EVL core, which preserves Dovetail's
++ * stall bit for the out-of-band stage.
+  */
+ 
+ typedef struct evl_spinlock {
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 49547ad5be3c..59891d777174 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -56,7 +56,6 @@ struct evl_wait_queue {
+ 	int __ret = 0, __bcast;						\
+ 	unsigned long __flags;						\
+ 									\
+-	no_ugly_lock();							\
+ 	evl_spin_lock_irqsave(&(__wq)->lock, __flags);			\
+ 	if (!(__cond)) {						\
+ 		if (timeout_nonblock(__timeout))			\
+diff --git a/kernel/evl/Makefile b/kernel/evl/Makefile
+index 35a2b38a186c..05cf3e58cf26 100644
+--- a/kernel/evl/Makefile
++++ b/kernel/evl/Makefile
+@@ -8,7 +8,6 @@ evl-y :=		\
+ 	factory.o	\
+ 	file.o		\
+ 	init.o		\
+-	lock.o		\
+ 	memory.o	\
+ 	monitor.o	\
+ 	mutex.o		\
+diff --git a/kernel/evl/lock.c b/kernel/evl/lock.c
+deleted file mode 100644
+index bbc9ff28d00f..000000000000
+--- a/kernel/evl/lock.c
++++ /dev/null
+@@ -1,19 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0
+- *
+- * Derived from Xenomai Cobalt, https://xenomai.org/
+- * Copyright (C) 2004, 2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+- * Copyright (C) 2010, 2018 Philippe Gerum  <rpm@xenomai.org>
+- *
+- * NOTE: this code is on its way out, the ugly superlock is the only
+- * remaining lock of this type. We are moving away from the
+- * inefficient single-lock model.
+- */
+-
+-#include <linux/module.h>
+-#include <evl/lock.h>
+-
+-DEFINE_XNLOCK(nklock);
+-#if defined(CONFIG_SMP)
+-EXPORT_SYMBOL_GPL(nklock);
+-#endif /* CONFIG_SMP */
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index d9108063a5c2..a98e49fb4224 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -101,8 +101,6 @@ void __evl_commit_monitor_ceiling(void)
+ 	struct evl_thread *curr = evl_current();
+ 	struct evl_monitor *gate;
+ 
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * curr->u_window has to be valid since curr bears T_USER.  If
+ 	 * pp_pending is a bad handle, just skip ceiling.
+@@ -196,8 +194,6 @@ static int __enter_monitor(struct evl_monitor *gate,
+ 	ktime_t timeout = EVL_INFINITE;
+ 	enum evl_tmode tmode;
+ 
+-	no_ugly_lock();
+-
+ 	if (req) {
+ 		if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
+ 			return -EINVAL;
+@@ -214,8 +210,6 @@ static int enter_monitor(struct evl_monitor *gate,
+ {
+ 	struct evl_thread *curr = evl_current();
+ 
+-	no_ugly_lock();
+-
+ 	if (gate->type != EVL_MONITOR_GATE)
+ 		return -EINVAL;
+ 
+@@ -229,8 +223,6 @@ static int enter_monitor(struct evl_monitor *gate,
+ 
+ static int tryenter_monitor(struct evl_monitor *gate)
+ {
+-	no_ugly_lock();
+-
+ 	if (gate->type != EVL_MONITOR_GATE)
+ 		return -EINVAL;
+ 
+@@ -242,8 +234,6 @@ static int tryenter_monitor(struct evl_monitor *gate)
+ static void __exit_monitor(struct evl_monitor *gate,
+ 			struct evl_thread *curr)
+ {
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * If we are about to release the lock which is still pending
+ 	 * PP (i.e. we never got scheduled out while holding it),
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 8cec883d4bf5..59d0ed658504 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -42,8 +42,6 @@ static inline void disable_inband_switch(struct evl_thread *curr)
+ 
+ static inline bool enable_inband_switch(struct evl_thread *curr)
+ {
+-	no_ugly_lock();
+-
+ 	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
+ 		return true;
+ 
+@@ -61,7 +59,6 @@ static inline bool enable_inband_switch(struct evl_thread *curr)
+ static void raise_boost_flag(struct evl_thread *owner)
+ {
+ 	assert_evl_lock(&owner->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&owner->rq->lock);
+ 
+@@ -84,7 +81,6 @@ static int inherit_thread_priority(struct evl_thread *owner,
+ 
+ 	assert_evl_lock(&owner->lock);
+ 	assert_evl_lock(&contender->lock);
+-	no_ugly_lock();
+ 
+ 	/* Apply the scheduling policy of @contender to @owner */
+ 	evl_track_thread_policy(owner, contender);
+@@ -145,7 +141,6 @@ static int adjust_boost(struct evl_thread *owner,
+ 	 */
+ 	assert_evl_lock(&owner->lock);
+ 	assert_evl_lock(&origin->lock);
+-	no_ugly_lock();
+ 
+ 	/*
+ 	 * CAUTION: we may have PI and PP-enabled mutexes among the
+@@ -204,7 +199,6 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
+ 	int wprio;
+ 
+ 	assert_evl_lock(&mutex->lock);
+-	no_ugly_lock();
+ 
+ 	/* PP ceiling values are implicitly based on the FIFO class. */
+ 	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
+@@ -328,8 +322,6 @@ void set_current_owner(struct evl_mutex *mutex,
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+-
+ 	evl_spin_lock_irqsave(&mutex->lock, flags);
+ 	set_current_owner_locked(mutex, owner);
+ 	evl_spin_unlock_irqrestore(&mutex->lock, flags);
+@@ -357,7 +349,6 @@ static void clear_boost_locked(struct evl_mutex *mutex,
+ {
+ 	assert_evl_lock(&mutex->lock);
+ 	assert_evl_lock(&owner->lock);
+-	no_ugly_lock();
+ 
+ 	mutex->flags &= ~flag;
+ 
+@@ -377,7 +368,6 @@ static void clear_boost(struct evl_mutex *mutex,
+ 			int flag)
+ {
+ 	assert_evl_lock(&mutex->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&owner->lock);
+ 	clear_boost_locked(mutex, owner, flag);
+@@ -395,8 +385,6 @@ static void detect_inband_owner(struct evl_mutex *mutex,
+ {
+ 	struct evl_thread *owner = mutex->owner;
+ 
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * @curr == this_evl_rq()->curr so no need to grab
+ 	 * @curr->lock.
+@@ -428,8 +416,6 @@ void evl_detect_boost_drop(struct evl_thread *owner)
+ 	struct evl_mutex *mutex;
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+-
+ 	evl_spin_lock_irqsave(&owner->lock, flags);
+ 
+ 	/*
+@@ -459,7 +445,6 @@ void __evl_init_mutex(struct evl_mutex *mutex,
+ {
+ 	int type = ceiling_ref ? EVL_MUTEX_PP : EVL_MUTEX_PI;
+ 
+-	no_ugly_lock();
+ 	mutex->fastlock = fastlock;
+ 	atomic_set(fastlock, EVL_NO_HANDLE);
+ 	mutex->flags = type & ~EVL_MUTEX_CLAIMED;
+@@ -499,8 +484,6 @@ void evl_flush_mutex(struct evl_mutex *mutex, int reason)
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+-
+ 	trace_evl_mutex_flush(mutex);
+ 	evl_spin_lock_irqsave(&mutex->lock, flags);
+ 	flush_mutex_locked(mutex, reason);
+@@ -511,8 +494,6 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+-
+ 	trace_evl_mutex_destroy(mutex);
+ 	evl_spin_lock_irqsave(&mutex->lock, flags);
+ 	untrack_owner(mutex);
+@@ -528,7 +509,6 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
+ 	fundle_t h;
+ 
+ 	oob_context_only();
+-	no_ugly_lock();
+ 
+ 	trace_evl_mutex_trylock(mutex);
+ 
+@@ -551,8 +531,6 @@ static int wait_mutex_schedule(struct evl_mutex *mutex)
+ 	unsigned long flags;
+ 	int ret = 0, info;
+ 
+-	no_ugly_lock();
+-
+ 	evl_schedule();
+ 
+ 	info = evl_current()->info;
+@@ -591,7 +569,6 @@ static void finish_mutex_wait(struct evl_mutex *mutex)
+ 	 * PI chain.
+ 	 */
+ 	assert_evl_lock(&mutex->lock);
+-	no_ugly_lock();
+ 
+ 	/*
+ 	 * Only a waiter leaving a PI chain triggers an update.
+@@ -652,7 +629,6 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	int ret;
+ 
+ 	oob_context_only();
+-	no_ugly_lock();
+ 
+ 	currh = fundle_of(curr);
+ 	trace_evl_mutex_lock(mutex);
+@@ -855,7 +831,6 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	fundle_t n_ownerh;
+ 
+ 	assert_evl_lock(&mutex->lock);
+-	no_ugly_lock();
+ 
+ 	if (list_empty(&mutex->wchan.wait_list)) {
+ 		untrack_owner(mutex);
+@@ -898,8 +873,6 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 	fundle_t currh, h;
+ 	atomic_t *lockp;
+ 
+-	no_ugly_lock();
+-
+ 	trace_evl_mutex_unlock(mutex);
+ 
+ 	if (!enable_inband_switch(curr))
+@@ -946,7 +919,6 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
+ 	fundle_t currh = fundle_of(curr), h;
+ 
+ 	oob_context_only();
+-	no_ugly_lock();
+ 
+ 	h = evl_get_index(atomic_read(mutex->fastlock));
+ 	if (EVL_WARN_ON_ONCE(CORE, h != currh))
+@@ -963,8 +935,6 @@ void evl_drop_tracking_mutexes(struct evl_thread *curr)
+ 	unsigned long flags;
+ 	fundle_t h;
+ 
+-	no_ugly_lock();
+-
+ 	raw_spin_lock_irqsave(&curr->tracking_lock, flags);
+ 
+ 	/* Release all mutexes tracking @curr. */
+@@ -1007,7 +977,6 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
+ 
+ 	assert_evl_lock(&waiter->lock);
+ 	assert_evl_lock(&originator->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&mutex->lock);
+ 
+@@ -1062,7 +1031,6 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
+ 	int ret = 0;
+ 
+ 	assert_evl_lock(&originator->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&mutex->lock);
+ 
+@@ -1100,8 +1068,6 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
+ 	unsigned long flags;
+ 	fundle_t oldh, h;
+ 
+-	no_ugly_lock();
+-
+ 	evl_spin_lock_irqsave(&mutex->lock, flags);
+ 
+ 	/*
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index d24e54528d53..266640de28fd 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -538,7 +538,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
+ 
+ 	assert_evl_lock(&thread->lock);
+ 	assert_evl_lock(&target->lock);
+-	no_ugly_lock();
+ 
+ 	evl_double_rq_lock(thread->rq, target->rq);
+ 
+@@ -585,7 +584,6 @@ void evl_track_thread_policy(struct evl_thread *thread,
+ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
+ {
+ 	assert_evl_lock(&thread->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&thread->rq->lock);
+ 
+@@ -854,8 +852,6 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
+ 	bool leaving_inband, inband_tail;
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+-
+ 	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !oob_irqs_disabled()))
+ 		return;
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index e3ddd505ae27..d4f0cf23ee51 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -252,8 +252,6 @@ static void uninit_thread(struct evl_thread *thread)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	evl_destroy_timer(&thread->rtimer);
+ 	evl_destroy_timer(&thread->ptimer);
+ 
+@@ -270,8 +268,6 @@ static void do_cleanup_current(struct evl_thread *curr)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * Drop trackers first since this may alter the rq state for
+ 	 * current.
+@@ -533,7 +529,6 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 	struct evl_rq *rq;
+ 
+ 	oob_context_only();
+-	no_ugly_lock();
+ 
+ 	rq = evl_get_thread_rq(curr, flags);
+ 	evl_sleep_on_locked(timeout, timeout_mode, clock, wchan);
+@@ -596,8 +591,6 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
+ 	unsigned long oldstate, flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_DORMANT)))
+ 		return;
+ 
+@@ -874,8 +867,6 @@ void evl_cancel_thread(struct evl_thread *thread)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	if (EVL_WARN_ON(CORE, thread->state & T_ROOT))
+ 		return;
+ 
+@@ -1013,8 +1004,6 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
+ 	struct evl_rq *rq;
+ 	int ret;
+ 
+-	no_ugly_lock();
+-
+ 	rq = evl_get_thread_rq(thread, flags);
+ 	ret = evl_set_thread_schedparam_locked(thread, sched_class, sched_param);
+ 	evl_put_thread_rq(thread, rq, flags);
+@@ -1058,8 +1047,6 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
+ 
+ void __evl_test_cancel(struct evl_thread *curr)
+ {
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * Just in case evl_test_cancel() is called from an IRQ
+ 	 * handler, in which case we may not take the exit path.
+@@ -1087,8 +1074,6 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	/*
+ 	 * Test-set race for T_SCHEDP is ok, the propagation is meant
+ 	 * to be done asap but not guaranteed to be carried out
+@@ -1120,8 +1105,6 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
+ 
+ void evl_unblock_thread(struct evl_thread *thread, int reason)
+ {
+-	no_ugly_lock();
+-
+ 	trace_evl_unblock_thread(thread);
+ 
+ 	/*
+@@ -1146,8 +1129,6 @@ void evl_kick_thread(struct evl_thread *thread)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	rq = evl_get_thread_rq(thread, flags);
+ 
+ 	if ((thread->info & T_KICKED) || (thread->state & T_INBAND))
+@@ -1229,8 +1210,6 @@ void evl_demote_thread(struct evl_thread *thread)
+ 	unsigned long flags;
+ 	struct evl_rq *rq;
+ 
+-	no_ugly_lock();
+-
+ 	rq = evl_get_thread_rq(thread, flags);
+ 
+ 	/*
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index fbbae501738a..d3a3e0a7fdaa 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -16,7 +16,6 @@ void __evl_init_wait(struct evl_wait_queue *wq,
+ 		struct evl_clock *clock, int flags,
+ 		const char *name, struct lock_class_key *key)
+ {
+-	no_ugly_lock();
+ 	wq->flags = flags;
+ 	wq->clock = clock;
+ 	evl_spin_lock_init(&wq->lock);
+@@ -29,7 +28,6 @@ EXPORT_SYMBOL_GPL(__evl_init_wait);
+ 
+ void evl_destroy_wait(struct evl_wait_queue *wq)
+ {
+-	no_ugly_lock();
+ 	evl_flush_wait(wq, T_RMID);
+ 	evl_schedule();
+ }
+@@ -100,7 +98,6 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ {
+ 	unsigned long flags;
+ 
+-	no_ugly_lock();
+ 	evl_spin_lock_irqsave(&wq->lock, flags);
+ 	evl_flush_wait_locked(wq, reason);
+ 	evl_spin_unlock_irqrestore(&wq->lock, flags);
+@@ -120,7 +117,6 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
+ 
+ 	assert_evl_lock(&waiter->lock);
+ 	assert_evl_lock(&originator->lock);
+-	no_ugly_lock();
+ 
+ 	evl_spin_lock(&wq->lock);
+ 
+@@ -149,8 +145,6 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
+ 	unsigned long flags;
+ 	int ret = 0, info;
+ 
+-	no_ugly_lock();
+-
+ 	evl_schedule();
+ 
+ 	/*
+-- 
+2.16.4
+

@@ -1,0 +1,31 @@
+From dd01fa69a42b4a4a3982581669479cf0d1f80f74 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 2 Nov 2019 12:03:03 +0100
+Subject: [PATCH] evl/timer: annotate lock nesting for lockdep
+
+---
+ kernel/evl/timer.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index de545c180970..640dccb67e30 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -71,12 +71,10 @@ static inline void double_timer_base_lock(struct evl_timerbase *tb1,
+ 		raw_spin_lock(&tb1->lock);
+ 	else if (tb1 < tb2) {
+ 		raw_spin_lock(&tb1->lock);
+-		/* FIXME: raw_spin_lock_nested for tb2? */
+-		raw_spin_lock(&tb2->lock);
++		raw_spin_lock_nested(&tb2->lock, SINGLE_DEPTH_NESTING);
+ 	} else {
+ 		raw_spin_lock(&tb2->lock);
+-		/* FIXME: raw_spin_lock_nested for tb1? */
+-		raw_spin_lock(&tb1->lock);
++		raw_spin_lock_nested(&tb1->lock, SINGLE_DEPTH_NESTING);
+ 	}
+ }
+ 
+-- 
+2.16.4
+

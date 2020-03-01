@@ -1,4 +1,4 @@
-From 6d9d735d36da401a50a7cd355ac1634bd54f807a Mon Sep 17 00:00:00 2001
+From ccd4cf1bd59b3c33238b7449a82c511f1a7401d8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -77,10 +77,10 @@ index 52b3e06ea216..b563b393c7c9 100644
  endif
  
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index a5ce497a98f0..f46b18cd252e 100644
+index 2d2fd7c8765f..29a05a471ceb 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -133,7 +133,7 @@ config ARM64
+@@ -132,7 +132,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
@@ -89,7 +89,7 @@ index a5ce497a98f0..f46b18cd252e 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1553,7 +1553,7 @@ config STACKPROTECTOR_PER_TASK
+@@ -1581,7 +1581,7 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -99,10 +99,10 @@ index a5ce497a98f0..f46b18cd252e 100644
  menu "Boot options"
  
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 2811ff9da857..e97d7c47354e 100644
+index c3ef1476453b..268fc92aa61e 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -107,7 +107,7 @@ endif
+@@ -91,7 +91,7 @@ endif
  
  CHECKFLAGS	+= -D__aarch64__
  

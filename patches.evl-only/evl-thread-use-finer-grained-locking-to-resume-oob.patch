@@ -1,0 +1,111 @@
+From 723b2a75dd83f0cec23cf4c3c6c9eb155538eee2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 26 Oct 2019 18:14:50 +0200
+Subject: [PATCH] evl/thread: use finer-grained locking to resume oob
+
+There is no point in holding the ugly lock around the call to release
+a thread from the T_INBAND blocking condition: affinity_ok() updates
+scheduling information for the resuming thread which can be enforced
+only after the thread is released. Besides, evl_release_thread() does
+serialize callers.
+---
+ kernel/evl/thread.c | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 4c683cfcdfbc..ef146eacbeff 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -51,14 +51,14 @@ static DECLARE_WAIT_QUEUE_HEAD(join_all);
+ 
+ static void inband_task_wakeup(struct irq_work *work);
+ 
+-static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
++static void timeout_handler(struct evl_timer *timer) /* oob stage stalled */
+ {
+ 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
+ 
+ 	evl_wakeup_thread(thread, T_DELAY|T_PEND, T_TIMEO);
+ }
+ 
+-static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
++static void periodic_handler(struct evl_timer *timer) /* oob stage stalled */
+ {
+ 	struct evl_thread *thread =
+ 		container_of(timer, struct evl_thread, ptimer);
+@@ -1128,8 +1128,11 @@ EXPORT_SYMBOL_GPL(evl_join_thread);
+ 
+ #ifdef CONFIG_SMP
+ 
++/* nklocked, IRQs off */
+ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
+-{				/* nklocked, IRQs off */
++{
++	requires_ugly_lock();
++
+ 	if (thread->rq == rq)
+ 		return;
+ 
+@@ -1660,11 +1663,14 @@ static void handle_migration_event(struct dovetail_migration_data *d)
+ 		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
+ }
+ 
+-static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
++static bool affinity_ok(struct task_struct *p) /* oob stage stalled */
+ {
+ 	struct evl_thread *thread = evl_thread_from_task(p);
+ 	int cpu = task_cpu(p);
+ 	struct evl_rq *rq;
++	bool ret = true;
++
++	xnlock_get(&nklock);
+ 
+ 	/*
+ 	 * To maintain consistency between both the EVL and in-band
+@@ -1694,12 +1700,13 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
+ 		 * it in evl_switch_oob().
+ 		 */
+ 		thread->info |= T_CANCELD;
+-		return false;
++		ret = false;
++		goto out;
+ 	}
+ 
+ 	rq = evl_cpu_rq(cpu);
+ 	if (rq == thread->rq)
+-		return true;
++		goto out;
+ 
+ 	/*
+ 	 * If the current thread moved to a supported out-of-band CPU,
+@@ -1710,8 +1717,10 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
+ 		cpumask_set_cpu(cpu, &thread->affinity);
+ 
+ 	evl_migrate_thread(thread, rq);
++out:
++	xnlock_put(&nklock);
+ 
+-	return true;
++	return ret;
+ }
+ 
+ #else /* !CONFIG_SMP */
+@@ -1727,14 +1736,12 @@ static inline bool affinity_ok(struct task_struct *p)
+ 
+ #endif /* CONFIG_SMP */
+ 
+-void resume_oob_task(struct task_struct *p) /* hw IRQs off */
++void resume_oob_task(struct task_struct *p) /* oob stage stalled */
+ {
+ 	struct evl_thread *thread = evl_thread_from_task(p);
+ 
+-	xnlock_get(&nklock);
+ 	if (affinity_ok(p))
+ 		evl_release_thread(thread, T_INBAND, 0);
+-	xnlock_put(&nklock);
+ 
+ 	evl_schedule();
+ }
+-- 
+2.16.4
+

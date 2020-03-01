@@ -1,0 +1,73 @@
+From e867ddedfa5457bb2d622348b45276498b5af175 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 8 Oct 2019 16:46:50 +0200
+Subject: [PATCH] evl/sched: commit PP unlocked in  __evl_schedule()
+
+---
+ kernel/evl/monitor.c    |  2 ++
+ kernel/evl/sched/core.c | 27 +++++++++++++++++++--------
+ 2 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 018263e86a19..0b8d9f43686a 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -97,6 +97,8 @@ void __evl_commit_monitor_ceiling(void)
+ 	struct evl_thread *curr = evl_current();
+ 	struct evl_monitor *gate;
+ 
++	no_ugly_lock();
++
+ 	/*
+ 	 * curr->u_window has to be valid since curr bears T_USER.  If
+ 	 * pp_pending is a bad handle, just skip ceiling.
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index b89f2d9afa8c..dfd2cf027dd7 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -621,6 +621,12 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+ 	return NULL; /* Never executed because of the idle class. */
+ }
+ 
++/*
++ * CAUTION: curr->altsched.task may be unsynced and even stale if curr
++ * == &this_rq->root_thread, since the task logged by leave_inband()
++ * may not still be the current one. Use "current" for disambiguating
++ * if you need to refer to the underlying inband task.
++ */
+ bool __evl_schedule(struct evl_rq *this_rq)
+ {
+ 	bool switched, leaving_inband, inband_tail;
+@@ -631,16 +637,21 @@ bool __evl_schedule(struct evl_rq *this_rq)
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+-	curr = this_rq->curr;
+ 	/*
+-	 * CAUTION: curr->altsched.task may be unsynced and even stale
+-	 * if curr == &this_rq->root_thread, since the task logged by
+-	 * leave_inband() may not still be the current one. Use
+-	 * "current" for disambiguating if you need to refer to the
+-	 * underlying inband task.
++	 * Check whether we have a pending priority ceiling request to
++	 * commit before putting the current thread to sleep.
++	 * evl_current() may differ from rq->curr only if rq->curr ==
++	 * &rq->root_thread. Testing T_USER eliminates this case since
++	 * a root thread never bears this bit.
+ 	 */
+-	if (curr->state & T_USER)
+-		evl_commit_monitor_ceiling();
++	curr = this_rq->curr;
++	if (curr->state & T_USER) {
++		if (curr->u_window->pp_pending != EVL_NO_HANDLE) {
++			xnlock_put_irqrestore(&nklock, flags);
++			__evl_commit_monitor_ceiling();
++			xnlock_get_irqsave(&nklock, flags);
++		}
++	}
+ 
+ 	switched = false;
+ 	if (!test_resched(this_rq))
+-- 
+2.16.4
+

@@ -1,4 +1,4 @@
-From ec41be01c53cf860fffc7c7abc3826de49ca5388 Mon Sep 17 00:00:00 2001
+From 6712a08ffffc7cf654e91826d7be3ad43cd12656 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 11:17:29 +0200
 Subject: [PATCH] arm64: dovetail: route traps to the co-kernel
@@ -97,7 +97,7 @@ index 2c38ec27c4bc..23ad284404bf 100644
  	current->thread.fault_code = esr;
  
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 4a7c51c96200..4d93f5a2d23b 100644
+index 289dc642a241..303affdf239b 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
 @@ -39,6 +39,7 @@
@@ -154,7 +154,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  {
  	return 0;
  }
-@@ -456,7 +474,7 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
+@@ -469,7 +487,7 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
  		const struct fault_info *inf = esr_to_fault_info(esr);
  		unsigned long irqflags;
  
@@ -163,7 +163,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  		set_thread_esr(addr, esr);
  		arm64_force_sig_fault(inf->sig, inf->code, (void __user *)addr,
  				      inf->name);
-@@ -525,7 +543,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
+@@ -538,7 +556,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
  	unsigned long vm_flags = VM_READ | VM_WRITE, irqflags;
  	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
  
@@ -172,7 +172,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  
  	if (kprobe_page_fault(regs, esr))
  		goto out;
-@@ -727,7 +745,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
+@@ -740,7 +758,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
  	unsigned long irqflags;
  	void __user *siaddr;
  
@@ -181,7 +181,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  
  	inf = esr_to_fault_info(esr);
  
-@@ -824,7 +842,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+@@ -837,7 +855,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
  	if (!inf->fn(addr, esr, regs))
  		return;
  
@@ -190,7 +190,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  
  	if (!user_mode(regs)) {
  		pr_alert("Unhandled fault at 0x%016lx\n", addr);
-@@ -877,7 +895,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
+@@ -890,7 +908,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
  		local_daif_restore(DAIF_PROCCTX);
  	}
  
@@ -199,7 +199,7 @@ index 4a7c51c96200..4d93f5a2d23b 100644
  
  	arm64_notify_die("SP/PC alignment exception", regs,
  			 SIGBUS, BUS_ADRALN, (void __user *)addr, esr);
-@@ -1009,7 +1027,7 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
+@@ -1022,7 +1040,7 @@ asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
  	if (user_mode(regs) && !is_ttbr0_addr(pc))
  		arm64_apply_bp_hardening();
  

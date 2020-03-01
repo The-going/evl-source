@@ -1,0 +1,29 @@
+From 7319b0f2bc32602ff789a5a9074952aad452f09f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 31 Oct 2019 17:53:39 +0100
+Subject: [PATCH] gpiolib: evl: remove pointless rescheduling call
+
+EVL blocks rescheduling over an out-of-band interrupt context, however
+it does reschedule automatically when unwinding from the innermost IRQ
+frame. So there is no point in forcing a call to evl_schedule() in the
+line event handler.
+---
+ drivers/gpio/gpiolib.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 4640b7332a7b..65f6a5e312f2 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -966,8 +966,6 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+ 	evl_signal_poll_events(&le->oob_state.poll_head, POLLIN|POLLRDNORM);
+ 	evl_spin_unlock(&le->oob_state.wait.lock);
+ 
+-	evl_schedule();
+-
+ 	return IRQ_HANDLED;
+ }
+ 
+-- 
+2.16.4
+

@@ -260,3 +260,5 @@
 	patches.dovetail/x86-dovetail-fix-IRQ-state-inconsistencies-in-trap-h.patch
 	patches.dovetail/locking-irq_pipeline-fix-hard-spin-trylock.patch
 	patches.dovetail/locking-irq_pipeline-fix-mutable-spin-trylock.patch
+	patches.dovetail/locking-irq_pipeline-add-nested-hard-spin-lock-opera.patch
+	patches.dovetail/locking-irq_pipeline-add-nested-mutable-spin-lock-op.patch

@@ -1,0 +1,93 @@
+From 2d07577332f172226457c31a8f1b84ee2593b99a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 15:56:19 +0200
+Subject: [PATCH] evl/flag: add pre-locked form of operations
+
+---
+ include/evl/flag.h | 34 ++++++++++++++++++++++++++++++----
+ include/evl/wait.h |  1 +
+ 2 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/include/evl/flag.h b/include/evl/flag.h
+index 5b6a0b065872..aa6510c19aa4 100644
+--- a/include/evl/flag.h
++++ b/include/evl/flag.h
+@@ -62,13 +62,19 @@ struct evl_thread *evl_wait_flag_head(struct evl_flag *wf)
+ 	return evl_wait_head(&wf->wait);
+ }
+ 
++static inline void evl_raise_flag_locked(struct evl_flag *wf)
++{
++	wf->raised = true;
++	evl_flush_wait_locked(&wf->wait, 0);
++}
++
+ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
+ {
+ 	unsigned long flags;
+ 
++	/* no_ugly_lock() */
+ 	xnlock_get_irqsave(&nklock, flags);
+-	wf->raised = true;
+-	evl_flush_wait_locked(&wf->wait, 0);
++	evl_raise_flag_locked(wf);
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+@@ -78,9 +84,19 @@ static inline void evl_raise_flag(struct evl_flag *wf)
+ 	evl_schedule();
+ }
+ 
++static inline void evl_pulse_flag_locked(struct evl_flag *wf)
++{
++	evl_flush_wait_locked(&wf->wait, T_BCAST);
++}
++
+ static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
+ {
+-	evl_flush_wait(&wf->wait, T_BCAST);
++	unsigned long flags;
++
++	no_ugly_lock();
++	xnlock_get_irqsave(&nklock, flags);
++	evl_pulse_flag_locked(wf);
++	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+ static inline void evl_pulse_flag(struct evl_flag *wf)
+@@ -89,9 +105,19 @@ static inline void evl_pulse_flag(struct evl_flag *wf)
+ 	evl_schedule();
+ }
+ 
++static inline void evl_flush_flag_locked(struct evl_flag *wf, int reason)
++{
++	evl_flush_wait_locked(&wf->wait, reason);
++}
++
+ static inline void evl_flush_flag_nosched(struct evl_flag *wf, int reason)
+ {
+-	evl_flush_wait(&wf->wait, reason);
++	unsigned long flags;
++
++	no_ugly_lock();
++	xnlock_get_irqsave(&nklock, flags);
++	evl_flush_flag_locked(wf, reason);
++	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index ff1b8e18b08a..742895527358 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -166,6 +166,7 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ {
+ 	unsigned long flags;
+ 
++	no_ugly_lock();
+ 	xnlock_get_irqsave(&nklock, flags);
+ 	evl_flush_wait_locked(wq, reason);
+ 	xnlock_put_irqrestore(&nklock, flags);
+-- 
+2.16.4
+

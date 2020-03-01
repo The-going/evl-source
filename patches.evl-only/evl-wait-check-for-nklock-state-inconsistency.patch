@@ -1,0 +1,40 @@
+From fd5684d24317f16dcdfa2c1ed136f6b0a2e36414 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 9 Oct 2019 15:59:01 +0200
+Subject: [PATCH] evl/wait: check for nklock state inconsistency
+
+---
+ include/evl/wait.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 09fc14f2d037..d97de7d522d7 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -54,6 +54,7 @@ struct evl_wait_queue {
+ ({									\
+ 	int __ret = 0, __info;						\
+ 									\
++	no_ugly_lock();							\
+ 	evl_schedule();							\
+ 	__info = evl_current()->info;					\
+ 	if (__info & T_BREAK)						\
+@@ -69,6 +70,7 @@ struct evl_wait_queue {
+ ({									\
+ 	unsigned long __flags;						\
+ 									\
++	no_ugly_lock();							\
+ 	xnlock_get_irqsave(&nklock, __flags);				\
+ 	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
+ 	xnlock_put_irqrestore(&nklock, __flags);			\
+@@ -82,6 +84,7 @@ struct evl_wait_queue {
+ 	int __ret = 0, __info = 0;					\
+ 	unsigned long __flags;						\
+ 									\
++	no_ugly_lock();							\
+ 	xnlock_get_irqsave(&nklock, __flags);				\
+ 	if (!(__cond)) {						\
+ 		if (timeout_nonblock(__timeout))			\
+-- 
+2.16.4
+

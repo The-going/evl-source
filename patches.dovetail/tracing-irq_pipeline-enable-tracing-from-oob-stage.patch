@@ -1,4 +1,4 @@
-From f6762a399d6dd5ebd35a2c0eebaa4d72848f0d5d Mon Sep 17 00:00:00 2001
+From e34211240d4600cc258e05c43cbdd3cf5fc99701 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -17,10 +17,10 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index 62a50bf399d6..03dc1e123d8d 100644
+index f296d89be757..d539a44821b6 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
-@@ -5622,10 +5622,10 @@ static int ftrace_process_locs(struct module *mod,
+@@ -5652,10 +5652,10 @@ static int ftrace_process_locs(struct module *mod,
  	 * reason to cause large interrupt latencies while we do it.
  	 */
  	if (!mod)
@@ -33,7 +33,7 @@ index 62a50bf399d6..03dc1e123d8d 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6163,9 +6163,9 @@ void __init ftrace_init(void)
+@@ -6193,9 +6193,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +45,7 @@ index 62a50bf399d6..03dc1e123d8d 100644
  	if (ret)
  		goto failed;
  
-@@ -6300,7 +6300,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6330,7 +6330,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:
@@ -111,10 +111,10 @@ index 66358d66c933..3af2d6661a54 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index db6d45be6e23..e3ae9a230614 100644
+index 714518187048..affcfd50f83c 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -923,9 +923,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
+@@ -941,9 +941,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
  		return;
  	}
  
@@ -126,7 +126,7 @@ index db6d45be6e23..e3ae9a230614 100644
  }
  
  void tracing_snapshot_instance(struct trace_array *tr)
-@@ -1537,7 +1537,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
+@@ -1555,7 +1555,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu,
  	if (tr->stop_count)
  		return;
  
@@ -135,7 +135,7 @@ index db6d45be6e23..e3ae9a230614 100644
  
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
-@@ -1581,7 +1581,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
+@@ -1599,7 +1599,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
  	if (tr->stop_count)
  		return;
  
@@ -144,7 +144,7 @@ index db6d45be6e23..e3ae9a230614 100644
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
  		WARN_ON_ONCE(tr->current_trace != &nop_trace);
-@@ -6731,13 +6731,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+@@ -6766,13 +6766,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
  			ret = tracing_alloc_snapshot_instance(tr);
  		if (ret < 0)
  			break;
@@ -312,10 +312,10 @@ index 5e43b9664eca..c399d762383a 100644
  
  out_unlock:
 diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
-index ec9a34a97129..1162e9603f72 100644
+index 4df9a209f7ca..62cbd27f4002 100644
 --- a/kernel/trace/trace_stack.c
 +++ b/kernel/trace/trace_stack.c
-@@ -170,8 +170,9 @@ static void check_stack(unsigned long ip, unsigned long *stack)
+@@ -171,8 +171,9 @@ static void check_stack(unsigned long ip, unsigned long *stack)
  	if (!object_is_on_stack(stack))
  		return;
  

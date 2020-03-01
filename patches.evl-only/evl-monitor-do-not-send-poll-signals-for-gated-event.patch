@@ -1,0 +1,46 @@
+From 4123afeda34e9374aab9e90287f0515662e00067 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 9 Oct 2019 10:33:34 +0200
+Subject: [PATCH] evl/monitor: do not send poll signals for gated events
+
+Poll services are generally not available to gated events (evl_poll()
+returns POLLERR for these), so there is no point in signaling the poll
+notifier for them when such an event is posted.
+---
+ kernel/evl/monitor.c | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index a1868e175d18..0083a0aa0d93 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -260,7 +260,6 @@ static int exit_monitor(struct evl_monitor *gate)
+ 	struct evl_thread *curr = evl_current();
+ 	struct evl_monitor *event, *n;
+ 	unsigned long flags;
+-	LIST_HEAD(polled);
+ 
+ 	if (gate->type != EVL_MONITOR_GATE)
+ 		return -EINVAL;
+@@ -272,17 +271,10 @@ static int exit_monitor(struct evl_monitor *gate)
+ 		xnlock_get_irqsave(&nklock, flags);
+ 		state->flags &= ~EVL_MONITOR_SIGNALED;
+ 		list_for_each_entry_safe(event, n, &gate->events, next) {
+-			if (event->state->flags & EVL_MONITOR_SIGNALED) {
++			if (event->state->flags & EVL_MONITOR_SIGNALED)
+ 				wakeup_waiters(event);
+-				list_add(&event->next_poll, &polled);
+-			}
+ 		}
+ 		xnlock_put_irqrestore(&nklock, flags);
+-
+-		/* Wake up threads polling the condition too. */
+-		list_for_each_entry(event, &polled, next_poll)
+-			evl_signal_poll_events(&event->poll_head,
+-					POLLIN|POLLRDNORM);
+ 	}
+ 
+ 	__exit_monitor(gate, curr);
+-- 
+2.16.4
+

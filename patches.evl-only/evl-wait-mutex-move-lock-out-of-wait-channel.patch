@@ -1,0 +1,105 @@
+From 7cac3d372d640c5085dad968818be6596b76fba0 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 10 Oct 2019 17:07:21 +0200
+Subject: [PATCH] evl/{wait, mutex}: move lock out of wait channel
+
+---
+ include/evl/mutex.h  | 3 ++-
+ include/evl/thread.h | 1 -
+ include/evl/wait.h   | 3 ++-
+ kernel/evl/mutex.c   | 2 +-
+ kernel/evl/wait.c    | 2 +-
+ 5 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 592ad0f680d6..8f9bd4b924ab 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -31,6 +31,7 @@ struct evl_mutex {
+ 	struct evl_clock *clock;
+ 	atomic_t *fastlock;
+ 	u32 *ceiling_ref;
++	hard_spinlock_t lock;
+ 	struct evl_wait_channel wchan;
+ 	struct list_head next_booster; /* thread->boosters */
+ 	struct list_head next_tracker;   /* thread->trackers */
+@@ -91,11 +92,11 @@ struct evl_kmutex {
+ 			.wprio = -1,					\
+ 			.ceiling_ref = NULL,				\
+ 			.clock = &evl_mono_clock,			\
++			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock), \
+ 			.wchan = {					\
+ 				.abort_wait = evl_abort_mutex_wait,	\
+ 				.reorder_wait = evl_reorder_mutex_wait,	\
+ 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
+-				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+ 			},						\
+ 		},							\
+ 		.fastlock = ATOMIC_INIT(0),				\
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 9eec58ecc736..26de3a3139d2 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -47,7 +47,6 @@ struct evl_wait_channel {
+ 			struct evl_wait_channel *wchan);
+ 	void (*reorder_wait)(struct evl_thread *thread);
+ 	struct list_head wait_list;
+-	hard_spinlock_t lock;
+ };
+ 
+ struct evl_thread {
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 742895527358..d51ca77665da 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -26,16 +26,17 @@ struct evl_wait_queue {
+ 	int flags;
+ 	struct evl_clock *clock;
+ 	struct evl_wait_channel wchan;
++	hard_spinlock_t lock;
+ };
+ 
+ #define EVL_WAIT_INITIALIZER(__name) {					\
+ 		.flags = EVL_WAIT_PRIO,					\
+ 		.clock = &evl_mono_clock,				\
++		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
+ 		.wchan = {						\
+ 			.abort_wait = evl_abort_wait,			\
+ 			.reorder_wait = evl_reorder_wait,		\
+ 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
+-			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+ 		},							\
+ 	}
+ 
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index a06b66eb9cb6..13d8420867b7 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -377,7 +377,7 @@ static void init_mutex(struct evl_mutex *mutex,
+ 	mutex->wchan.abort_wait = evl_abort_mutex_wait;
+ 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
+ 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
+-	raw_spin_lock_init(&mutex->wchan.lock);
++	raw_spin_lock_init(&mutex->lock);
+ }
+ 
+ void evl_init_mutex_pi(struct evl_mutex *mutex,
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index 6f8bfa10c644..cd76f88a24dc 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -18,10 +18,10 @@ void evl_init_wait(struct evl_wait_queue *wq,
+ 	no_ugly_lock();
+ 	wq->flags = flags;
+ 	wq->clock = clock;
++	raw_spin_lock_init(&wq->lock);
+ 	wq->wchan.abort_wait = evl_abort_wait;
+ 	wq->wchan.reorder_wait = evl_reorder_wait;
+ 	INIT_LIST_HEAD(&wq->wchan.wait_list);
+-	raw_spin_lock_init(&wq->wchan.lock);
+ }
+ EXPORT_SYMBOL_GPL(evl_init_wait);
+ 
+-- 
+2.16.4
+

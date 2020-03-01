@@ -1,0 +1,26 @@
+From 0b0a0066df7db5fef1993c665da86b898d4c7559 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 31 Oct 2019 16:43:50 +0100
+Subject: [PATCH] evl/monitor: strip fundle status bits from element search
+
+---
+ kernel/evl/monitor.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index d751c606273f..9ffa6de1cb04 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -925,7 +925,8 @@ static ssize_t state_show(struct device *dev,
+ 		fun = atomic_read(&state->u.gate.owner);
+ 		if (fun != EVL_NO_HANDLE)
+ 			owner = evl_get_element_by_fundle(&evl_thread_factory,
+-							fun, struct evl_thread);
++							evl_get_index(fun),
++							struct evl_thread);
+ 		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
+ 			owner ? evl_get_inband_pid(owner) : -1,
+ 			state->u.gate.ceiling,
+-- 
+2.16.4
+

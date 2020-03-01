@@ -1,0 +1,342 @@
+From 92be40fd148c5c1bbee5d9f698f4ad5e56d86317 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 2 Nov 2019 15:20:15 +0100
+Subject: [PATCH] evl/mutex: fix circular dependency issue
+
+Proper locking order is mutex->lock first, thread->lock next.
+
+We are not done with mutex PI, which still locks the entire PI chain
+while walking it, which is inherited from Cobalt and badly naive. For
+this reason, lockdep still gives us false positive deadlock warnings
+with CONFIG_DEBUG_HARD_LOCKS, due to the current requirement to hold
+multiple mutex and thread locks when walking this chain.
+
+We should not have to hold more than two locks of each kind at any
+point in time, which means that we should be able to resort to simple
+_nested locking annotations for lockdep if need be. Work is pending to
+make the PI walk preemptible, which will solve lockdep false positives
+in the same move.
+---
+ include/evl/mutex.h  | 22 ++++++++++++----
+ include/evl/thread.h |  4 +++
+ kernel/evl/mutex.c   | 73 ++++++++++++++++++++++++++++------------------------
+ kernel/evl/thread.c  | 34 +++++++++++++++++-------
+ 4 files changed, 84 insertions(+), 49 deletions(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 04c1f029c718..14a81bd6b2fa 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -37,15 +37,27 @@ struct evl_mutex {
+ 	struct list_head next_tracker;   /* thread->trackers */
+ };
+ 
+-void evl_init_mutex_pi(struct evl_mutex *mutex,
+-		struct evl_clock *clock,
+-		atomic_t *fastlock);
+-
+-void evl_init_mutex_pp(struct evl_mutex *mutex,
++void __evl_init_mutex(struct evl_mutex *mutex,
+ 		struct evl_clock *clock,
+ 		atomic_t *fastlock,
+ 		u32 *ceiling_ref);
+ 
++#define evl_init_mutex_pi(__mutex, __clock, __fastlock)		\
++	do {							\
++		static struct lock_class_key __key;		\
++		__evl_init_mutex(__mutex, __clock, __fastlock, NULL);	\
++		lockdep_set_class_and_name(&(__mutex)->lock._lock, \
++					&__key, #__mutex);	   \
++	} while (0)
++
++#define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
++	do {								\
++		static struct lock_class_key __key;			\
++		__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling); \
++		lockdep_set_class_and_name(&(__mutex)->lock._lock, \
++					&__key, #__mutex);	   \
++	} while (0)
++
+ void evl_destroy_mutex(struct evl_mutex *mutex);
+ 
+ int evl_trylock_mutex(struct evl_mutex *mutex);
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index e639c84cf00d..f2c6013ee7af 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -225,6 +225,10 @@ int evl_init_thread(struct evl_thread *thread,
+ 		struct evl_rq *rq,
+ 		const char *fmt, ...);
+ 
++void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
++		struct evl_clock *clock,
++		struct evl_wait_channel *wchan);
++
+ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_clock *clock,
+ 		struct evl_wait_channel *wchan);
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 64ed8f27fd66..8cec883d4bf5 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -125,8 +125,8 @@ static int adjust_boost(struct evl_thread *owner,
+ 	 * the thread which initially triggered this PI walk
+ 	 * originally targeting the @origin mutex - we use this
+ 	 * information specifically for deadlock detection, making
+-	 * sure that @originator never appears in the dependency
+-	 * chain.
++	 * sure that @originator never appears in the dependency chain
++	 * more than once.
+ 	 *
+ 	 * The safe locking order during the PI chain traversal is:
+ 	 *
+@@ -350,18 +350,17 @@ fundle_t get_owner_handle(fundle_t ownerh, struct evl_mutex *mutex)
+ 	return ownerh;
+ }
+ 
+-/* mutex->lock held, irqs off */
+-static void clear_boost(struct evl_mutex *mutex,
++/* mutex->lock + owner->lock held, irqs off */
++static void clear_boost_locked(struct evl_mutex *mutex,
+ 			struct evl_thread *owner,
+ 			int flag)
+ {
+ 	assert_evl_lock(&mutex->lock);
++	assert_evl_lock(&owner->lock);
+ 	no_ugly_lock();
+ 
+ 	mutex->flags &= ~flag;
+ 
+-	evl_spin_lock(&owner->lock);
+-
+ 	list_del(&mutex->next_booster);	/* owner->boosters */
+ 	if (list_empty(&owner->boosters)) {
+ 		evl_spin_lock(&owner->rq->lock);
+@@ -370,7 +369,18 @@ static void clear_boost(struct evl_mutex *mutex,
+ 		inherit_thread_priority(owner, owner, owner);
+ 	} else
+ 		adjust_boost(owner, NULL, mutex, owner);
++}
++
++/* mutex->lock held, irqs off */
++static void clear_boost(struct evl_mutex *mutex,
++			struct evl_thread *owner,
++			int flag)
++{
++	assert_evl_lock(&mutex->lock);
++	no_ugly_lock();
+ 
++	evl_spin_lock(&owner->lock);
++	clear_boost_locked(mutex, owner, flag);
+ 	evl_spin_unlock(&owner->lock);
+ }
+ 
+@@ -443,14 +453,16 @@ void evl_detect_boost_drop(struct evl_thread *owner)
+ 	evl_spin_unlock_irqrestore(&owner->lock, flags);
+ }
+ 
+-static void init_mutex(struct evl_mutex *mutex,
+-		struct evl_clock *clock, int flags,
++void __evl_init_mutex(struct evl_mutex *mutex,
++		struct evl_clock *clock,
+ 		atomic_t *fastlock, u32 *ceiling_ref)
+ {
++	int type = ceiling_ref ? EVL_MUTEX_PP : EVL_MUTEX_PI;
++
+ 	no_ugly_lock();
+ 	mutex->fastlock = fastlock;
+ 	atomic_set(fastlock, EVL_NO_HANDLE);
+-	mutex->flags = flags & ~EVL_MUTEX_CLAIMED;
++	mutex->flags = type & ~EVL_MUTEX_CLAIMED;
+ 	mutex->owner = NULL;
+ 	mutex->wprio = -1;
+ 	mutex->ceiling_ref = ceiling_ref;
+@@ -460,19 +472,7 @@ static void init_mutex(struct evl_mutex *mutex,
+ 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
+ 	evl_spin_lock_init(&mutex->lock);
+ }
+-
+-void evl_init_mutex_pi(struct evl_mutex *mutex,
+-		struct evl_clock *clock, atomic_t *fastlock)
+-{
+-	init_mutex(mutex, clock, EVL_MUTEX_PI, fastlock, NULL);
+-}
+-
+-void evl_init_mutex_pp(struct evl_mutex *mutex,
+-		struct evl_clock *clock,
+-		atomic_t *fastlock, u32 *ceiling_ref)
+-{
+-	init_mutex(mutex, clock, EVL_MUTEX_PP, fastlock, ceiling_ref);
+-}
++EXPORT_SYMBOL_GPL(__evl_init_mutex);
+ 
+ /* mutex->lock held, irqs off */
+ static void flush_mutex_locked(struct evl_mutex *mutex, int reason)
+@@ -670,8 +670,8 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 		return -EDEADLK;
+ 
+ 	ret = 0;
+-	evl_spin_lock_irqsave(&curr->lock, flags);
+-	evl_spin_lock(&mutex->lock);
++	evl_spin_lock_irqsave(&mutex->lock, flags);
++	evl_spin_lock(&curr->lock);
+ 
+ 	/*
+ 	 * Set claimed bit.  In case it appears to be set already,
+@@ -692,8 +692,8 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	test_no_owner:
+ 		if (oldh == EVL_NO_HANDLE) {
+ 			/* Lock released from another cpu. */
+-			evl_spin_unlock(&mutex->lock);
+-			evl_spin_unlock_irqrestore(&curr->lock, flags);
++			evl_spin_unlock(&curr->lock);
++			evl_spin_unlock_irqrestore(&mutex->lock, flags);
+ 			goto redo;
+ 		}
+ 		h = oldh;
+@@ -710,8 +710,8 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	 */
+ 	if (owner == NULL) {
+ 		untrack_owner(mutex);
+-		evl_spin_unlock(&mutex->lock);
+-		evl_spin_unlock_irqrestore(&curr->lock, flags);
++		evl_spin_unlock(&curr->lock);
++		evl_spin_unlock_irqrestore(&mutex->lock, flags);
+ 		return -EOWNERDEAD;
+ 	}
+ 
+@@ -787,14 +787,17 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	}
+ 
+ 	evl_spin_unlock(&owner->lock);
+-	evl_spin_unlock(&curr->lock);
+ 
+ 	if (likely(!ret)) {
+-		evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
++		evl_spin_lock(&curr->rq->lock);
++		evl_sleep_on_locked(timeout, timeout_mode, mutex->clock, &mutex->wchan);
++		evl_spin_unlock(&curr->rq->lock);
++		evl_spin_unlock(&curr->lock);
+ 		evl_spin_unlock_irqrestore(&mutex->lock, flags);
+ 		ret = wait_mutex_schedule(mutex);
+ 		evl_spin_lock_irqsave(&mutex->lock, flags);
+-	}
++	} else
++		evl_spin_unlock(&curr->lock);
+ 
+ 	finish_mutex_wait(mutex);
+ 	evl_spin_lock(&curr->lock);
+@@ -843,7 +846,7 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ }
+ EXPORT_SYMBOL_GPL(evl_lock_mutex_timeout);
+ 
+-/* mutex->lock held, irqs off */
++/* mutex->lock + lastowner->lock held, irqs off */
+ static void transfer_ownership(struct evl_mutex *mutex,
+ 			struct evl_thread *lastowner)
+ {
+@@ -879,7 +882,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
+ 
+ 	if (mutex->flags & EVL_MUTEX_CLAIMED)
+-		clear_boost(mutex, lastowner, EVL_MUTEX_CLAIMED);
++		clear_boost_locked(mutex, lastowner, EVL_MUTEX_CLAIMED);
+ 
+ 	n_ownerh = get_owner_handle(fundle_of(n_owner), mutex);
+ 	if (!list_empty(&mutex->wchan.wait_list)) /* any waiters? */
+@@ -917,9 +920,10 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 	 * locklessly.
+ 	 */
+ 	evl_spin_lock_irqsave(&mutex->lock, flags);
++	evl_spin_lock(&curr->lock);
+ 
+ 	if (mutex->flags & EVL_MUTEX_CEILING)
+-		clear_boost(mutex, curr, EVL_MUTEX_CEILING);
++		clear_boost_locked(mutex, curr, EVL_MUTEX_CEILING);
+ 
+ 	h = atomic_read(lockp);
+ 	h = atomic_cmpxchg(lockp, h, EVL_NO_HANDLE);
+@@ -932,6 +936,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 		untrack_owner(mutex);
+ 	}
+ 
++	evl_spin_unlock(&curr->lock);
+ 	evl_spin_unlock_irqrestore(&mutex->lock, flags);
+ }
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index b032fbb8efaa..e3ddd505ae27 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -459,20 +459,20 @@ int __evl_run_kthread(struct evl_kthread *kthread)
+ }
+ EXPORT_SYMBOL_GPL(__evl_run_kthread);
+ 
+-void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
++/* evl_current()->lock + evl_current()->rq->lock held, oob stalled. */
++void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_clock *clock,
+ 		struct evl_wait_channel *wchan)
+ {
+ 	struct evl_thread *curr = evl_current();
+-	unsigned long oldstate, flags;
+-	struct evl_rq *rq;
++	struct evl_rq *rq = curr->rq;
++	unsigned long oldstate;
+ 
+-	oob_context_only();
+-	no_ugly_lock();
++	assert_evl_lock(&curr->lock);
++	assert_evl_lock(&rq->lock);
++	
+ 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
+ 
+-	rq = evl_get_thread_rq(curr, flags);
+-
+ 	oldstate = curr->state;
+ 
+ 	/*
+@@ -483,7 +483,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		if (curr->info & T_KICKED) {
+ 			curr->info &= ~(T_RMID|T_TIMEO);
+ 			curr->info |= T_BREAK;
+-			goto out;
++			return;
+ 		}
+ 		curr->info &= ~EVL_THREAD_INFO_MASK;
+ 	}
+@@ -501,7 +501,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
+ 		else if (timeout <= evl_read_clock(clock)) {
+ 			curr->info |= T_TIMEO;
+-			goto out;
++			return;
+ 		}
+ 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
+ 		curr->state |= T_DELAY;
+@@ -522,7 +522,21 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 	}
+ 
+ 	evl_set_resched(rq);
+-out:
++}
++
++void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
++		struct evl_clock *clock,
++		struct evl_wait_channel *wchan)
++{
++	struct evl_thread *curr = evl_current();
++	unsigned long flags;
++	struct evl_rq *rq;
++
++	oob_context_only();
++	no_ugly_lock();
++
++	rq = evl_get_thread_rq(curr, flags);
++	evl_sleep_on_locked(timeout, timeout_mode, clock, wchan);
+ 	evl_put_thread_rq(curr, rq, flags);
+ }
+ 
+-- 
+2.16.4
+

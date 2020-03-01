@@ -1,0 +1,26 @@
+From 0df1a2446373d4e7a1b3a6be20383e3577c13f61 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 22 Oct 2019 20:43:57 +0200
+Subject: [PATCH] evl/sched: do not preempt-schedule with irqs off
+
+---
+ include/evl/sched.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index b6cb041255cd..50d526830d5f 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -298,7 +298,8 @@ static inline void __evl_disable_preempt(void)
+ 
+ static inline void __evl_enable_preempt(void)
+ {
+-	if (--dovetail_current_state()->preempt_count == 0)
++	if (--dovetail_current_state()->preempt_count == 0 &&
++		!hard_irqs_disabled())
+ 		evl_schedule();
+ }
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,25 @@
+From d1149fe8f923579eab66bffb5d88b10807000f40 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 9 Oct 2019 11:15:17 +0200
+Subject: [PATCH] gpiolib: evl: silence UMR warning
+
+---
+ drivers/gpio/gpiolib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 295deda127ff..43fc44feff4b 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -1004,7 +1004,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
+ 				size_t count)
+ {
+ 	struct lineevent_state *le = filep->private_data;
+-	struct gpioevent_data ge;
++	struct gpioevent_data ge = { 0 };
+ 	unsigned long flags;
+ 	int ret;
+ 
+-- 
+2.16.4
+
