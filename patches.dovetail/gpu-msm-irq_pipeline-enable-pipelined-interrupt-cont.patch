@@ -1,4 +1,4 @@
-From c2833faa52bf822ffe268a7fce3b39ef65f6fa82 Mon Sep 17 00:00:00 2001
+From 6dcf7eee7918768292da4fe568a9e7484a26dcb9 Mon Sep 17 00:00:00 2001
 From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
 Date: Fri, 22 Mar 2019 06:34:00 +0100
 Subject: [PATCH] gpu: msm: irq_pipeline: enable pipelined interrupt control
@@ -21,10 +21,10 @@ index 7316b4ab1b85..37908a935ec7 100644
  
  static struct lock_class_key dpu_mdss_lock_key, dpu_mdss_request_key;
 diff --git a/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c b/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
-index 889c2940692c..543ae181a2b1 100644
+index 09bd46ad820b..8e0f2be155d8 100644
 --- a/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
 +++ b/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
-@@ -102,6 +102,7 @@ static struct irq_chip mdss_hw_irq_chip = {
+@@ -91,6 +91,7 @@ static struct irq_chip mdss_hw_irq_chip = {
  	.name		= "mdss",
  	.irq_mask	= mdss_hw_mask_irq,
  	.irq_unmask	= mdss_hw_unmask_irq,

@@ -1,4 +1,4 @@
-From e10122675769103d18040c9d1b912ef38961d82d Mon Sep 17 00:00:00 2001
+From 112fd84efd3643a5140dcaab2f722ac8d26625d6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 17:33:36 +0200
 Subject: [PATCH] arm64: dovetail: document oob_trap_notify() assumptions in
@@ -9,10 +9,10 @@ Subject: [PATCH] arm64: dovetail: document oob_trap_notify() assumptions in
  1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index ea118f53ddc3..ea3125cd6cc3 100644
+index 8ae1b97b37f2..4351922687f3 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
-@@ -99,11 +99,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+@@ -88,11 +88,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
  	int nosync = 1;
  
  	/*

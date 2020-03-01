@@ -1,4 +1,4 @@
-From 43c342b9916d7d15b9ce06c5d2db3163f329bcdc Mon Sep 17 00:00:00 2001
+From 751c696b8c18a637053d091bd3e4cf93cf780d5d Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Sat, 23 Jul 2016 14:36:14 +0200
 Subject: [PATCH] ARM: VDSO: use mmio clocksources
@@ -47,10 +47,10 @@ index 0b350a7e26f3..58bcd93e6730 100644
 +
  #endif
 diff --git a/arch/arm/include/asm/vdso_datapage.h b/arch/arm/include/asm/vdso_datapage.h
-index 9be259442fca..90b016969b49 100644
+index 7910abf89b1c..7f40de454add 100644
 --- a/arch/arm/include/asm/vdso_datapage.h
 +++ b/arch/arm/include/asm/vdso_datapage.h
-@@ -30,7 +30,7 @@
+@@ -19,7 +19,7 @@
   */
  struct vdso_data {
  	u32 seq_count;		/* sequence count - odd during updates */
@@ -59,7 +59,7 @@ index 9be259442fca..90b016969b49 100644
  	u16 cs_shift;		/* clocksource shift */
  	u32 xtime_coarse_sec;	/* coarse time */
  	u32 xtime_coarse_nsec;
-@@ -46,6 +46,7 @@ struct vdso_data {
+@@ -35,6 +35,7 @@ struct vdso_data {
  	u64 xtime_clock_snsec;	/* CLOCK_REALTIME sub-ns base */
  	u32 tz_minuteswest;	/* timezone info for gettimeofday(2) */
  	u32 tz_dsttime;
@@ -68,10 +68,10 @@ index 9be259442fca..90b016969b49 100644
  
  union vdso_data_store {
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 064661a38c99..fa66f687a7b2 100644
+index aa95ca02614e..7482ed9f414f 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -35,8 +35,6 @@
+@@ -24,8 +24,6 @@
  #include <asm/vdso_datapage.h>
  #include <clocksource/arm_arch_timer.h>
  
@@ -80,7 +80,7 @@ index 064661a38c99..fa66f687a7b2 100644
  static struct page **vdso_text_pagelist;
  
  extern char vdso_start[], vdso_end[];
-@@ -81,122 +79,6 @@ static struct vm_special_mapping vdso_text_mapping __ro_after_init = {
+@@ -70,122 +68,6 @@ static struct vm_special_mapping vdso_text_mapping __ro_after_init = {
  	.mremap = vdso_mremap,
  };
  
@@ -203,7 +203,7 @@ index 064661a38c99..fa66f687a7b2 100644
  static int __init vdso_init(void)
  {
  	unsigned int text_pages;
-@@ -232,9 +114,7 @@ static int __init vdso_init(void)
+@@ -221,9 +103,7 @@ static int __init vdso_init(void)
  	vdso_total_pages = 2; /* for the data/vvar and vpriv pages */
  	vdso_total_pages += text_pages;
  
@@ -214,7 +214,7 @@ index 064661a38c99..fa66f687a7b2 100644
  
  	return 0;
  }
-@@ -257,6 +137,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+@@ -246,6 +126,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
  	if (IS_ERR(vma))
  		return PTR_ERR(vma);
  
@@ -224,7 +224,7 @@ index 064661a38c99..fa66f687a7b2 100644
  	return vma->vm_start != addr ? -EINVAL : 0;
  }
  
-@@ -309,15 +192,9 @@ static void vdso_write_end(struct vdso_data *vdata)
+@@ -298,15 +181,9 @@ static void vdso_write_end(struct vdso_data *vdata)
  	++vdso_data->seq_count;
  }
  
@@ -242,7 +242,7 @@ index 064661a38c99..fa66f687a7b2 100644
  }
  
  /**
-@@ -341,24 +218,36 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
+@@ -330,24 +207,36 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
  void update_vsyscall(struct timekeeper *tk)
  {
  	struct timespec64 *wtm = &tk->wall_to_monotonic;
@@ -287,7 +287,7 @@ index 064661a38c99..fa66f687a7b2 100644
  		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
  		vdso_data->xtime_clock_sec	= tk->xtime_sec;
  		vdso_data->xtime_clock_snsec	= tk->tkr_mono.xtime_nsec;
-@@ -378,3 +267,17 @@ void update_vsyscall_tz(void)
+@@ -367,3 +256,17 @@ void update_vsyscall_tz(void)
  	vdso_data->tz_dsttime		= sys_tz.tz_dsttime;
  	flush_dcache_page(virt_to_page(vdso_data));
  }
@@ -851,10 +851,10 @@ index 3300739edce4..6eabf4cea6ae 100644
  	bool "BCM2835 timer driver" if COMPILE_TEST
  	select CLKSRC_MMIO
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index c1b0aa58b05e..b0e88641f007 100644
+index 176531be52a7..94a2864bd386 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
-@@ -468,6 +468,10 @@ int __init clocksource_user_dual_mmio_init(
+@@ -465,6 +465,10 @@ int __init clocksource_user_dual_mmio_init(
  	}
  	spin_unlock(&user_clksrcs_lock);
  

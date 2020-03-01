@@ -190,3 +190,7 @@
 	patches.dovetail/x86-fpu-dovetail-always-hard-lock-fpregs-on-pipelini.patch
 	patches.dovetail/x86-irq_pipeline-handle-IRQ-cleanup-events-properly.patch
 	patches.dovetail/dovetail-altsched-fix-FPU-corruption-on-transition-t.patch
+	patches.dovetail/dovetail-disable-dovetail_mm_state-for-kthreads.patch
+	patches.dovetail/dovetail-altsched-fold-inband_switch_notify-into-pre.patch
+	patches.dovetail/genirq-irq_pipeline-reword-documentation-bits.patch
+	patches.dovetail/genirq-irq_pipeline-clarify-stage-switching-in-dispa.patch

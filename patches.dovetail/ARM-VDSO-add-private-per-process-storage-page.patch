@@ -1,4 +1,4 @@
-From e1dc0066bbf91a19e04405f660d689e42afdf398 Mon Sep 17 00:00:00 2001
+From a071ad6363ac5ace090c43728fd61a1193de31da Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 22 Jul 2018 16:45:45 +0200
 Subject: [PATCH] ARM: VDSO: add private per-process storage page
@@ -17,10 +17,10 @@ storing process-private context data.
  3 files changed, 44 insertions(+), 9 deletions(-)
 
 diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
-index 357ec8ebdc7..a45736271a7 100644
+index 0821fdd77831..177d6f51bc5a 100644
 --- a/arch/arm/kernel/asm-offsets.c
 +++ b/arch/arm/kernel/asm-offsets.c
-@@ -181,6 +181,7 @@ int main(void)
+@@ -178,6 +178,7 @@ int main(void)
    BLANK();
  #ifdef CONFIG_VDSO
    DEFINE(VDSO_DATA_SIZE,	sizeof(union vdso_data_store));
@@ -29,10 +29,10 @@ index 357ec8ebdc7..a45736271a7 100644
    BLANK();
  #ifdef CONFIG_ARM_MPU
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index f4dd7f9663c..064661a38c9 100644
+index 8872acf9ff99..aa95ca02614e 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -41,7 +41,10 @@ static struct page **vdso_text_pagelist;
+@@ -30,7 +30,10 @@ static struct page **vdso_text_pagelist;
  
  extern char vdso_start[], vdso_end[];
  
@@ -44,7 +44,7 @@ index f4dd7f9663c..064661a38c9 100644
  unsigned int vdso_total_pages __ro_after_init;
  
  /*
-@@ -62,8 +65,8 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
+@@ -51,8 +54,8 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
  	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
  	unsigned long vdso_size;
  
@@ -55,7 +55,7 @@ index f4dd7f9663c..064661a38c9 100644
  
  	if (vdso_size != new_size)
  		return -EINVAL;
-@@ -226,7 +229,7 @@ static int __init vdso_init(void)
+@@ -215,7 +218,7 @@ static int __init vdso_init(void)
  
  	vdso_text_mapping.pages = vdso_text_pagelist;
  
@@ -64,7 +64,7 @@ index f4dd7f9663c..064661a38c9 100644
  	vdso_total_pages += text_pages;
  
  	cntvct_ok = cntvct_functional();
-@@ -237,6 +240,13 @@ static int __init vdso_init(void)
+@@ -226,6 +229,13 @@ static int __init vdso_init(void)
  }
  arch_initcall(vdso_init);
  
@@ -78,7 +78,7 @@ index f4dd7f9663c..064661a38c9 100644
  static int install_vvar(struct mm_struct *mm, unsigned long addr)
  {
  	struct vm_area_struct *vma;
-@@ -244,8 +254,10 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+@@ -233,8 +243,10 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
  	vma = _install_special_mapping(mm, addr, PAGE_SIZE,
  				       VM_READ | VM_MAYREAD,
  				       &vdso_data_mapping);
@@ -90,7 +90,7 @@ index f4dd7f9663c..064661a38c9 100644
  }
  
  /* assumes mmap_sem is write-locked */
-@@ -259,18 +271,29 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
+@@ -248,18 +260,29 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
  	if (vdso_text_pagelist == NULL)
  		return;
  
@@ -125,7 +125,7 @@ index f4dd7f9663c..064661a38c9 100644
  }
  
 diff --git a/arch/arm/vdso/datapage.S b/arch/arm/vdso/datapage.S
-index 9cd73b725d9..9beb76db2ec 100644
+index 9cd73b725d9f..9beb76db2ec3 100644
 --- a/arch/arm/vdso/datapage.S
 +++ b/arch/arm/vdso/datapage.S
 @@ -5,6 +5,8 @@

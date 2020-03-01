@@ -1,4 +1,4 @@
-From 3895acf642abd04c4a250a356e1409d231cafa07 Mon Sep 17 00:00:00 2001
+From 195e7646924ac1d8e151335b7cc51d588e9e72a6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 29 Sep 2018 16:38:00 +0200
 Subject: [PATCH] arm64: fpsimd: dovetail: enable sharing with oob stage
@@ -24,10 +24,10 @@ index c2c0ae6c1e05..d33227c898c1 100644
 +
  #endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/include/asm/fpsimd.h b/arch/arm64/include/asm/fpsimd.h
-index df62bbd33a9a..64a2af631b9e 100644
+index 897029c8e9b5..88eb0b557bf2 100644
 --- a/arch/arm64/include/asm/fpsimd.h
 +++ b/arch/arm64/include/asm/fpsimd.h
-@@ -56,6 +56,7 @@ extern void fpsimd_flush_thread(void);
+@@ -45,6 +45,7 @@ extern void fpsimd_flush_thread(void);
  extern void fpsimd_signal_preserve_current_state(void);
  extern void fpsimd_preserve_current_state(void);
  extern void fpsimd_restore_current_state(void);
@@ -66,10 +66,10 @@ index 000000000000..4aee34fb0e88
 +	fpsimd_restore_current_oob();
 +}
 diff --git a/arch/arm64/kernel/fpsimd.c b/arch/arm64/kernel/fpsimd.c
-index 1d62ee4e06ab..7db9be20b1b7 100644
+index 1b15b62280d2..4bdd55a467d0 100644
 --- a/arch/arm64/kernel/fpsimd.c
 +++ b/arch/arm64/kernel/fpsimd.c
-@@ -156,6 +156,83 @@ extern void __percpu *efi_sve_state;
+@@ -145,6 +145,83 @@ extern void __percpu *efi_sve_state;
  
  #endif /* ! CONFIG_ARM64_SVE */
  
@@ -153,7 +153,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  /*
   * Call __sve_free() directly only if you know task can't be scheduled
   * or preempted.
-@@ -231,7 +308,7 @@ static void sve_free(struct task_struct *task)
+@@ -220,7 +297,7 @@ static void sve_free(struct task_struct *task)
   */
  static void task_fpsimd_load(void)
  {
@@ -162,7 +162,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	if (system_supports_sve() && test_thread_flag(TIF_SVE))
  		sve_load_state(sve_pffr(&current->thread),
-@@ -247,13 +324,13 @@ static void task_fpsimd_load(void)
+@@ -236,13 +313,13 @@ static void task_fpsimd_load(void)
   *
   * Softirqs (and preemption) must be disabled.
   */
@@ -178,7 +178,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
  		if (system_supports_sve() && test_thread_flag(TIF_SVE)) {
-@@ -275,6 +352,15 @@ void fpsimd_save(void)
+@@ -264,6 +341,15 @@ void fpsimd_save(void)
  	}
  }
  
@@ -194,7 +194,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  /*
   * All vector length selection from userspace comes through here.
   * We're on a slow path, so some sanity-checks are included.
-@@ -364,7 +450,7 @@ static int __init sve_sysctl_init(void) { return 0; }
+@@ -370,7 +456,7 @@ static __uint128_t arm64_cpu_to_le128(__uint128_t x)
   * task->thread.uw.fpsimd_state must be up to date before calling this
   * function.
   */
@@ -203,8 +203,8 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  {
  	unsigned int vq;
  	void *sst = task->thread.sve_state;
-@@ -380,6 +466,15 @@ static void fpsimd_to_sve(struct task_struct *task)
- 		       sizeof(fst->vregs[i]));
+@@ -388,6 +474,15 @@ static void fpsimd_to_sve(struct task_struct *task)
+ 	}
  }
  
 +static void fpsimd_to_sve(struct task_struct *task)
@@ -219,10 +219,10 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  /*
   * Transfer the SVE state in task->thread.sve_state to
   * task->thread.uw.fpsimd_state.
-@@ -396,14 +491,19 @@ static void sve_to_fpsimd(struct task_struct *task)
- 	void const *sst = task->thread.sve_state;
+@@ -405,15 +500,20 @@ static void sve_to_fpsimd(struct task_struct *task)
  	struct user_fpsimd_state *fst = &task->thread.uw.fpsimd_state;
  	unsigned int i;
+ 	__uint128_t const *p;
 +	unsigned long flags;
  
  	if (!system_supports_sve())
@@ -231,15 +231,16 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
 +	flags = hard_cond_local_irq_save();
 +
  	vq = sve_vq_from_vl(task->thread.sve_vl);
- 	for (i = 0; i < 32; ++i)
- 		memcpy(&fst->vregs[i], ZREG(sst, vq, i),
- 		       sizeof(fst->vregs[i]));
+ 	for (i = 0; i < 32; ++i) {
+ 		p = (__uint128_t const *)ZREG(sst, vq, i);
+ 		fst->vregs[i] = arm64_le128_to_cpu(*p);
+ 	}
 +
 +	hard_cond_local_irq_restore(flags);
  }
  
  #ifdef CONFIG_ARM64_SVE
-@@ -508,6 +608,8 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
+@@ -520,6 +620,8 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
  int sve_set_vector_length(struct task_struct *task,
  			  unsigned long vl, unsigned long flags)
  {
@@ -248,7 +249,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  	if (flags & ~(unsigned long)(PR_SVE_VL_INHERIT |
  				     PR_SVE_SET_VL_ONEXEC))
  		return -EINVAL;
-@@ -545,9 +647,9 @@ int sve_set_vector_length(struct task_struct *task,
+@@ -557,9 +659,9 @@ int sve_set_vector_length(struct task_struct *task,
  	 * non-SVE thread.
  	 */
  	if (task == current) {
@@ -260,7 +261,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  	}
  
  	fpsimd_flush_task_state(task);
-@@ -555,7 +657,7 @@ int sve_set_vector_length(struct task_struct *task,
+@@ -567,7 +669,7 @@ int sve_set_vector_length(struct task_struct *task,
  		sve_to_fpsimd(task);
  
  	if (task == current)
@@ -269,7 +270,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	/*
  	 * Force reallocation of task SVE state to the correct size
-@@ -860,6 +962,8 @@ void fpsimd_release_task(struct task_struct *dead_task)
+@@ -872,6 +974,8 @@ void fpsimd_release_task(struct task_struct *dead_task)
   */
  asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  {
@@ -278,7 +279,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  	oob_trap_notify(ARM64_TRAP_SVE, regs);
  
  	/* Even if we chose not to use SVE, the hardware could still trap: */
-@@ -870,7 +974,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+@@ -882,7 +986,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  
  	sve_alloc(current);
  
@@ -287,7 +288,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	fpsimd_save();
  
-@@ -881,7 +985,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+@@ -893,7 +997,7 @@ asmlinkage void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  	if (test_and_set_thread_flag(TIF_SVE))
  		WARN_ON(1); /* SVE access shouldn't have trapped */
  
@@ -296,7 +297,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  
  /*
-@@ -923,12 +1027,15 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
+@@ -935,12 +1039,15 @@ asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
  void fpsimd_thread_switch(struct task_struct *next)
  {
  	bool wrong_task, wrong_cpu;
@@ -313,7 +314,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	/*
  	 * Fix up TIF_FOREIGN_FPSTATE to correctly describe next's
-@@ -941,16 +1048,19 @@ void fpsimd_thread_switch(struct task_struct *next)
+@@ -953,16 +1060,19 @@ void fpsimd_thread_switch(struct task_struct *next)
  
  	update_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE,
  			       wrong_task || wrong_cpu);
@@ -334,7 +335,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	fpsimd_flush_task_state(current);
  	memset(&current->thread.uw.fpsimd_state, 0,
-@@ -991,7 +1101,7 @@ void fpsimd_flush_thread(void)
+@@ -1003,7 +1113,7 @@ void fpsimd_flush_thread(void)
  			current->thread.sve_vl_onexec = 0;
  	}
  
@@ -343,7 +344,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  
  /*
-@@ -1000,12 +1110,14 @@ void fpsimd_flush_thread(void)
+@@ -1012,12 +1122,14 @@ void fpsimd_flush_thread(void)
   */
  void fpsimd_preserve_current_state(void)
  {
@@ -361,7 +362,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  
  /*
-@@ -1045,19 +1157,29 @@ void fpsimd_bind_task_to_cpu(void)
+@@ -1057,19 +1169,29 @@ void fpsimd_bind_task_to_cpu(void)
  	}
  }
  
@@ -394,7 +395,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  /*
   * Load the userland FPSIMD state of 'current' from memory, but only if the
   * FPSIMD state already held in the registers is /not/ the most recent FPSIMD
-@@ -1065,17 +1187,19 @@ void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st, void *sve_state,
+@@ -1077,17 +1199,19 @@ void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st, void *sve_state,
   */
  void fpsimd_restore_current_state(void)
  {
@@ -416,7 +417,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  
  /*
-@@ -1085,21 +1209,23 @@ void fpsimd_restore_current_state(void)
+@@ -1097,21 +1221,23 @@ void fpsimd_restore_current_state(void)
   */
  void fpsimd_update_current_state(struct user_fpsimd_state const *state)
  {
@@ -443,7 +444,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  
  /*
-@@ -1157,22 +1283,26 @@ EXPORT_PER_CPU_SYMBOL(kernel_neon_busy);
+@@ -1169,22 +1295,26 @@ EXPORT_PER_CPU_SYMBOL(kernel_neon_busy);
   */
  void kernel_neon_begin(void)
  {
@@ -472,7 +473,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  
  	local_bh_enable();
  }
-@@ -1198,6 +1328,7 @@ void kernel_neon_end(void)
+@@ -1210,6 +1340,7 @@ void kernel_neon_end(void)
  	WARN_ON(!busy);	/* No matching kernel_neon_begin()? */
  
  	preempt_enable();
@@ -480,7 +481,7 @@ index 1d62ee4e06ab..7db9be20b1b7 100644
  }
  EXPORT_SYMBOL(kernel_neon_end);
  
-@@ -1287,10 +1418,14 @@ void __efi_fpsimd_end(void)
+@@ -1299,10 +1430,14 @@ void __efi_fpsimd_end(void)
  static int fpsimd_cpu_pm_notifier(struct notifier_block *self,
  				  unsigned long cmd, void *v)
  {

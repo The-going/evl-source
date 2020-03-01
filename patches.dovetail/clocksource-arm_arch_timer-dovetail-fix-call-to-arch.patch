@@ -1,4 +1,4 @@
-From a1374c2629f09f107cae3b48f006ce0bc259c4fc Mon Sep 17 00:00:00 2001
+From e341fc29568ef41177050292f5a8d5dbf2d09f9e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Apr 2019 16:51:52 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: dovetail: fix call to
@@ -17,10 +17,10 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  2 files changed, 8 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 0685f3c5833e..6c41cbcc96b0 100644
+index 9a65d1c735ae..9f62c384c329 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -284,5 +284,8 @@ void arch_clocksource_arch_timer_init(struct clocksource *cs)
+@@ -273,5 +273,8 @@ void arch_clocksource_arch_timer_init(struct clocksource *cs)
  {
  	struct arch_clocksource_data *d = &cs->archdata;
  
@@ -31,10 +31,10 @@ index 0685f3c5833e..6c41cbcc96b0 100644
 +		d->clock_type = ARM_CLOCK_ARCH_TIMER;
  }
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index eaeb7246ed5a..ed9d1a7bc45b 100644
+index 632ad33f0616..a282cbd21f1b 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
-@@ -971,6 +971,10 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
+@@ -968,6 +968,10 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
  	return &arch_timer_kvm_info;
  }
  
@@ -45,7 +45,7 @@ index eaeb7246ed5a..ed9d1a7bc45b 100644
  static void __init arch_counter_register(unsigned type)
  {
  	u64 start_count;
-@@ -995,9 +999,7 @@ static void __init arch_counter_register(unsigned type)
+@@ -992,9 +996,7 @@ static void __init arch_counter_register(unsigned type)
  		arch_timer_read_counter = rd;
  		clocksource_counter.archdata.vdso_direct = vdso_default;
  

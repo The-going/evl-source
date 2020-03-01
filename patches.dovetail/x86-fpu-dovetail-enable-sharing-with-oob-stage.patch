@@ -1,24 +1,24 @@
-From 3f40a2f1e85803dc5d1abdd54ed235b62df52098 Mon Sep 17 00:00:00 2001
+From 27ad8019a95b582f6528309cdd2329d675292719 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 May 2019 08:39:26 +0200
 Subject: [PATCH] x86/fpu: dovetail: enable sharing with oob stage
 
 ---
- arch/x86/include/asm/dovetail.h     |  19 +++++-
+ arch/x86/include/asm/dovetail.h     |  20 +++++-
  arch/x86/include/asm/fpu/api.h      |  25 ++++++--
- arch/x86/include/asm/fpu/internal.h |  30 ++++++++-
+ arch/x86/include/asm/fpu/internal.h |  31 +++++++++-
  arch/x86/include/asm/fpu/types.h    |  12 ++++
  arch/x86/include/asm/pgtable.h      |   5 +-
- arch/x86/kernel/fpu/core.c          | 117 ++++++++++++++++++++++++++++++++----
- arch/x86/kernel/fpu/signal.c        |  20 +++---
+ arch/x86/kernel/fpu/core.c          | 118 ++++++++++++++++++++++++++++++++----
+ arch/x86/kernel/fpu/signal.c        |  25 ++++----
  arch/x86/kvm/x86.c                  |  12 ++--
- 8 files changed, 204 insertions(+), 36 deletions(-)
+ 8 files changed, 210 insertions(+), 38 deletions(-)
 
 diff --git a/arch/x86/include/asm/dovetail.h b/arch/x86/include/asm/dovetail.h
-index 0cd94cae9c19..b7f05388b896 100644
+index 0cd94cae9c19..e996daa3992c 100644
 --- a/arch/x86/include/asm/dovetail.h
 +++ b/arch/x86/include/asm/dovetail.h
-@@ -8,8 +8,23 @@
+@@ -8,8 +8,24 @@
  
  #ifndef __ASSEMBLY__
  
@@ -38,7 +38,8 @@ index 0cd94cae9c19..b7f05388b896 100644
 +{
 +	if (enter_inband)
 +		fpu__resume_inband();
-+	else if (current->mm && test_thread_flag(TIF_NEED_FPU_LOAD))
++	else if (!(current->flags & PF_KTHREAD) &&
++		test_thread_flag(TIF_NEED_FPU_LOAD))
 +		switch_fpu_return();
 +}
  
@@ -92,7 +93,7 @@ index b774c52e5411..be5352560ea1 100644
   * Query the presence of one or more xfeatures. Works on any legacy CPU as well.
   *
 diff --git a/arch/x86/include/asm/fpu/internal.h b/arch/x86/include/asm/fpu/internal.h
-index 9e27fa05a7ae..bacfb19468b6 100644
+index 4c95c365058a..7c0d75228f81 100644
 --- a/arch/x86/include/asm/fpu/internal.h
 +++ b/arch/x86/include/asm/fpu/internal.h
 @@ -15,6 +15,7 @@
@@ -136,12 +137,13 @@ index 9e27fa05a7ae..bacfb19468b6 100644
  /*
   * FPU state switching for scheduling.
   *
-@@ -571,7 +598,8 @@ static inline void __fpregs_load_activate(void)
+@@ -571,7 +598,9 @@ static inline void __fpregs_load_activate(void)
   */
  static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
  {
--	if (static_cpu_has(X86_FEATURE_FPU) && current->mm) {
-+	if (static_cpu_has(X86_FEATURE_FPU) && current->mm &&
+-	if (static_cpu_has(X86_FEATURE_FPU) && !(current->flags & PF_KTHREAD)) {
++	if (static_cpu_has(X86_FEATURE_FPU) &&
++		!(current->flags & PF_KTHREAD) &&
 +		!oob_fpu_preempted(old_fpu)) {
  		if (!copy_fpregs_to_fpstate(old_fpu))
  			old_fpu->last_cpu = -1;
@@ -196,7 +198,7 @@ index 5e0509b41986..de4ebf52bfed 100644
  
  static inline int pte_young(pte_t pte)
 diff --git a/arch/x86/kernel/fpu/core.c b/arch/x86/kernel/fpu/core.c
-index 466fca686fb9..0f56e9b31e61 100644
+index 649fbc3fcf9f..de6cfe957996 100644
 --- a/arch/x86/kernel/fpu/core.c
 +++ b/arch/x86/kernel/fpu/core.c
 @@ -15,6 +15,7 @@
@@ -232,7 +234,7 @@ index 466fca686fb9..0f56e9b31e61 100644
 +
  	kernel_fpu_disable();
  
- 	if (current->mm) {
+ 	if (!(current->flags & PF_KTHREAD)) {
 @@ -112,7 +117,10 @@ static void __kernel_fpu_begin(void)
  			copy_fpregs_to_fpstate(fpu);
  		}
@@ -372,7 +374,7 @@ index 466fca686fb9..0f56e9b31e61 100644
  }
  EXPORT_SYMBOL_GPL(switch_fpu_return);
  
-@@ -462,3 +489,69 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
+@@ -462,3 +489,70 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
  	 */
  	return 0;
  }
@@ -429,7 +431,8 @@ index 466fca686fb9..0f56e9b31e61 100644
 +		copy_kernel_to_fpregs(&kfpu->state);
 +		__cpu_invalidate_fpregs_state();
 +		oob_fpu_clear_preempt(&tsk->thread.fpu);
-+	} else if (tsk->mm && test_thread_flag(TIF_NEED_FPU_LOAD))
++	} else if (!(tsk->flags & PF_KTHREAD) &&
++		test_thread_flag(TIF_NEED_FPU_LOAD))
 +		switch_fpu_return();
 +}
 +
@@ -443,10 +446,25 @@ index 466fca686fb9..0f56e9b31e61 100644
 +
 +#endif
 diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
-index 5a8d118bc423..54066e21a55b 100644
+index 0071b794ed19..528f88eee96f 100644
 --- a/arch/x86/kernel/fpu/signal.c
 +++ b/arch/x86/kernel/fpu/signal.c
-@@ -159,6 +159,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
+@@ -61,11 +61,12 @@ static inline int save_fsave_header(struct task_struct *tsk, void __user *buf)
+ 		struct xregs_state *xsave = &tsk->thread.fpu.state.xsave;
+ 		struct user_i387_ia32_struct env;
+ 		struct _fpstate_32 __user *fp = buf;
++		unsigned long flags;
+ 
+-		fpregs_lock();
++		flags = fpregs_lock();
+ 		if (!test_thread_flag(TIF_NEED_FPU_LOAD))
+ 			copy_fxregs_to_kernel(&tsk->thread.fpu);
+-		fpregs_unlock();
++		fpregs_unlock(flags);
+ 
+ 		convert_from_fxsr(&env, tsk);
+ 
+@@ -165,6 +166,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
  {
  	struct task_struct *tsk = current;
  	int ia32_fxstate = (buf != buf_fx);
@@ -454,7 +472,7 @@ index 5a8d118bc423..54066e21a55b 100644
  	int ret;
  
  	ia32_fxstate &= (IS_ENABLED(CONFIG_X86_32) ||
-@@ -179,14 +180,14 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
+@@ -185,14 +187,14 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
  	 * userland's stack frame which will likely succeed. If it does not,
  	 * resolve the fault in the user memory and try again.
  	 */
@@ -470,8 +488,8 @@ index 5a8d118bc423..54066e21a55b 100644
 +	fpregs_unlock(flags);
  
  	if (ret) {
- 		int aligned_size;
-@@ -279,6 +280,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+ 		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
+@@ -277,6 +279,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
  	struct task_struct *tsk = current;
  	struct fpu *fpu = &tsk->thread.fpu;
  	struct user_i387_ia32_struct env;
@@ -479,7 +497,7 @@ index 5a8d118bc423..54066e21a55b 100644
  	u64 xfeatures = 0;
  	int fx_only = 0;
  	int ret = 0;
-@@ -345,16 +347,16 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+@@ -343,16 +346,16 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
  		 * going through the kernel buffer with the enabled pagefault
  		 * handler.
  		 */
@@ -499,7 +517,7 @@ index 5a8d118bc423..54066e21a55b 100644
  	}
  
  
-@@ -374,7 +376,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+@@ -372,7 +375,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
  
  		sanitize_restored_xstate(&fpu->state, envp, xfeatures, fx_only);
  
@@ -508,7 +526,7 @@ index 5a8d118bc423..54066e21a55b 100644
  		if (unlikely(init_bv))
  			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
  		ret = copy_kernel_to_xregs_err(&fpu->state.xsave, xfeatures);
-@@ -388,7 +390,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+@@ -386,7 +389,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
  
  		sanitize_restored_xstate(&fpu->state, envp, xfeatures, fx_only);
  
@@ -517,7 +535,7 @@ index 5a8d118bc423..54066e21a55b 100644
  		if (use_xsave()) {
  			u64 init_bv = xfeatures_mask & ~XFEATURE_MASK_FPSSE;
  			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
-@@ -400,12 +402,12 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+@@ -398,12 +401,12 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
  		if (ret)
  			goto err_out;
  
@@ -533,10 +551,10 @@ index 5a8d118bc423..54066e21a55b 100644
  err_out:
  	if (ret)
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 83aefd759846..560b3ceef42d 100644
+index 9857992d4e58..03e1ca65558a 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -8220,7 +8220,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
+@@ -8217,7 +8217,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
  /* Swap (qemu) user FPU context for the guest FPU context. */
  static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  {
@@ -547,7 +565,7 @@ index 83aefd759846..560b3ceef42d 100644
  
  	copy_fpregs_to_fpstate(&current->thread.fpu);
  	/* PKRU is separately restored in kvm_x86_ops->run.  */
-@@ -8228,7 +8230,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8225,7 +8227,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  				~XFEATURE_MASK_PKRU);
  
  	fpregs_mark_activate();
@@ -556,7 +574,7 @@ index 83aefd759846..560b3ceef42d 100644
  
  	trace_kvm_fpu(1);
  }
-@@ -8236,13 +8238,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8233,13 +8235,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  /* When vcpu_run ends, restore user space FPU context. */
  static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
  {

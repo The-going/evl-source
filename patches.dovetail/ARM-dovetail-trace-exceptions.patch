@@ -1,4 +1,4 @@
-From 4f3f2c6b31e41013810231b54cb238ed474a61e5 Mon Sep 17 00:00:00 2001
+From a4055f01e27ed4d4d95a500c4087196dcde4a636 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 May 2019 15:46:32 +0200
 Subject: [PATCH] ARM: dovetail: trace exceptions
@@ -78,10 +78,10 @@ index 000000000000..bdb666b3da4e
 +/* This part must be outside protection */
 +#include <trace/define_trace.h>
 diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index a261bba60e63..9b4e5eab36b4 100644
+index 184b30ae59ca..a09fc93d968c 100644
 --- a/arch/arm/mm/fault.c
 +++ b/arch/arm/mm/fault.c
-@@ -27,6 +27,8 @@
+@@ -24,6 +24,8 @@
  #include <asm/system_info.h>
  #include <asm/tlbflush.h>
  #include <asm/dovetail.h>
@@ -90,7 +90,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  
  #include "fault.h"
  
-@@ -51,11 +53,13 @@
+@@ -48,11 +50,13 @@
   * helpers. From the main kernel's point of view, there is no change.
   */
  static inline
@@ -105,7 +105,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  	/*
  	 * CAUTION: The co-kernel might demote the current context to
  	 * the in-band stage as a result of handling this trap,
-@@ -73,7 +77,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+@@ -70,7 +74,8 @@ unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
  	return irqs_merge_flags(flags, nosync);
  }
  
@@ -115,7 +115,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  {
  	unsigned long flags;
  	int nosync;
-@@ -100,17 +105,21 @@ static inline void fault_exit(unsigned long combo)
+@@ -97,17 +102,21 @@ static inline void fault_exit(unsigned long combo)
  			hard_local_irq_enable();
  	} else if (hard_irqs_disabled_flags(flags))
  		hard_local_irq_disable();
@@ -139,7 +139,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  
  #endif	/* !CONFIG_IRQ_PIPELINE */
  
-@@ -205,12 +214,14 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
+@@ -202,12 +211,14 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
  	pr_cont("\n");
  }
  #else					/* CONFIG_MMU */
@@ -156,7 +156,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  
  void show_pte(struct mm_struct *mm, unsigned long addr)
  { }
-@@ -291,7 +302,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -288,7 +299,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  	if (user_mode(regs)) {
  		irqflags = fault_entry(ARM_TRAP_ACCESS, regs);
  		__do_user_fault(tsk, addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
@@ -165,7 +165,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  	} else
  		/*
  		 * irq_pipeline: kernel faults are either quickly
-@@ -501,7 +512,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -498,7 +509,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  no_context:
  	__do_kernel_fault(mm, addr, fsr, regs);
  out:
@@ -174,7 +174,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  
  	return 0;
  }
-@@ -616,7 +627,7 @@ do_sect_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -613,7 +624,7 @@ do_sect_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  
  	irqflags = fault_entry(ARM_TRAP_SECTION, regs);
  	do_bad_area(addr, fsr, regs);
@@ -183,7 +183,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  	return 0;
  }
  #endif /* CONFIG_ARM_LPAE */
-@@ -676,7 +687,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+@@ -673,7 +684,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
  
  	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
  		       fsr, 0);
@@ -192,7 +192,7 @@ index a261bba60e63..9b4e5eab36b4 100644
  }
  
  void __init
-@@ -707,7 +718,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+@@ -704,7 +715,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
  
  	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
  		       ifsr, 0);

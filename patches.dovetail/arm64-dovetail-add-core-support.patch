@@ -1,4 +1,4 @@
-From c7977aceff4993b50c7cea9d0c0d7a83bab8f244 Mon Sep 17 00:00:00 2001
+From bb6c499f621adf6e7fa3d2f972845572811c3617 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Sep 2018 19:11:56 +0200
 Subject: [PATCH] arm64: dovetail: add core support
@@ -47,10 +47,10 @@ index 000000000000..8c0af9bbf972
 +
 +#endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-index 742eb9fec045..e4c54f93f8cb 100644
+index 9b3e86901902..06b0f5db0ea0 100644
 --- a/arch/arm64/include/asm/thread_info.h
 +++ b/arch/arm64/include/asm/thread_info.h
-@@ -27,6 +27,7 @@
+@@ -16,6 +16,7 @@
  
  struct task_struct;
  
@@ -58,7 +58,7 @@ index 742eb9fec045..e4c54f93f8cb 100644
  #include <asm/memory.h>
  #include <asm/stack_pointer.h>
  #include <asm/types.h>
-@@ -55,6 +56,7 @@ struct thread_info {
+@@ -44,6 +45,7 @@ struct thread_info {
  #endif
  		} preempt;
  	};
@@ -66,7 +66,7 @@ index 742eb9fec045..e4c54f93f8cb 100644
  };
  
  #define thread_saved_pc(tsk)	\
-@@ -82,6 +84,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -71,6 +73,7 @@ void arch_release_task_struct(struct task_struct *tsk);
   *  TIF_SIGPENDING	- signal pending
   *  TIF_NEED_RESCHED	- rescheduling necessary
   *  TIF_NOTIFY_RESUME	- callback before returning to user
@@ -74,7 +74,7 @@ index 742eb9fec045..e4c54f93f8cb 100644
   */
  #define TIF_SIGPENDING		0
  #define TIF_NEED_RESCHED	1
-@@ -102,6 +105,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -91,6 +94,7 @@ void arch_release_task_struct(struct task_struct *tsk);
  #define TIF_SVE			23	/* Scalable Vector Extension in use */
  #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
  #define TIF_SSBD		25	/* Wants SSB mitigation */
@@ -82,7 +82,7 @@ index 742eb9fec045..e4c54f93f8cb 100644
  
  #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
  #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-@@ -116,6 +120,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -105,6 +109,7 @@ void arch_release_task_struct(struct task_struct *tsk);
  #define _TIF_FSCHECK		(1 << TIF_FSCHECK)
  #define _TIF_32BIT		(1 << TIF_32BIT)
  #define _TIF_SVE		(1 << TIF_SVE)
@@ -90,7 +90,7 @@ index 742eb9fec045..e4c54f93f8cb 100644
  
  #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
  				 _TIF_NOTIFY_RESUME | _TIF_FOREIGN_FPSTATE | \
-@@ -136,6 +141,8 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -125,6 +130,8 @@ void arch_release_task_struct(struct task_struct *tsk);
   * Local (synchronous) thread flags.
   */
  #define _TLF_OOB		0x0001

@@ -1,0 +1,369 @@
+From 7c030f50c134160b23951844012fe64e0e6548b3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 25 Jun 2019 11:04:56 +0200
+Subject: [PATCH] evl/sched: reorganize and clarify priority scales
+
+The new hierachy of priority scales is as follows:
+
+EVL_CORE_MIN_PRIO = EVL_WEAK_MIN_PRIO
+...
+	EVL_FIFO_MIN_PRIO ==
+	     EVL_QUOTA_MIN_PRIO ==
+	          EVL_TP_MIN_PRIO (== 1)
+	...
+	EVL_FIFO_MAX_PRIO =
+	     EVL_QUOTA_MAX_PRIO ==
+	          EVL_TP_MAX_PRIO ==
+		       EVL_WEAK_MAX_PRIO (< MAX_USER_RT_PRIO)
+...
+EVL_CORE_MAX_PRIO (> MAX_RT_PRIO)
+
+We reserve a couple of priority levels above the highest inband
+kthread priority (MAX_RT_PRIO..MAX_RT_PRIO+1), which are guaranteed to
+be higher than the highest inband user task priority
+(MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those extra levels can be
+used for EVL kthreads which must top the priority of any userland
+thread.
+
+SCHED_EVL was dropped int the process, since userland is now
+constrained to EVL_FIFO_MAX_PRIO by construction.
+---
+ include/evl/sched.h        | 26 ++++++--------------------
+ include/evl/sched/queue.h  | 31 +++++++++++++++++++++----------
+ include/evl/sched/quota.h  |  4 ++--
+ include/evl/sched/rt.h     | 25 +++++++++++--------------
+ include/evl/sched/tp.h     |  4 ++--
+ include/evl/sched/weak.h   |  2 +-
+ include/trace/events/evl.h |  1 -
+ include/uapi/evl/sched.h   |  1 -
+ kernel/evl/monitor.c       |  2 +-
+ kernel/evl/mutex.c         |  2 +-
+ kernel/evl/sched/core.c    | 18 +++++++-----------
+ kernel/evl/thread.c        |  4 ++--
+ 12 files changed, 54 insertions(+), 66 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 906a88cbe01b..d64b48abb80a 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -38,7 +38,7 @@
+ #define RQ_TIMER	0x00010000
+ /*
+  * A proxy tick is being processed, i.e. matching an earlier timing
+- * request from the regular kernel.
++ * request from inband via set_next_event().
+  */
+ #define RQ_TPROXY	0x00008000
+ /*
+@@ -62,49 +62,35 @@
+ #define RQ_TSTOPPED	0x00000800
+ 
+ struct evl_sched_rt {
+-	evl_schedqueue_t runnable;	/* Runnable thread queue. */
++	struct evl_multilevel_queue runnable;
+ };
+ 
+ struct evl_rq {
+-	/* Shared status bitmask. */
+-	unsigned long status;
+-	/* Private status bitmask. */
+-	unsigned long lflags;
+-	/* Current thread. */
++	unsigned long status;	/* Shared flags */
++	unsigned long lflags;	/* Private flags (lockless) */
+ 	struct evl_thread *curr;
+ #ifdef CONFIG_SMP
+-	/* Owner CPU id. */
+ 	int cpu;
+-	/* Mask of CPUs needing rescheduling. */
+-	struct cpumask resched;
++	struct cpumask resched;	/* CPUs pending resched */
+ #endif
+-	/* Context of built-in real-time class. */
+ 	struct evl_sched_rt rt;
+-	/* Context of weak scheduling class. */
+ 	struct evl_sched_weak weak;
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+-	/* Context of runtime quota scheduling. */
+ 	struct evl_sched_quota quota;
+ #endif
+ #ifdef CONFIG_EVL_SCHED_TP
+-	/* Context for time partitioning policy. */
+ 	struct evl_sched_tp tp;
+ #endif
+ 	struct evl_timer inband_timer;
+-	/* Round-robin timer. */
+-	struct evl_timer rrbtimer;
+-	/* In-band kernel placeholder. */
++	struct evl_timer rrbtimer; /* Round-robin */
+ 	struct evl_thread root_thread;
+ 	char *proxy_timer_name;
+ 	char *rrb_timer_name;
+ #ifdef CONFIG_EVL_WATCHDOG
+-	/* Watchdog timer object. */
+ 	struct evl_timer wdtimer;
+ #endif
+ #ifdef CONFIG_EVL_RUNSTATS
+-	/* Last account switch date (ticks). */
+ 	ktime_t last_account_switch;
+-	/* Currently active account */
+ 	struct evl_account *current_account;
+ #endif
+ };
+diff --git a/include/evl/sched/queue.h b/include/evl/sched/queue.h
+index 42fd21fd3bce..39c04e5810cd 100644
+--- a/include/evl/sched/queue.h
++++ b/include/evl/sched/queue.h
+@@ -11,15 +11,26 @@
+ #include <linux/bitmap.h>
+ #include <evl/list.h>
+ 
+-#define EVL_CLASS_WEIGHT_FACTOR	1024
+-
+ /*
+- * Multi-level priority queue, suitable for handling the runnable
+- * thread queue of the core scheduling class with O(1) property. We
+- * only manage a descending queuing order, i.e. highest numbered
+- * priorities come first.
++ * EVL core priority scale. We reserve a couple of additional priority
++ * levels above the highest inband kthread priority (MAX_RT_PRIO-1),
++ * which is guaranteed not to be less than the highest inband user
++ * task priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those
++ * extra levels can be used for EVL kthreads which must top the
++ * priority of any userland thread.
+  */
+-#define EVL_MLQ_LEVELS  (MAX_RT_PRIO + 1) /* i.e. EVL_CORE_NR_PRIO */
++#define EVL_CORE_MIN_PRIO  0
++#define EVL_CORE_MAX_PRIO  (MAX_RT_PRIO + 1)
++#define EVL_CORE_NR_PRIO   (EVL_CORE_MAX_PRIO - EVL_CORE_MIN_PRIO + 1)
++
++#define EVL_MLQ_LEVELS		 EVL_CORE_NR_PRIO
++
++#define EVL_CLASS_WEIGHT_FACTOR	 1024
++
++#if EVL_CORE_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
++	EVL_CORE_NR_PRIO > EVL_MLQ_LEVELS
++#error "EVL_MLQ_LEVELS is too low"
++#endif
+ 
+ struct evl_multilevel_queue {
+ 	int elems;
+@@ -49,11 +60,11 @@ static inline int evl_schedq_is_empty(struct evl_multilevel_queue *q)
+ 
+ static inline int evl_get_schedq_weight(struct evl_multilevel_queue *q)
+ {
++	/* Highest priorities are mapped to lowest array elements. */
+ 	return find_first_bit(q->prio_map, EVL_MLQ_LEVELS);
+ }
+ 
+-typedef struct evl_multilevel_queue evl_schedqueue_t;
+-
+-struct evl_thread *evl_lookup_schedq(evl_schedqueue_t *q, int prio);
++struct evl_thread *
++evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
+ 
+ #endif /* !_EVL_SCHED_QUEUE_H */
+diff --git a/include/evl/sched/quota.h b/include/evl/sched/quota.h
+index 32c273015856..dfe3b7390958 100644
+--- a/include/evl/sched/quota.h
++++ b/include/evl/sched/quota.h
+@@ -14,8 +14,8 @@
+ 
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+-#define EVL_QUOTA_MIN_PRIO	1
+-#define EVL_QUOTA_MAX_PRIO	EVL_CORE_MAX_PRIO
++#define EVL_QUOTA_MIN_PRIO	EVL_FIFO_MIN_PRIO
++#define EVL_QUOTA_MAX_PRIO	EVL_FIFO_MAX_PRIO
+ #define EVL_QUOTA_NR_PRIO	\
+ 	(EVL_QUOTA_MAX_PRIO - EVL_QUOTA_MIN_PRIO + 1)
+ 
+diff --git a/include/evl/sched/rt.h b/include/evl/sched/rt.h
+index c823535f0b42..97d77be2848c 100644
+--- a/include/evl/sched/rt.h
++++ b/include/evl/sched/rt.h
+@@ -13,22 +13,13 @@
+ #endif
+ 
+ /*
+- * Global priority scale for the core scheduling class, available to
+- * SCHED_EVL members.
++ * EVL's SCHED_FIFO class is meant to exactly map onto the inband
++ * SCHED_FIFO priority scale, applicable to user threads. EVL kthreads
++ * may use up to EVL_CORE_MAX_PRIO levels.
+  */
+-#define EVL_CORE_MIN_PRIO  0
+-#define EVL_CORE_MAX_PRIO  MAX_RT_PRIO
+-#define EVL_CORE_NR_PRIO   (EVL_CORE_MAX_PRIO - EVL_CORE_MIN_PRIO + 1)
+-
+-/* Priority range for SCHED_FIFO. */
+ #define EVL_FIFO_MIN_PRIO  1
+ #define EVL_FIFO_MAX_PRIO  (MAX_USER_RT_PRIO - 1)
+ 
+-#if EVL_CORE_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
+-	EVL_CORE_NR_PRIO > EVL_MLQ_LEVELS
+-#error "EVL_MLQ_LEVELS is too low"
+-#endif
+-
+ extern struct evl_sched_class evl_sched_rt;
+ 
+ static inline void __evl_requeue_rt_thread(struct evl_thread *thread)
+@@ -50,8 +41,14 @@ static inline
+ int __evl_chk_rt_schedparam(struct evl_thread *thread,
+ 			const union evl_sched_param *p)
+ {
+-	if (p->rt.prio < EVL_CORE_MIN_PRIO ||
+-		p->rt.prio > EVL_CORE_MAX_PRIO)
++	int min = EVL_FIFO_MIN_PRIO, max = EVL_FIFO_MAX_PRIO;
++
++	if (!(thread->state & T_USER)) {
++		min = EVL_CORE_MIN_PRIO;
++		max = EVL_CORE_MAX_PRIO;
++	}
++
++	if (p->rt.prio < min || p->rt.prio > max)
+ 		return -EINVAL;
+ 
+ 	return 0;
+diff --git a/include/evl/sched/tp.h b/include/evl/sched/tp.h
+index c175b66b4867..0e1b0404ab56 100644
+--- a/include/evl/sched/tp.h
++++ b/include/evl/sched/tp.h
+@@ -14,8 +14,8 @@
+ 
+ #ifdef CONFIG_EVL_SCHED_TP
+ 
+-#define EVL_TP_MIN_PRIO  1
+-#define EVL_TP_MAX_PRIO  EVL_CORE_MAX_PRIO
++#define EVL_TP_MIN_PRIO  EVL_FIFO_MIN_PRIO
++#define EVL_TP_MAX_PRIO  EVL_FIFO_MAX_PRIO
+ #define EVL_TP_NR_PRIO	 (EVL_TP_MAX_PRIO - EVL_TP_MIN_PRIO + 1)
+ 
+ extern struct evl_sched_class evl_sched_tp;
+diff --git a/include/evl/sched/weak.h b/include/evl/sched/weak.h
+index 043398945240..198654eeacae 100644
+--- a/include/evl/sched/weak.h
++++ b/include/evl/sched/weak.h
+@@ -24,7 +24,7 @@
+ extern struct evl_sched_class evl_sched_weak;
+ 
+ struct evl_sched_weak {
+-	evl_schedqueue_t runnable;	/*!< Runnable thread queue. */
++	struct evl_multilevel_queue runnable;
+ };
+ 
+ static inline int evl_weak_init_thread(struct evl_thread *thread)
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index b22a446e256a..0b940d1b8eca 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -154,7 +154,6 @@ DECLARE_EVENT_CLASS(syscall_exit,
+ 			 {SCHED_FIFO, "fifo"},		\
+ 			 {SCHED_RR, "rr"},		\
+ 			 {SCHED_QUOTA, "quota"},	\
+-			 {SCHED_EVL, "evl"},		\
+ 			 {SCHED_WEAK, "weak"})
+ 
+ const char *evl_trace_sched_attrs(struct trace_seq *seq,
+diff --git a/include/uapi/evl/sched.h b/include/uapi/evl/sched.h
+index 7f7eec6c1de1..54ae0453a166 100644
+--- a/include/uapi/evl/sched.h
++++ b/include/uapi/evl/sched.h
+@@ -10,7 +10,6 @@
+ 
+ #include <linux/types.h>
+ 
+-#define SCHED_EVL	42
+ #define SCHED_WEAK	43
+ 
+ #define sched_rr_quantum	sched_u.rr.__sched_rr_quantum
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 16189445ac58..f8225c064069 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -745,7 +745,7 @@ monitor_factory_build(struct evl_factory *fac, const char *name,
+ 		switch (attrs.protocol) {
+ 		case EVL_GATE_PP:
+ 			if (attrs.initval == 0 ||
+-				attrs.initval > EVL_CORE_MAX_PRIO)
++				attrs.initval > EVL_FIFO_MAX_PRIO)
+ 				return ERR_PTR(-EINVAL);
+ 			break;
+ 		case EVL_GATE_PI:
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 8233bd682871..0cefb73ebbb4 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -22,7 +22,7 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
+ 	 * memory, make sure to constrain it within valid bounds for
+ 	 * evl_sched_rt before using it.
+ 	 */
+-	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_CORE_MAX_PRIO);
++	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
+ }
+ 
+ static inline void disable_inband_switch(struct evl_thread *curr)
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index eeff98654a6a..a7975b6c829c 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -477,12 +477,8 @@ void evl_init_schedq(struct evl_multilevel_queue *q)
+ static inline int get_qindex(struct evl_multilevel_queue *q, int prio)
+ {
+ 	/*
+-	 * BIG FAT WARNING: We need to rescale the priority level to a
+-	 * 0-based range. We use find_first_bit() to scan the bitmap
+-	 * which is a bit scan forward operation. Therefore, the lower
+-	 * the index value, the higher the priority (since least
+-	 * significant bits will be found first when scanning the
+-	 * bitmap).
++	 * find_first_bit() is used to scan the bitmap, so the lower
++	 * the index value, the higher the priority.
+ 	 */
+ 	return EVL_MLQ_LEVELS - prio - 1;
+ }
+@@ -806,13 +802,14 @@ evl_find_sched_class(union evl_sched_param *param,
+ 			tslice = *tslice_r;
+ 		/* falldown wanted */
+ 	case SCHED_FIFO:
++		/*
++		 * This routine handles requests submitted from
++		 * user-space exclusively, so a SCHED_FIFO priority
++		 * must be in the [FIFO_MIN..FIFO_MAX] range.
++		 */
+ 		if (prio < EVL_FIFO_MIN_PRIO ||	prio > EVL_FIFO_MAX_PRIO)
+ 			return NULL;
+ 		break;
+-	case SCHED_EVL:
+-		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
+-			return NULL;
+-		break;
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	case SCHED_QUOTA:
+ 		param->quota.prio = attrs->sched_priority;
+@@ -867,7 +864,6 @@ const char *evl_trace_sched_attrs(struct trace_seq *p,
+ 		break;
+ 	case SCHED_RR:
+ 	case SCHED_FIFO:
+-	case SCHED_EVL:
+ 	case SCHED_WEAK:
+ 	default:
+ 		trace_seq_printf(p, "priority=%d", attrs->sched_priority);
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 2d1dfae3e5bf..bf7910629fd0 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1214,8 +1214,8 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
+ 	 */
+ 	if ((curr->state & T_WEAK) && kprio == 0)
+ 		kpolicy = SCHED_NORMAL;
+-	else if (kprio >= MAX_USER_RT_PRIO)
+-		kprio = MAX_USER_RT_PRIO - 1;
++	else if (kprio > EVL_FIFO_MAX_PRIO)
++		kprio = EVL_FIFO_MAX_PRIO;
+ 
+ 	if (p->policy != kpolicy || (kprio > 0 && p->rt_priority != kprio)) {
+ 		param.sched_priority = kprio;
+-- 
+2.16.4
+

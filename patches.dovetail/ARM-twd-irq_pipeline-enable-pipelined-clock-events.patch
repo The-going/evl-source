@@ -1,4 +1,4 @@
-From f76e43ebf100aea782b49c0847643696bd0205a6 Mon Sep 17 00:00:00 2001
+From f6f0fcdbe7582a0fa9997ce2c34bc647544b4eb6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 Feb 2017 12:11:36 +0100
 Subject: [PATCH] ARM/twd: irq_pipeline: enable pipelined clock events
@@ -8,10 +8,10 @@ Subject: [PATCH] ARM/twd: irq_pipeline: enable pipelined clock events
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/kernel/smp_twd.c b/arch/arm/kernel/smp_twd.c
-index 3cdc399b9fc3..d0fccf76770d 100644
+index 9a14f721a2b0..8377f1d030c3 100644
 --- a/arch/arm/kernel/smp_twd.c
 +++ b/arch/arm/kernel/smp_twd.c
-@@ -34,7 +34,7 @@ static DEFINE_PER_CPU(bool, percpu_setup_called);
+@@ -31,7 +31,7 @@ static DEFINE_PER_CPU(bool, percpu_setup_called);
  
  static struct clock_event_device __percpu *twd_evt;
  static unsigned int twd_features =
@@ -20,7 +20,7 @@ index 3cdc399b9fc3..d0fccf76770d 100644
  static int twd_ppi;
  
  static int twd_shutdown(struct clock_event_device *clk)
-@@ -185,7 +185,7 @@ static irqreturn_t twd_handler(int irq, void *dev_id)
+@@ -182,7 +182,7 @@ static irqreturn_t twd_handler(int irq, void *dev_id)
  	struct clock_event_device *evt = dev_id;
  
  	if (twd_timer_ack()) {
@@ -29,7 +29,7 @@ index 3cdc399b9fc3..d0fccf76770d 100644
  		return IRQ_HANDLED;
  	}
  
-@@ -282,7 +282,8 @@ static int __init twd_local_timer_common_register(struct device_node *np)
+@@ -279,7 +279,8 @@ static int __init twd_local_timer_common_register(struct device_node *np)
  		goto out_free;
  	}
  

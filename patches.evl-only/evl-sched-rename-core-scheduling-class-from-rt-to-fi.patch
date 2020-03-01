@@ -1,0 +1,826 @@
+From 6a08b5c25b585fb433dd0ec2cd30955dd2986929 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 25 Jun 2019 15:41:16 +0200
+Subject: [PATCH] evl/sched: rename core scheduling class from rt to fifo
+
+We want the policy to appear clearly in the name.
+---
+ include/evl/sched.h               |   8 +--
+ include/evl/sched/fifo.h          | 114 ++++++++++++++++++++++++++++++++++++++
+ include/evl/sched/param.h         |   4 +-
+ include/evl/sched/queue.h         |   8 +--
+ include/evl/sched/rt.h            | 114 --------------------------------------
+ include/evl/thread.h              |   4 +-
+ kernel/evl/mutex.c                |   6 +-
+ kernel/evl/sched/Makefile         |   2 +-
+ kernel/evl/sched/core.c           |  16 +++---
+ kernel/evl/sched/{rt.c => fifo.c} |  78 +++++++++++++-------------
+ kernel/evl/sched/quota.c          |  42 +++++++-------
+ kernel/evl/sched/tp.c             |  12 ++--
+ kernel/evl/thread.c               |  16 +++---
+ 13 files changed, 213 insertions(+), 211 deletions(-)
+ create mode 100644 include/evl/sched/fifo.h
+ delete mode 100644 include/evl/sched/rt.h
+ rename kernel/evl/sched/{rt.c => fifo.c} (50%)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index d64b48abb80a..ae3ead00abff 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -61,7 +61,7 @@
+  */
+ #define RQ_TSTOPPED	0x00000800
+ 
+-struct evl_sched_rt {
++struct evl_sched_fifo {
+ 	struct evl_multilevel_queue runnable;
+ };
+ 
+@@ -73,7 +73,7 @@ struct evl_rq {
+ 	int cpu;
+ 	struct cpumask resched;	/* CPUs pending resched */
+ #endif
+-	struct evl_sched_rt rt;
++	struct evl_sched_fifo fifo;
+ 	struct evl_sched_weak weak;
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	struct evl_sched_quota quota;
+@@ -337,7 +337,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread,
+ 				       int prio);
+ 
+ #include <evl/sched/idle.h>
+-#include <evl/sched/rt.h>
++#include <evl/sched/fifo.h>
+ 
+ void evl_putback_thread(struct evl_thread *thread);
+ 
+@@ -367,7 +367,7 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
+ 	int ret = 0;
+ 
+ 	evl_init_idle_thread(thread);
+-	evl_init_rt_thread(thread);
++	evl_init_fifo_thread(thread);
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	ret = evl_quota_init_thread(thread);
+ 	if (ret)
+diff --git a/include/evl/sched/fifo.h b/include/evl/sched/fifo.h
+new file mode 100644
+index 000000000000..6eecd7b6ec9a
+--- /dev/null
++++ b/include/evl/sched/fifo.h
+@@ -0,0 +1,114 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Derived from Xenomai Cobalt, https://xenomai.org/
++ * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVL_SCHED_FIFO_H
++#define _EVL_SCHED_FIFO_H
++
++#ifndef _EVL_SCHED_H
++#error "please don't include evl/sched/fifo.h directly"
++#endif
++
++/*
++ * EVL's SCHED_FIFO class is meant to map onto the inband SCHED_FIFO
++ * priority scale when applied to user threads. EVL kthreads may use a
++ * couple of levels more, from EVL_CORE_MIN_PRIO to EVL_CORE_MAX_PRIO.
++ */
++#define EVL_FIFO_MIN_PRIO  1
++#define EVL_FIFO_MAX_PRIO  (MAX_USER_RT_PRIO - 1)
++
++extern struct evl_sched_class evl_sched_fifo;
++
++static inline void __evl_requeue_fifo_thread(struct evl_thread *thread)
++{
++	evl_add_schedq(&thread->rq->fifo.runnable, thread);
++}
++
++static inline void __evl_enqueue_fifo_thread(struct evl_thread *thread)
++{
++	evl_add_schedq_tail(&thread->rq->fifo.runnable, thread);
++}
++
++static inline void __evl_dequeue_fifo_thread(struct evl_thread *thread)
++{
++	evl_del_schedq(&thread->rq->fifo.runnable, thread);
++}
++
++static inline
++int __evl_chk_fifo_schedparam(struct evl_thread *thread,
++			const union evl_sched_param *p)
++{
++	int min = EVL_FIFO_MIN_PRIO, max = EVL_FIFO_MAX_PRIO;
++
++	if (!(thread->state & T_USER)) {
++		min = EVL_CORE_MIN_PRIO;
++		max = EVL_CORE_MAX_PRIO;
++	}
++
++	if (p->fifo.prio < min || p->fifo.prio > max)
++		return -EINVAL;
++
++	return 0;
++}
++
++static inline
++bool __evl_set_fifo_schedparam(struct evl_thread *thread,
++			const union evl_sched_param *p)
++{
++	bool ret = evl_set_effective_thread_priority(thread, p->fifo.prio);
++
++	if (!(thread->state & T_BOOST))
++		thread->state &= ~T_WEAK;
++
++	return ret;
++}
++
++static inline
++void __evl_get_fifo_schedparam(struct evl_thread *thread,
++			union evl_sched_param *p)
++{
++	p->fifo.prio = thread->cprio;
++}
++
++static inline
++void __evl_track_fifo_priority(struct evl_thread *thread,
++			const union evl_sched_param *p)
++{
++	if (p)
++		thread->cprio = p->fifo.prio; /* Force update. */
++	else {
++		thread->cprio = thread->bprio;
++		/* Leaving PI/PP, so neither boosted nor weak. */
++		thread->state &= ~T_WEAK;
++	}
++}
++
++static inline
++void __evl_ceil_fifo_priority(struct evl_thread *thread, int prio)
++{
++	/*
++	 * The FIFO class supports the widest priority range from
++	 * EVL_CORE_MIN_PRIO to EVL_CORE_MAX_PRIO inclusive, no need
++	 * to cap the priority argument which is guaranteed to be in
++	 * this range.
++	 */
++	thread->cprio = prio;
++}
++
++static inline
++void __evl_forget_fifo_thread(struct evl_thread *thread)
++{
++}
++
++static inline
++int evl_init_fifo_thread(struct evl_thread *thread)
++{
++	return 0;
++}
++
++struct evl_thread *evl_fifo_pick(struct evl_rq *rq);
++
++#endif /* !_EVL_SCHED_FIFO_H */
+diff --git a/include/evl/sched/param.h b/include/evl/sched/param.h
+index 441925da0e73..342c3affee86 100644
+--- a/include/evl/sched/param.h
++++ b/include/evl/sched/param.h
+@@ -16,7 +16,7 @@ struct evl_weak_param {
+ 	int prio;
+ };
+ 
+-struct evl_rt_param {
++struct evl_fifo_param {
+ 	int prio;
+ };
+ 
+@@ -32,7 +32,7 @@ struct evl_tp_param {
+ 
+ union evl_sched_param {
+ 	struct evl_idle_param idle;
+-	struct evl_rt_param rt;
++	struct evl_fifo_param fifo;
+ 	struct evl_weak_param weak;
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	struct evl_quota_param quota;
+diff --git a/include/evl/sched/queue.h b/include/evl/sched/queue.h
+index 39c04e5810cd..9a32192d1f83 100644
+--- a/include/evl/sched/queue.h
++++ b/include/evl/sched/queue.h
+@@ -14,10 +14,10 @@
+ /*
+  * EVL core priority scale. We reserve a couple of additional priority
+  * levels above the highest inband kthread priority (MAX_RT_PRIO-1),
+- * which is guaranteed not to be less than the highest inband user
+- * task priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those
+- * extra levels can be used for EVL kthreads which must top the
+- * priority of any userland thread.
++ * which is guaranteed not to be less than the highest EVL user task
++ * priority (MAX_USER_RT_PRIO-1) we use for SCHED_FIFO. Those extra
++ * levels can be used for EVL kthreads which must top the priority of
++ * any userland thread.
+  */
+ #define EVL_CORE_MIN_PRIO  0
+ #define EVL_CORE_MAX_PRIO  (MAX_RT_PRIO + 1)
+diff --git a/include/evl/sched/rt.h b/include/evl/sched/rt.h
+deleted file mode 100644
+index 97d77be2848c..000000000000
+--- a/include/evl/sched/rt.h
++++ /dev/null
+@@ -1,114 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0
+- *
+- * Derived from Xenomai Cobalt, https://xenomai.org/
+- * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+- */
+-
+-#ifndef _EVL_SCHED_RT_H
+-#define _EVL_SCHED_RT_H
+-
+-#ifndef _EVL_SCHED_H
+-#error "please don't include evl/sched/rt.h directly"
+-#endif
+-
+-/*
+- * EVL's SCHED_FIFO class is meant to exactly map onto the inband
+- * SCHED_FIFO priority scale, applicable to user threads. EVL kthreads
+- * may use up to EVL_CORE_MAX_PRIO levels.
+- */
+-#define EVL_FIFO_MIN_PRIO  1
+-#define EVL_FIFO_MAX_PRIO  (MAX_USER_RT_PRIO - 1)
+-
+-extern struct evl_sched_class evl_sched_rt;
+-
+-static inline void __evl_requeue_rt_thread(struct evl_thread *thread)
+-{
+-	evl_add_schedq(&thread->rq->rt.runnable, thread);
+-}
+-
+-static inline void __evl_enqueue_rt_thread(struct evl_thread *thread)
+-{
+-	evl_add_schedq_tail(&thread->rq->rt.runnable, thread);
+-}
+-
+-static inline void __evl_dequeue_rt_thread(struct evl_thread *thread)
+-{
+-	evl_del_schedq(&thread->rq->rt.runnable, thread);
+-}
+-
+-static inline
+-int __evl_chk_rt_schedparam(struct evl_thread *thread,
+-			const union evl_sched_param *p)
+-{
+-	int min = EVL_FIFO_MIN_PRIO, max = EVL_FIFO_MAX_PRIO;
+-
+-	if (!(thread->state & T_USER)) {
+-		min = EVL_CORE_MIN_PRIO;
+-		max = EVL_CORE_MAX_PRIO;
+-	}
+-
+-	if (p->rt.prio < min || p->rt.prio > max)
+-		return -EINVAL;
+-
+-	return 0;
+-}
+-
+-static inline
+-bool __evl_set_rt_schedparam(struct evl_thread *thread,
+-			const union evl_sched_param *p)
+-{
+-	bool ret = evl_set_effective_thread_priority(thread, p->rt.prio);
+-
+-	if (!(thread->state & T_BOOST))
+-		thread->state &= ~T_WEAK;
+-
+-	return ret;
+-}
+-
+-static inline
+-void __evl_get_rt_schedparam(struct evl_thread *thread,
+-			union evl_sched_param *p)
+-{
+-	p->rt.prio = thread->cprio;
+-}
+-
+-static inline
+-void __evl_track_rt_priority(struct evl_thread *thread,
+-			const union evl_sched_param *p)
+-{
+-	if (p)
+-		thread->cprio = p->rt.prio; /* Force update. */
+-	else {
+-		thread->cprio = thread->bprio;
+-		/* Leaving PI/PP, so neither boosted nor weak. */
+-		thread->state &= ~T_WEAK;
+-	}
+-}
+-
+-static inline
+-void __evl_ceil_rt_priority(struct evl_thread *thread, int prio)
+-{
+-	/*
+-	 * The RT class supports the widest priority range from
+-	 * EVL_CORE_MIN_PRIO to EVL_CORE_MAX_PRIO inclusive,
+-	 * no need to cap the input value which is guaranteed to be in
+-	 * the range [1..EVL_CORE_MAX_PRIO].
+-	 */
+-	thread->cprio = prio;
+-}
+-
+-static inline
+-void __evl_forget_rt_thread(struct evl_thread *thread)
+-{
+-}
+-
+-static inline
+-int evl_init_rt_thread(struct evl_thread *thread)
+-{
+-	return 0;
+-}
+-
+-struct evl_thread *evl_rt_pick(struct evl_rq *rq);
+-
+-#endif /* !_EVL_SCHED_RT_H */
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 2fd2dcf00b4b..164225189675 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -312,8 +312,8 @@ int __evl_run_kthread(struct evl_kthread *kthread);
+ 		struct evl_init_thread_attr __iattr = {			\
+ 			.flags = 0,					\
+ 			.affinity = __affinity,				\
+-			.sched_class = &evl_sched_rt,			\
+-			.sched_param.rt.prio = __priority,		\
++			.sched_class = &evl_sched_fifo,			\
++			.sched_param.fifo.prio = __priority,		\
+ 		};							\
+ 		(__kthread)->threadfn = __fn;				\
+ 		(__kthread)->status = 0;				\
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 0cefb73ebbb4..8267d2812f7d 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -20,7 +20,7 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
+ 	/*
+ 	 * The ceiling priority value is stored in user-writable
+ 	 * memory, make sure to constrain it within valid bounds for
+-	 * evl_sched_rt before using it.
++	 * evl_sched_fifo before using it.
+ 	 */
+ 	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
+ }
+@@ -131,8 +131,8 @@ static void ceil_owner_priority(struct evl_mutex *mutex)
+ 	struct evl_thread *owner = mutex->owner;
+ 	int wprio;
+ 
+-	/* PP ceiling values are implicitly based on the RT class. */
+-	wprio = evl_calc_weighted_prio(&evl_sched_rt,
++	/* PP ceiling values are implicitly based on the FIFO class. */
++	wprio = evl_calc_weighted_prio(&evl_sched_fifo,
+ 				get_ceiling_value(mutex));
+ 	mutex->wprio = wprio;
+ 	list_add_priff(mutex, &owner->boosters, wprio, next);
+diff --git a/kernel/evl/sched/Makefile b/kernel/evl/sched/Makefile
+index cfa48b63b36b..5d9245823f45 100644
+--- a/kernel/evl/sched/Makefile
++++ b/kernel/evl/sched/Makefile
+@@ -4,7 +4,7 @@ ccflags-y += -Ikernel
+ 
+ evl-y :=	\
+ 	core.o	\
+-	rt.o	\
++	fifo.o	\
+ 	idle.o	\
+ 	weak.o
+ 
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index a7975b6c829c..765fd4b7466b 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -63,7 +63,7 @@ static void register_classes(void)
+ #ifdef CONFIG_EVL_SCHED_TP
+ 	register_one_class(&evl_sched_tp);
+ #endif
+-	register_one_class(&evl_sched_rt);
++	register_one_class(&evl_sched_fifo);
+ }
+ 
+ #ifdef CONFIG_EVL_WATCHDOG
+@@ -406,7 +406,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
+ {
+ 	/*
+ 	 * Apply a PP boost by changing the effective priority of a
+-	 * thread, forcing it to the RT class. Like
++	 * thread, forcing it to the FIFO class. Like
+ 	 * evl_track_thread_policy(), this routine is allowed to lower
+ 	 * the weighted priority with no restriction, even if a boost
+ 	 * is undergoing.
+@@ -418,7 +418,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
+ 	if (thread->state & T_READY)
+ 		evl_dequeue_thread(thread);
+ 
+-	thread->sched_class = &evl_sched_rt;
++	thread->sched_class = &evl_sched_fifo;
+ 	evl_ceil_priority(thread, prio);
+ 
+ 	if (thread->state & T_READY)
+@@ -562,9 +562,9 @@ evl_lookup_schedq(struct evl_multilevel_queue *q, int prio)
+ 	return list_first_entry(head, struct evl_thread, rq_next);
+ }
+ 
+-struct evl_thread *evl_rt_pick(struct evl_rq *rq)
++struct evl_thread *evl_fifo_pick(struct evl_rq *rq)
+ {
+-	struct evl_multilevel_queue *q = &rq->rt.runnable;
++	struct evl_multilevel_queue *q = &rq->fifo.runnable;
+ 	struct evl_thread *thread;
+ 	struct list_head *head;
+ 	int idx;
+@@ -587,7 +587,7 @@ struct evl_thread *evl_rt_pick(struct evl_rq *rq)
+ 	 * PI.
+ 	 */
+ 	thread = list_first_entry(head, struct evl_thread, rq_next);
+-	if (unlikely(thread->sched_class != &evl_sched_rt))
++	if (unlikely(thread->sched_class != &evl_sched_fifo))
+ 		return thread->sched_class->sched_pick(rq);
+ 
+ 	del_q(q, &thread->rq_next, idx);
+@@ -781,8 +781,8 @@ evl_find_sched_class(union evl_sched_param *param,
+ 	policy = attrs->sched_policy;
+ 	prio = attrs->sched_priority;
+ 	tslice = EVL_INFINITE;
+-	sched_class = &evl_sched_rt;
+-	param->rt.prio = prio;
++	sched_class = &evl_sched_fifo;
++	param->fifo.prio = prio;
+ 
+ 	switch (policy) {
+ 	case SCHED_NORMAL:
+diff --git a/kernel/evl/sched/rt.c b/kernel/evl/sched/fifo.c
+similarity index 50%
+rename from kernel/evl/sched/rt.c
+rename to kernel/evl/sched/fifo.c
+index ff83e77f6bbc..2d93629e4b47 100644
+--- a/kernel/evl/sched/rt.c
++++ b/kernel/evl/sched/fifo.c
+@@ -7,47 +7,47 @@
+ 
+ #include <evl/sched.h>
+ 
+-static void evl_rt_init(struct evl_rq *rq)
++static void evl_fifo_init(struct evl_rq *rq)
+ {
+-	evl_init_schedq(&rq->rt.runnable);
++	evl_init_schedq(&rq->fifo.runnable);
+ }
+ 
+-static void evl_rt_requeue(struct evl_thread *thread)
++static void evl_fifo_requeue(struct evl_thread *thread)
+ {
+ 	/*
+ 	 * Put back at same place: i.e. requeue to head of current
+ 	 * priority group (i.e. LIFO, used for preemption handling).
+ 	 */
+-	__evl_requeue_rt_thread(thread);
++	__evl_requeue_fifo_thread(thread);
+ }
+ 
+-static void evl_rt_enqueue(struct evl_thread *thread)
++static void evl_fifo_enqueue(struct evl_thread *thread)
+ {
+ 	/*
+ 	 * Enqueue for next pick: i.e. move to end of current priority
+ 	 * group (i.e. FIFO).
+ 	 */
+-	__evl_enqueue_rt_thread(thread);
++	__evl_enqueue_fifo_thread(thread);
+ }
+ 
+-static void evl_rt_dequeue(struct evl_thread *thread)
++static void evl_fifo_dequeue(struct evl_thread *thread)
+ {
+ 	/*
+ 	 * Pull from the runnable thread queue.
+ 	 */
+-	__evl_dequeue_rt_thread(thread);
++	__evl_dequeue_fifo_thread(thread);
+ }
+ 
+-static void evl_rt_rotate(struct evl_rq *rq,
++static void evl_fifo_rotate(struct evl_rq *rq,
+ 			const union evl_sched_param *p)
+ {
+ 	struct evl_thread *thread, *curr;
+ 
+-	if (evl_schedq_is_empty(&rq->rt.runnable))
++	if (evl_schedq_is_empty(&rq->fifo.runnable))
+ 		return;	/* No runnable thread in this class. */
+ 
+ 	curr = rq->curr;
+-	thread = evl_lookup_schedq(&rq->rt.runnable, p->rt.prio);
++	thread = evl_lookup_schedq(&rq->fifo.runnable, p->fifo.prio);
+ 	if (thread == NULL)
+ 		return;
+ 
+@@ -63,7 +63,7 @@ static void evl_rt_rotate(struct evl_rq *rq,
+ 		evl_putback_thread(thread);
+ }
+ 
+-static void evl_rt_tick(struct evl_rq *rq)
++static void evl_fifo_tick(struct evl_rq *rq)
+ {
+ 	/*
+ 	 * The round-robin time credit is only consumed by a running
+@@ -75,36 +75,36 @@ static void evl_rt_tick(struct evl_rq *rq)
+ 	evl_putback_thread(rq->curr);
+ }
+ 
+-static int evl_rt_chkparam(struct evl_thread *thread,
++static int evl_fifo_chkparam(struct evl_thread *thread,
+ 			const union evl_sched_param *p)
+ {
+-	return __evl_chk_rt_schedparam(thread, p);
++	return __evl_chk_fifo_schedparam(thread, p);
+ }
+ 
+-static bool evl_rt_setparam(struct evl_thread *thread,
++static bool evl_fifo_setparam(struct evl_thread *thread,
+ 			const union evl_sched_param *p)
+ {
+-	return __evl_set_rt_schedparam(thread, p);
++	return __evl_set_fifo_schedparam(thread, p);
+ }
+ 
+-static void evl_rt_getparam(struct evl_thread *thread,
++static void evl_fifo_getparam(struct evl_thread *thread,
+ 			union evl_sched_param *p)
+ {
+-	__evl_get_rt_schedparam(thread, p);
++	__evl_get_fifo_schedparam(thread, p);
+ }
+ 
+-static void evl_rt_trackprio(struct evl_thread *thread,
++static void evl_fifo_trackprio(struct evl_thread *thread,
+ 			const union evl_sched_param *p)
+ {
+-	__evl_track_rt_priority(thread, p);
++	__evl_track_fifo_priority(thread, p);
+ }
+ 
+-static void evl_rt_ceilprio(struct evl_thread *thread, int prio)
++static void evl_fifo_ceilprio(struct evl_thread *thread, int prio)
+ {
+-	__evl_ceil_rt_priority(thread, prio);
++	__evl_ceil_fifo_priority(thread, prio);
+ }
+ 
+-static ssize_t evl_rt_show(struct evl_thread *thread,
++static ssize_t evl_fifo_show(struct evl_thread *thread,
+ 			char *buf, ssize_t count)
+ {
+ 	if (thread->state & T_RRB)
+@@ -114,22 +114,22 @@ static ssize_t evl_rt_show(struct evl_thread *thread,
+ 	return 0;
+ }
+ 
+-struct evl_sched_class evl_sched_rt = {
+-	.sched_init		=	evl_rt_init,
+-	.sched_enqueue		=	evl_rt_enqueue,
+-	.sched_dequeue		=	evl_rt_dequeue,
+-	.sched_requeue		=	evl_rt_requeue,
+-	.sched_pick		=	evl_rt_pick,
+-	.sched_tick		=	evl_rt_tick,
+-	.sched_rotate		=	evl_rt_rotate,
+-	.sched_chkparam		=	evl_rt_chkparam,
+-	.sched_setparam		=	evl_rt_setparam,
+-	.sched_trackprio	=	evl_rt_trackprio,
+-	.sched_ceilprio		=	evl_rt_ceilprio,
+-	.sched_getparam		=	evl_rt_getparam,
+-	.sched_show		=	evl_rt_show,
++struct evl_sched_class evl_sched_fifo = {
++	.sched_init		=	evl_fifo_init,
++	.sched_enqueue		=	evl_fifo_enqueue,
++	.sched_dequeue		=	evl_fifo_dequeue,
++	.sched_requeue		=	evl_fifo_requeue,
++	.sched_pick		=	evl_fifo_pick,
++	.sched_tick		=	evl_fifo_tick,
++	.sched_rotate		=	evl_fifo_rotate,
++	.sched_chkparam		=	evl_fifo_chkparam,
++	.sched_setparam		=	evl_fifo_setparam,
++	.sched_trackprio	=	evl_fifo_trackprio,
++	.sched_ceilprio		=	evl_fifo_ceilprio,
++	.sched_getparam		=	evl_fifo_getparam,
++	.sched_show		=	evl_fifo_show,
+ 	.weight			=	EVL_CLASS_WEIGHT(4),
+ 	.policy			=	SCHED_FIFO,
+-	.name			=	"rt"
++	.name			=	"fifo"
+ };
+-EXPORT_SYMBOL_GPL(evl_sched_rt);
++EXPORT_SYMBOL_GPL(evl_sched_fifo);
+diff --git a/kernel/evl/sched/quota.c b/kernel/evl/sched/quota.c
+index a2ce8d3645c9..a00f6a3f2229 100644
+--- a/kernel/evl/sched/quota.c
++++ b/kernel/evl/sched/quota.c
+@@ -13,7 +13,7 @@
+ 
+ /*
+  * With this policy, each per-CPU runqueue maintains a list of active
+- * thread groups for the sched_rt class.
++ * thread groups for the sched_fifo class.
+  *
+  * Each time a thread is picked from the runqueue, we check whether we
+  * still have budget for running it, looking at the group it belongs
+@@ -45,12 +45,12 @@
+  * means calling evl_quota_pick() eventually.
+  *
+  * CAUTION: evl_quota_group->nr_active does count both the threads
+- * from that group linked to the sched_rt runqueue, _and_ the threads
+- * moved to the local expiry queue. As a matter of fact, the expired
+- * threads - those for which we consumed all the per-group budget -
+- * are still seen as runnable (i.e. not blocked/suspended) by the EVL
+- * core. This only means that the SCHED_QUOTA policy won't pick them
+- * until the corresponding budget is replenished.
++ * from that group linked to the sched_fifo runqueue, _and_ the
++ * threads moved to the local expiry queue. As a matter of fact, the
++ * expired threads - those for which we consumed all the per-group
++ * budget - are still seen as runnable (i.e. not blocked/suspended) by
++ * the EVL core. This only means that the SCHED_QUOTA policy won't
++ * pick them until the corresponding budget is replenished.
+  */
+ 
+ #define MAX_QUOTA_GROUPS  1024
+@@ -173,7 +173,7 @@ static void quota_refill_handler(struct evl_timer *timer) /* hard irqs off */
+ 		 */
+ 		list_for_each_entry_safe_reverse(thread, tmp, &tg->expired, quota_expired) {
+ 			list_del_init(&thread->quota_expired);
+-			evl_add_schedq(&rq->rt.runnable, thread);
++			evl_add_schedq(&rq->fifo.runnable, thread);
+ 		}
+ 	}
+ 
+@@ -341,7 +341,7 @@ static void quota_kick(struct evl_thread *thread)
+ 	 */
+ 	if (tg->run_budget == 0 && !list_empty(&thread->quota_expired)) {
+ 		list_del_init(&thread->quota_expired);
+-		evl_add_schedq_tail(&rq->rt.runnable, thread);
++		evl_add_schedq_tail(&rq->fifo.runnable, thread);
+ 	}
+ }
+ 
+@@ -358,7 +358,7 @@ static void quota_enqueue(struct evl_thread *thread)
+ 	if (!thread_is_runnable(thread))
+ 		list_add_tail(&thread->quota_expired, &tg->expired);
+ 	else
+-		evl_add_schedq_tail(&rq->rt.runnable, thread);
++		evl_add_schedq_tail(&rq->fifo.runnable, thread);
+ 
+ 	tg->nr_active++;
+ }
+@@ -371,7 +371,7 @@ static void quota_dequeue(struct evl_thread *thread)
+ 	if (!list_empty(&thread->quota_expired))
+ 		list_del_init(&thread->quota_expired);
+ 	else
+-		evl_del_schedq(&rq->rt.runnable, thread);
++		evl_del_schedq(&rq->fifo.runnable, thread);
+ 
+ 	tg->nr_active--;
+ }
+@@ -384,7 +384,7 @@ static void quota_requeue(struct evl_thread *thread)
+ 	if (!thread_is_runnable(thread))
+ 		list_add(&thread->quota_expired, &tg->expired);
+ 	else
+-		evl_add_schedq(&rq->rt.runnable, thread);
++		evl_add_schedq(&rq->fifo.runnable, thread);
+ 
+ 	tg->nr_active++;
+ }
+@@ -410,7 +410,7 @@ static struct evl_thread *quota_pick(struct evl_rq *rq)
+ 	else
+ 		otg->run_budget = 0;
+ pick:
+-	next = evl_get_schedq(&rq->rt.runnable);
++	next = evl_get_schedq(&rq->fifo.runnable);
+ 	if (next == NULL) {
+ 		evl_stop_timer(&qs->limit_timer);
+ 		return NULL;
+@@ -462,10 +462,10 @@ static void quota_migrate(struct evl_thread *thread, struct evl_rq *rq)
+ 	/*
+ 	 * Runtime quota groups are defined per-CPU, so leaving the
+ 	 * current CPU means exiting the group. We do this by moving
+-	 * the target thread to the plain RT class.
++	 * the target thread to the FIFO class.
+ 	 */
+-	param.rt.prio = thread->cprio;
+-	__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
++	param.fifo.prio = thread->cprio;
++	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+ }
+ 
+ static ssize_t quota_show(struct evl_thread *thread,
+@@ -525,10 +525,12 @@ static int quota_destroy_group(struct evl_quota_group *tg,
+ 	if (!list_empty(&tg->members)) {
+ 		if (!force)
+ 			return -EBUSY;
+-		/* Move group members to the rt class. */
+-		list_for_each_entry_safe(thread, tmp, &tg->members, quota_next) {
+-			param.rt.prio = thread->cprio;
+-			__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
++		/* Move group members to the fifo class. */
++		list_for_each_entry_safe(thread, tmp,
++					&tg->members, quota_next) {
++			param.fifo.prio = thread->cprio;
++			__evl_set_thread_schedparam(thread,
++						&evl_sched_fifo, &param);
+ 		}
+ 	}
+ 
+diff --git a/kernel/evl/sched/tp.c b/kernel/evl/sched/tp.c
+index aa33db9ded3a..f200522b59aa 100644
+--- a/kernel/evl/sched/tp.c
++++ b/kernel/evl/sched/tp.c
+@@ -205,14 +205,14 @@ static void tp_migrate(struct evl_thread *thread, struct evl_rq *rq)
+ 	/*
+ 	 * Since our partition schedule is a per-rq property, it
+ 	 * cannot apply to a thread that moves to another CPU
+-	 * anymore. So we upgrade that thread to the RT class when a
++	 * anymore. So we upgrade that thread to the FIFO class when a
+ 	 * CPU migration occurs. A subsequent call to
+ 	 * __evl_set_thread_schedparam() may move it back to TP
+ 	 * scheduling, with a partition assignment that fits the
+ 	 * remote CPU's partition schedule.
+ 	 */
+-	param.rt.prio = thread->cprio;
+-	__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
++	param.fifo.prio = thread->cprio;
++	__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+ }
+ 
+ static ssize_t tp_show(struct evl_thread *thread,
+@@ -258,15 +258,15 @@ set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
+ 	stop_tp_schedule(rq);
+ 
+ 	/*
+-	 * Move all TP threads on this scheduler to the RT class,
++	 * Move all TP threads on this scheduler to the FIFO class,
+ 	 * until we call __evl_set_thread_schedparam() for them again.
+ 	 */
+ 	if (list_empty(&tp->threads))
+ 		goto done;
+ 
+ 	list_for_each_entry_safe(thread, tmp, &tp->threads, tp_link) {
+-		param.rt.prio = thread->cprio;
+-		__evl_set_thread_schedparam(thread, &evl_sched_rt, &param);
++		param.fifo.prio = thread->cprio;
++		__evl_set_thread_schedparam(thread, &evl_sched_fifo, &param);
+ 	}
+ done:
+ 	old_gps = tp->gps;
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index bf7910629fd0..7554b2d87794 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -366,12 +366,12 @@ static int kthread_trampoline(void *arg)
+ 	int policy, prio, ret;
+ 
+ 	/*
+-	 * It only makes sense to create EVL kthreads with the
+-	 * SCHED_FIFO, SCHED_NORMAL or SCHED_WEAK policies. So
+-	 * anything that is not from EVL's RT class is assumed to
+-	 * belong to in-band SCHED_NORMAL.
++	 * It makes sense to schedule EVL kthreads either in the
++	 * SCHED_FIFO or SCHED_NORMAL policy only. So anything that is
++	 * not based on EVL's FIFO class is assumed to belong to the
++	 * in-band SCHED_NORMAL class.
+ 	 */
+-	if (curr->sched_class != &evl_sched_rt) {
++	if (curr->sched_class != &evl_sched_fifo) {
+ 		policy = SCHED_NORMAL;
+ 		prio = 0;
+ 	} else {
+@@ -812,8 +812,8 @@ EXPORT_SYMBOL_GPL(evl_switch_oob);
+ 
+ void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
+ {
+-	union evl_sched_param param = { .rt = { .prio = priority } };
+-	evl_set_thread_schedparam(&kthread->thread, &evl_sched_rt, &param);
++	union evl_sched_param param = { .fifo = { .prio = priority } };
++	evl_set_thread_schedparam(&kthread->thread, &evl_sched_fifo, &param);
+ 	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_set_kthread_priority);
+@@ -1964,7 +1964,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
+ 
+ 	sched_class->sched_getparam(thread, &param);
+ 
+-	if (sched_class == &evl_sched_rt) {
++	if (sched_class == &evl_sched_fifo) {
+ 		if (thread->state & T_RRB) {
+ 			attrs->sched_rr_quantum =
+ 				ktime_to_timespec(thread->rrperiod);
+-- 
+2.16.4
+

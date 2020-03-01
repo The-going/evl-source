@@ -1,4 +1,4 @@
-From 7a224191d0c38f3d6be20b21bf0dba81a7d8465f Mon Sep 17 00:00:00 2001
+From 84435d587511a1d88f027d909d29337934641f17 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 16:40:19 +0200
 Subject: [PATCH] x86: irq_pipeline: add IRQ pipeline core
@@ -318,7 +318,7 @@ index 11aa3b2afa4d..c74aff4f576f 100644
  	ret
  ENDPROC(do_softirq_own_stack)
 diff --git a/arch/x86/entry/thunk_64.S b/arch/x86/entry/thunk_64.S
-index be36bf4e0957..d68535f96251 100644
+index cfdca8b42c70..eebd02ed8d6a 100644
 --- a/arch/x86/entry/thunk_64.S
 +++ b/arch/x86/entry/thunk_64.S
 @@ -40,6 +40,7 @@
@@ -1147,10 +1147,10 @@ index 82f9244fe61f..dcf9b7f1e095 100644
  
  void default_send_IPI_allbutself(int vector)
 diff --git a/arch/x86/kernel/apic/msi.c b/arch/x86/kernel/apic/msi.c
-index 72a94401f9e0..b634308a6bd0 100644
+index dad0dd759de2..d3ce583b77f8 100644
 --- a/arch/x86/kernel/apic/msi.c
 +++ b/arch/x86/kernel/apic/msi.c
-@@ -61,7 +61,7 @@ static struct irq_chip pci_msi_controller = {
+@@ -58,7 +58,7 @@ static struct irq_chip pci_msi_controller = {
  	.irq_ack		= irq_chip_ack_parent,
  	.irq_retrigger		= irq_chip_retrigger_hierarchy,
  	.irq_compose_msi_msg	= irq_msi_compose_msg,
@@ -1159,7 +1159,7 @@ index 72a94401f9e0..b634308a6bd0 100644
  };
  
  int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
-@@ -159,7 +159,7 @@ static struct irq_chip pci_msi_ir_controller = {
+@@ -156,7 +156,7 @@ static struct irq_chip pci_msi_ir_controller = {
  	.irq_ack		= irq_chip_ack_parent,
  	.irq_retrigger		= irq_chip_retrigger_hierarchy,
  	.irq_set_vcpu_affinity	= irq_chip_set_vcpu_affinity_parent,
@@ -1168,7 +1168,7 @@ index 72a94401f9e0..b634308a6bd0 100644
  };
  
  static struct msi_domain_info pci_msi_ir_domain_info = {
-@@ -201,7 +201,7 @@ static struct irq_chip dmar_msi_controller = {
+@@ -198,7 +198,7 @@ static struct irq_chip dmar_msi_controller = {
  	.irq_retrigger		= irq_chip_retrigger_hierarchy,
  	.irq_compose_msi_msg	= irq_msi_compose_msg,
  	.irq_write_msi_msg	= dmar_msi_write_msg,
@@ -1177,7 +1177,7 @@ index 72a94401f9e0..b634308a6bd0 100644
  };
  
  static irq_hw_number_t dmar_msi_get_hwirq(struct msi_domain_info *info,
-@@ -298,7 +298,7 @@ static struct irq_chip hpet_msi_controller __ro_after_init = {
+@@ -295,7 +295,7 @@ static struct irq_chip hpet_msi_controller __ro_after_init = {
  	.irq_retrigger = irq_chip_retrigger_hierarchy,
  	.irq_compose_msi_msg = irq_msi_compose_msg,
  	.irq_write_msi_msg = hpet_msi_write_msg,
@@ -1187,10 +1187,10 @@ index 72a94401f9e0..b634308a6bd0 100644
  
  static irq_hw_number_t hpet_msi_get_hwirq(struct msi_domain_info *info,
 diff --git a/arch/x86/kernel/apic/vector.c b/arch/x86/kernel/apic/vector.c
-index 3173e07d3791..30832344d754 100644
+index e7cb78aed644..e50add55c57d 100644
 --- a/arch/x86/kernel/apic/vector.c
 +++ b/arch/x86/kernel/apic/vector.c
-@@ -42,7 +42,7 @@ struct apic_chip_data {
+@@ -39,7 +39,7 @@ struct apic_chip_data {
  
  struct irq_domain *x86_vector_domain;
  EXPORT_SYMBOL_GPL(x86_vector_domain);
@@ -1199,7 +1199,7 @@ index 3173e07d3791..30832344d754 100644
  static cpumask_var_t vector_searchmask;
  static struct irq_chip lapic_controller;
  static struct irq_matrix *vector_matrix;
-@@ -753,9 +753,11 @@ void lapic_online(void)
+@@ -750,9 +750,11 @@ void lapic_online(void)
  
  void lapic_offline(void)
  {
@@ -1213,7 +1213,7 @@ index 3173e07d3791..30832344d754 100644
  }
  
  static int apic_set_affinity(struct irq_data *irqd,
-@@ -764,6 +766,8 @@ static int apic_set_affinity(struct irq_data *irqd,
+@@ -761,6 +763,8 @@ static int apic_set_affinity(struct irq_data *irqd,
  	struct apic_chip_data *apicd = apic_chip_data(irqd);
  	int err;
  
@@ -1222,7 +1222,7 @@ index 3173e07d3791..30832344d754 100644
  	/*
  	 * Core code can call here for inactive interrupts. For inactive
  	 * interrupts which use managed or reservation mode there is no
-@@ -805,7 +809,7 @@ static int apic_retrigger_irq(struct irq_data *irqd)
+@@ -802,7 +806,7 @@ static int apic_retrigger_irq(struct irq_data *irqd)
  void apic_ack_irq(struct irq_data *irqd)
  {
  	irq_move_irq(irqd);
@@ -1231,7 +1231,7 @@ index 3173e07d3791..30832344d754 100644
  }
  
  void apic_ack_edge(struct irq_data *irqd)
-@@ -850,10 +854,11 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
+@@ -847,10 +851,11 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
  	struct hlist_head *clhead = this_cpu_ptr(&cleanup_list);
  	struct apic_chip_data *apicd;
  	struct hlist_node *tmp;
@@ -1244,7 +1244,7 @@ index 3173e07d3791..30832344d754 100644
  
  	hlist_for_each_entry_safe(apicd, tmp, clhead, clist) {
  		unsigned int irr, vector = apicd->prev_vector;
-@@ -875,15 +880,16 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
+@@ -872,15 +877,16 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
  		free_moved_vector(apicd);
  	}
  
@@ -1263,7 +1263,7 @@ index 3173e07d3791..30832344d754 100644
  	apicd->move_in_progress = 0;
  	cpu = apicd->prev_cpu;
  	if (cpu_online(cpu)) {
-@@ -892,7 +898,7 @@ static void __send_cleanup_vector(struct apic_chip_data *apicd)
+@@ -889,7 +895,7 @@ static void __send_cleanup_vector(struct apic_chip_data *apicd)
  	} else {
  		apicd->prev_vector = 0;
  	}
@@ -1272,7 +1272,7 @@ index 3173e07d3791..30832344d754 100644
  }
  
  void send_cleanup_vector(struct irq_cfg *cfg)
-@@ -930,6 +936,8 @@ void irq_force_complete_move(struct irq_desc *desc)
+@@ -927,6 +933,8 @@ void irq_force_complete_move(struct irq_desc *desc)
  	struct irq_data *irqd;
  	unsigned int vector;
  
@@ -1281,7 +1281,7 @@ index 3173e07d3791..30832344d754 100644
  	/*
  	 * The function is called for all descriptors regardless of which
  	 * irqdomain they belong to. For example if an IRQ is provided by
-@@ -1020,9 +1028,10 @@ void irq_force_complete_move(struct irq_desc *desc)
+@@ -1017,9 +1025,10 @@ void irq_force_complete_move(struct irq_desc *desc)
  int lapic_can_unplug_cpu(void)
  {
  	unsigned int rsvd, avl, tomove, cpu = smp_processor_id();
@@ -1293,7 +1293,7 @@ index 3173e07d3791..30832344d754 100644
  	tomove = irq_matrix_allocated(vector_matrix);
  	avl = irq_matrix_available(vector_matrix, true);
  	if (avl < tomove) {
-@@ -1037,7 +1046,7 @@ int lapic_can_unplug_cpu(void)
+@@ -1034,7 +1043,7 @@ int lapic_can_unplug_cpu(void)
  			rsvd, avl);
  	}
  out:
@@ -1422,10 +1422,10 @@ index 519649ddf100..a2d8a2589d23 100644
  
  static char irq_trigger[2];
 diff --git a/arch/x86/kernel/idt.c b/arch/x86/kernel/idt.c
-index 6d8917875f44..a41d5889d4fe 100644
+index d2482bbbe3d0..763cbc1c36ad 100644
 --- a/arch/x86/kernel/idt.c
 +++ b/arch/x86/kernel/idt.c
-@@ -115,6 +115,9 @@ static const __initconst struct idt_data apic_idts[] = {
+@@ -114,6 +114,9 @@ static const __initconst struct idt_data apic_idts[] = {
  	INTG(CALL_FUNCTION_SINGLE_VECTOR, call_function_single_interrupt),
  	INTG(IRQ_MOVE_CLEANUP_VECTOR,	irq_move_cleanup_interrupt),
  	INTG(REBOOT_VECTOR,		reboot_interrupt),
@@ -1435,7 +1435,7 @@ index 6d8917875f44..a41d5889d4fe 100644
  #endif
  
  #ifdef CONFIG_X86_THERMAL_VECTOR
-@@ -146,6 +149,9 @@ static const __initconst struct idt_data apic_idts[] = {
+@@ -145,6 +148,9 @@ static const __initconst struct idt_data apic_idts[] = {
  	INTG(SPURIOUS_APIC_VECTOR,	spurious_interrupt),
  	INTG(ERROR_APIC_VECTOR,		error_interrupt),
  #endif

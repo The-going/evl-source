@@ -1,0 +1,25 @@
+From 26f9c36af6f000fda3d766983826820daa3245e2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 28 Jun 2019 11:08:41 +0200
+Subject: [PATCH] evl/control: export device name as symbol
+
+---
+ include/uapi/evl/control.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 424d2119ea43..9bc017e90a84 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -12,6 +12,8 @@
+ 
+ #define EVL_ABI_LEVEL  5
+ 
++#define EVL_CONTROL_DEV  "/dev/evl/control"
++
+ struct evl_core_info {
+ 	__u32 abi_level;
+ 	__u32 fpu_features;
+-- 
+2.16.4
+

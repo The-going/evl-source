@@ -1,4 +1,4 @@
-From c9d0151480214677233b8d0fb924e404f4924e71 Mon Sep 17 00:00:00 2001
+From 9846ed567a8955e1d212c0c717b04c4583eda51c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 10 Jun 2019 12:12:22 +0200
 Subject: [PATCH] x86: irq_pipeline: handle IRQ cleanup events properly
@@ -26,10 +26,10 @@ that happens.
  2 files changed, 26 insertions(+), 22 deletions(-)
 
 diff --git a/arch/x86/kernel/apic/vector.c b/arch/x86/kernel/apic/vector.c
-index 30832344d754..84bd78dca20f 100644
+index e50add55c57d..928e2bfc2338 100644
 --- a/arch/x86/kernel/apic/vector.c
 +++ b/arch/x86/kernel/apic/vector.c
-@@ -719,6 +719,10 @@ static struct irq_desc *__setup_vector_irq(int vector)
+@@ -716,6 +716,10 @@ static struct irq_desc *__setup_vector_irq(int vector)
  {
  	int isairq = vector - ISA_IRQ_VECTOR(0);
  

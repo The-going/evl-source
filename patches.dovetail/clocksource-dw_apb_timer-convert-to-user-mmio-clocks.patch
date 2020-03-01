@@ -1,4 +1,4 @@
-From 2d8a82f68dd950aebf90e1c6af62a567eebe3fb4 Mon Sep 17 00:00:00 2001
+From c293abb0c61729c517257c9c35339dbdb9847a31 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 24 Jul 2018 21:42:33 +0200
 Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
@@ -22,10 +22,10 @@ index 820fa9a159f3..46a8f33cc87c 100644
  	  Enables the support for the dw_apb timer.
  
 diff --git a/drivers/clocksource/dw_apb_timer.c b/drivers/clocksource/dw_apb_timer.c
-index 1f5f734e4919..454775ac662d 100644
+index 654766538f93..8bb7c43f6112 100644
 --- a/drivers/clocksource/dw_apb_timer.c
 +++ b/drivers/clocksource/dw_apb_timer.c
-@@ -46,7 +46,7 @@ ced_to_dw_apb_ced(struct clock_event_device *evt)
+@@ -43,7 +43,7 @@ ced_to_dw_apb_ced(struct clock_event_device *evt)
  static inline struct dw_apb_clocksource *
  clocksource_to_dw_apb_clocksource(struct clocksource *cs)
  {
@@ -34,7 +34,7 @@ index 1f5f734e4919..454775ac662d 100644
  }
  
  static inline u32 apbt_readl(struct dw_apb_timer *timer, unsigned long offs)
-@@ -350,18 +350,6 @@ void dw_apb_clocksource_start(struct dw_apb_clocksource *dw_cs)
+@@ -347,18 +347,6 @@ void dw_apb_clocksource_start(struct dw_apb_clocksource *dw_cs)
  	dw_apb_clocksource_read(dw_cs);
  }
  
@@ -53,7 +53,7 @@ index 1f5f734e4919..454775ac662d 100644
  static void apbt_restart_clocksource(struct clocksource *cs)
  {
  	struct dw_apb_clocksource *dw_cs =
-@@ -383,7 +371,7 @@ static void apbt_restart_clocksource(struct clocksource *cs)
+@@ -380,7 +368,7 @@ static void apbt_restart_clocksource(struct clocksource *cs)
   * dw_apb_clocksource_register() as the next step.
   */
  struct dw_apb_clocksource *
@@ -62,7 +62,7 @@ index 1f5f734e4919..454775ac662d 100644
  			unsigned long freq)
  {
  	struct dw_apb_clocksource *dw_cs = kzalloc(sizeof(*dw_cs), GFP_KERNEL);
-@@ -393,12 +381,12 @@ dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
+@@ -390,12 +378,12 @@ dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
  
  	dw_cs->timer.base = base;
  	dw_cs->timer.freq = freq;
@@ -81,7 +81,7 @@ index 1f5f734e4919..454775ac662d 100644
  
  	return dw_cs;
  }
-@@ -408,9 +396,17 @@ dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
+@@ -405,9 +393,17 @@ dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
   *
   * @dw_cs:	The clocksource to register.
   */
@@ -102,10 +102,10 @@ index 1f5f734e4919..454775ac662d 100644
  
  /**
 diff --git a/include/linux/dw_apb_timer.h b/include/linux/dw_apb_timer.h
-index 4334106f44c3..45690c196e4c 100644
+index 14f072edbca5..abd5a050a529 100644
 --- a/include/linux/dw_apb_timer.h
 +++ b/include/linux/dw_apb_timer.h
-@@ -34,7 +34,7 @@ struct dw_apb_clock_event_device {
+@@ -31,7 +31,7 @@ struct dw_apb_clock_event_device {
  
  struct dw_apb_clocksource {
  	struct dw_apb_timer			timer;

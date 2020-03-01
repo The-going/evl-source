@@ -1,4 +1,4 @@
-From c3932e27928891cf265b34caa8f13a92078aa5c6 Mon Sep 17 00:00:00 2001
+From 82191c4067500f509fb9007c71c9b0b1314a0725 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 31 Jul 2017 16:28:51 +0200
 Subject: [PATCH] ARM: dovetail: enable VDSO access from the oob stage
@@ -22,10 +22,10 @@ is in progress though.
  1 file changed, 5 insertions(+)
 
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index fa66f687a7b..0685f3c5833 100644
+index 7482ed9f414f..9a65d1c735ae 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -219,6 +219,9 @@ void update_vsyscall(struct timekeeper *tk)
+@@ -208,6 +208,9 @@ void update_vsyscall(struct timekeeper *tk)
  {
  	struct timespec64 *wtm = &tk->wall_to_monotonic;
  	const struct arch_clocksource_data *cd = tk_get_cd(tk);
@@ -35,7 +35,7 @@ index fa66f687a7b..0685f3c5833 100644
  
  	vdso_write_begin(vdso_data);
  
-@@ -258,6 +261,8 @@ void update_vsyscall(struct timekeeper *tk)
+@@ -247,6 +250,8 @@ void update_vsyscall(struct timekeeper *tk)
  
  	vdso_write_end(vdso_data);
  

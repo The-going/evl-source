@@ -1,0 +1,113 @@
+From de73f6224cc8cd4772653498b00a0f96d9f449ed Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 24 Jun 2019 21:32:18 +0200
+Subject: [PATCH] evl/sched: tp: finalize merging
+
+Add missing policy accessors and init bits.
+---
+ include/evl/sched.h     |  7 ++++++-
+ kernel/evl/sched/core.c | 11 +++++++++++
+ kernel/evl/sched/tp.c   |  6 ++++--
+ kernel/evl/thread.c     | 13 ++++++++++++-
+ 4 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 8976abb6a353..906a88cbe01b 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -386,7 +386,12 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
+ 	ret = evl_quota_init_thread(thread);
+ 	if (ret)
+ 		return ret;
+-#endif /* CONFIG_EVL_SCHED_QUOTA */
++#endif
++#ifdef CONFIG_EVL_SCHED_TP
++	ret = evl_tp_init_thread(thread);
++	if (ret)
++		return ret;
++#endif
+ 
+ 	return ret;
+ }
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 6debabaf6635..eeff98654a6a 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -819,6 +819,13 @@ evl_find_sched_class(union evl_sched_param *param,
+ 		param->quota.tgid = attrs->sched_quota_group;
+ 		sched_class = &evl_sched_quota;
+ 		break;
++#endif
++#ifdef CONFIG_EVL_SCHED_TP
++	case SCHED_TP:
++		param->tp.prio = attrs->sched_priority;
++		param->tp.ptid = attrs->sched_tp_partition;
++		sched_class = &evl_sched_tp;
++		break;
+ #endif
+ 	default:
+ 		return NULL;
+@@ -852,6 +859,10 @@ const char *evl_trace_sched_attrs(struct trace_seq *p,
+ 				attrs->sched_priority,
+ 				attrs->sched_quota_group);
+ 		break;
++	case SCHED_TP:
++		trace_seq_printf(p, "priority=%d, partition=%d",
++				attrs->sched_priority,
++				attrs->sched_tp_partition);
+ 	case SCHED_NORMAL:
+ 		break;
+ 	case SCHED_RR:
+diff --git a/kernel/evl/sched/tp.c b/kernel/evl/sched/tp.c
+index 54cc4900155a..aa33db9ded3a 100644
+--- a/kernel/evl/sched/tp.c
++++ b/kernel/evl/sched/tp.c
+@@ -150,8 +150,10 @@ static int tp_chkparam(struct evl_thread *thread,
+ 	struct evl_sched_tp *tp = &evl_thread_rq(thread)->tp;
+ 
+ 	if (tp->gps == NULL ||
+-	    p->tp.prio < EVL_TP_MIN_PRIO ||
+-	    p->tp.prio > EVL_TP_MAX_PRIO)
++		p->tp.prio < EVL_TP_MIN_PRIO ||
++		p->tp.prio > EVL_TP_MAX_PRIO ||
++		p->tp.ptid < 0 ||
++		p->tp.ptid >= CONFIG_EVL_SCHED_TP_NR_PART)
+ 		return -EINVAL;
+ 
+ 	return 0;
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index abd418e543f4..2d1dfae3e5bf 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1958,8 +1958,12 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
+ 			struct evl_thread *thread,
+ 			struct evl_sched_attrs *attrs)
+ {
++	union evl_sched_param param;
++
+ 	attrs->sched_policy = sched_class->policy;
+ 
++	sched_class->sched_getparam(thread, &param);
++
+ 	if (sched_class == &evl_sched_rt) {
+ 		if (thread->state & T_RRB) {
+ 			attrs->sched_rr_quantum =
+@@ -1971,7 +1975,14 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
+ 
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	if (sched_class == &evl_sched_quota) {
+-		attrs->sched_quota_group = thread->quota->tgid;
++		attrs->sched_quota_group = param.quota.tgid;
++		goto out;
++	}
++#endif
++
++#ifdef CONFIG_EVL_SCHED_TP
++	if (sched_class == &evl_sched_tp) {
++		attrs->sched_tp_partition = param.tp.ptid;
+ 		goto out;
+ 	}
+ #endif
+-- 
+2.16.4
+

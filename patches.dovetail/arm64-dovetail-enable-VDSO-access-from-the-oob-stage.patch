@@ -1,4 +1,4 @@
-From 87af47836bbf611bc53dafbd1b26ac5d858a4fe5 Mon Sep 17 00:00:00 2001
+From b2e3c2d0f54e11fa9e7b6c4fdcb7cdf5ec7d9e48 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 2 Oct 2018 12:44:10 +0200
 Subject: [PATCH] arm64: dovetail: enable VDSO access from the oob stage
@@ -8,10 +8,10 @@ Subject: [PATCH] arm64: dovetail: enable VDSO access from the oob stage
  1 file changed, 5 insertions(+)
 
 diff --git a/arch/arm64/kernel/vdso.c b/arch/arm64/kernel/vdso.c
-index 8074cbd3a3a8..b21ab7a68177 100644
+index 663b166241d0..1db177365426 100644
 --- a/arch/arm64/kernel/vdso.c
 +++ b/arch/arm64/kernel/vdso.c
-@@ -287,6 +287,9 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
+@@ -276,6 +276,9 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
  void update_vsyscall(struct timekeeper *tk)
  {
  	u32 use_syscall = !tk->tkr_mono.clock->archdata.vdso_direct;
@@ -21,7 +21,7 @@ index 8074cbd3a3a8..b21ab7a68177 100644
  
  	++vdso_data->tb_seq_count;
  	smp_wmb();
-@@ -316,6 +319,8 @@ void update_vsyscall(struct timekeeper *tk)
+@@ -305,6 +308,8 @@ void update_vsyscall(struct timekeeper *tk)
  
  	smp_wmb();
  	++vdso_data->tb_seq_count;

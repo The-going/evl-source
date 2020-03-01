@@ -1,4 +1,4 @@
-From 75f28379e7a0cba62f793cb28be658a394eda443 Mon Sep 17 00:00:00 2001
+From cb80584b07b8ed248f893d4dd66b343f2c548137 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 31 May 2019 21:02:05 +0200
 Subject: [PATCH] clocksource: mmio: detect stale ucs mapping ownership
@@ -18,10 +18,10 @@ clock_gettime().
  1 file changed, 66 insertions(+), 36 deletions(-)
 
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index c80ef569245d..464fbcee2a82 100644
+index a9920b5c98c4..28710ccdfccf 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
-@@ -143,11 +143,42 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
+@@ -140,11 +140,42 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
  
  static void clksrc_vmopen(struct vm_area_struct *vma)
  {
@@ -66,7 +66,7 @@ index c80ef569245d..464fbcee2a82 100644
  }
  
  static void clksrc_vmclose(struct vm_area_struct *vma)
-@@ -185,56 +216,57 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
+@@ -182,56 +213,57 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
  		return -EINVAL;
  
  	vma->vm_private_data = NULL;
@@ -147,7 +147,7 @@ index c80ef569245d..464fbcee2a82 100644
  }
  
  static long
-@@ -259,31 +291,29 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+@@ -256,31 +288,29 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  		return -ENOTTY;
  	}
  

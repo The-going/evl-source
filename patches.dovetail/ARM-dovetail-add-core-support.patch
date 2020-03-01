@@ -1,4 +1,4 @@
-From 340c5b66a1a38074b9c6cdca8e0c71487a696cd6 Mon Sep 17 00:00:00 2001
+From 75575abda6af9d02fc49d43f054e767fb45dfa65 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 Feb 2017 14:54:52 +0100
 Subject: [PATCH] ARM: dovetail: add core support
@@ -56,10 +56,10 @@ index 000000000000..5875ecad0b06
 +
 +#endif /* _ASM_ARM_DOVETAIL_H */
 diff --git a/arch/arm/include/asm/efi.h b/arch/arm/include/asm/efi.h
-index 38badaae8d9d..3383cd96248d 100644
+index 7667826b93f1..40c33fd846f1 100644
 --- a/arch/arm/include/asm/efi.h
 +++ b/arch/arm/include/asm/efi.h
-@@ -41,7 +41,11 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
+@@ -38,7 +38,11 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
  
  static inline void efi_set_pgd(struct mm_struct *mm)
  {
@@ -72,10 +72,10 @@ index 38badaae8d9d..3383cd96248d 100644
  
  void efi_virtmap_load(void);
 diff --git a/arch/arm/include/asm/mmu_context.h b/arch/arm/include/asm/mmu_context.h
-index 7f303295ef19..e417e732488d 100644
+index f99ed524fe41..08103f884766 100644
 --- a/arch/arm/include/asm/mmu_context.h
 +++ b/arch/arm/include/asm/mmu_context.h
-@@ -75,6 +75,7 @@ static inline void check_and_switch_context(struct mm_struct *mm,
+@@ -72,6 +72,7 @@ static inline void check_and_switch_context(struct mm_struct *mm,
  static inline void finish_arch_post_lock_switch(void)
  {
  	struct mm_struct *mm = current->mm;
@@ -83,7 +83,7 @@ index 7f303295ef19..e417e732488d 100644
  
  	if (mm && mm->context.switch_pending) {
  		/*
-@@ -86,7 +87,9 @@ static inline void finish_arch_post_lock_switch(void)
+@@ -83,7 +84,9 @@ static inline void finish_arch_post_lock_switch(void)
  		preempt_disable();
  		if (mm->context.switch_pending) {
  			mm->context.switch_pending = 0;
@@ -93,7 +93,7 @@ index 7f303295ef19..e417e732488d 100644
  		}
  		preempt_enable_no_resched();
  	}
-@@ -105,7 +108,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+@@ -102,7 +105,7 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
  #endif	/* CONFIG_CPU_HAS_ASID */
  
  #define destroy_context(mm)		do { } while(0)
@@ -102,7 +102,7 @@ index 7f303295ef19..e417e732488d 100644
  
  /*
   * This is called when "tsk" is about to enter lazy TLB mode.
-@@ -121,15 +124,9 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+@@ -118,15 +121,9 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
  {
  }
  
@@ -120,7 +120,7 @@ index 7f303295ef19..e417e732488d 100644
  {
  #ifdef CONFIG_MMU
  	unsigned int cpu = smp_processor_id();
-@@ -152,6 +149,30 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
+@@ -149,6 +146,30 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
  #endif
  }
  
@@ -152,10 +152,10 @@ index 7f303295ef19..e417e732488d 100644
 +
  #endif
 diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
-index 8fcccc118816..2305b20d2f3b 100644
+index 9397f8ae5555..d1469e7f01d3 100644
 --- a/arch/arm/include/asm/thread_info.h
 +++ b/arch/arm/include/asm/thread_info.h
-@@ -24,6 +24,7 @@
+@@ -21,6 +21,7 @@
  
  struct task_struct;
  
@@ -163,7 +163,7 @@ index 8fcccc118816..2305b20d2f3b 100644
  #include <asm/types.h>
  
  typedef unsigned long mm_segment_t;
-@@ -69,6 +70,7 @@ struct thread_info {
+@@ -66,6 +67,7 @@ struct thread_info {
  #ifdef CONFIG_ARM_THUMBEE
  	unsigned long		thumbee_state;	/* ThumbEE Handler Base register */
  #endif
@@ -171,7 +171,7 @@ index 8fcccc118816..2305b20d2f3b 100644
  };
  
  #define INIT_THREAD_INFO(tsk)						\
-@@ -152,6 +154,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+@@ -149,6 +151,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
  #define TIF_USING_IWMMXT	17
  #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
  #define TIF_RESTORE_SIGMASK	20
@@ -179,7 +179,7 @@ index 8fcccc118816..2305b20d2f3b 100644
  
  #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
  #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-@@ -162,6 +165,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+@@ -159,6 +162,7 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
  #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
  #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
  #define _TIF_USING_IWMMXT	(1 << TIF_USING_IWMMXT)
@@ -187,7 +187,7 @@ index 8fcccc118816..2305b20d2f3b 100644
  
  /* Checks for any syscall work in entry-common.S */
  #define _TIF_SYSCALL_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
-@@ -177,6 +181,8 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
+@@ -174,6 +178,8 @@ extern int vfp_restore_user_hwstate(struct user_vfp *,
   * Local (synchronous) thread flags.
   */
  #define _TLF_OOB		0x0001
@@ -197,10 +197,10 @@ index 8fcccc118816..2305b20d2f3b 100644
  #endif /* __KERNEL__ */
  #endif /* __ASM_ARM_THREAD_INFO_H */
 diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
-index a45736271a71..85594993b95d 100644
+index 177d6f51bc5a..95a876cbba06 100644
 --- a/arch/arm/kernel/asm-offsets.c
 +++ b/arch/arm/kernel/asm-offsets.c
-@@ -65,6 +65,7 @@ int main(void)
+@@ -62,6 +62,7 @@ int main(void)
    DEFINE(TI_USED_CP,		offsetof(struct thread_info, used_cp));
    DEFINE(TI_TP_VALUE,		offsetof(struct thread_info, tp_value));
    DEFINE(TI_FPSTATE,		offsetof(struct thread_info, fpstate));
@@ -209,10 +209,10 @@ index a45736271a71..85594993b95d 100644
    DEFINE(TI_VFPSTATE,		offsetof(struct thread_info, vfpstate));
  #ifdef CONFIG_SMP
 diff --git a/arch/arm/mm/context.c b/arch/arm/mm/context.c
-index c8c8b9ed02e0..d3afac2745d3 100644
+index b7525b433f3e..381c96831041 100644
 --- a/arch/arm/mm/context.c
 +++ b/arch/arm/mm/context.c
-@@ -42,7 +42,7 @@
+@@ -39,7 +39,7 @@
  #define ASID_FIRST_VERSION	(1ULL << ASID_BITS)
  #define NUM_USER_ASIDS		ASID_FIRST_VERSION
  
@@ -221,7 +221,7 @@ index c8c8b9ed02e0..d3afac2745d3 100644
  static atomic64_t asid_generation = ATOMIC64_INIT(ASID_FIRST_VERSION);
  static DECLARE_BITMAP(asid_map, NUM_USER_ASIDS);
  
-@@ -240,9 +240,11 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
+@@ -237,9 +237,11 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
  void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
  {
  	unsigned long flags;

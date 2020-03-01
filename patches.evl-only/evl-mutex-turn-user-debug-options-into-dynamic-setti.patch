@@ -1,0 +1,401 @@
+From 7293e908f670907e4df3e3b5897c7e519458b6c5 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 25 Jun 2019 18:56:09 +0200
+Subject: [PATCH] evl/mutex: turn user debug options into dynamic settings
+
+With this rework, we have two separate per-thread mode flags for
+greater flexibility aimed at controlling the debug features on a
+per-thread basis:
+
+- T_WOSS can be set to trigger SIGDEBUG upon (unexpected) stage switch
+  to in-band mode. This is strictly equivalent to the obsoleted T_WARN
+  bit.
+
+- T_WOLI enables/disables the detection of locking inconsistencies
+  with mutexes via the EVL_THRIOC_{SET, CLEAR}_MODE interface. This
+  combines the former static CONFIG_EVL_DEBUG_MUTEX_INBAND and
+  CONFIG_EVL_DEBUG_MUTEX_SLEEP options.
+
+Enabling CONFIG_EVL_DEBUG_WOLI turns on T_WOLI by default for every
+new EVL thread running in userland, which can be opted out on a
+per-thread basis using EVL_THRIOC_CLEAR_MODE.
+---
+ include/evl/mutex.h        |  5 ----
+ include/trace/events/evl.h |  7 +++--
+ include/uapi/evl/control.h |  2 +-
+ include/uapi/evl/thread.h  | 15 +++++-----
+ kernel/evl/Kconfig         | 47 ++++++--------------------------
+ kernel/evl/mutex.c         | 68 +++++++++++++++++++++-------------------------
+ kernel/evl/thread.c        | 37 ++++++++++++-------------
+ kernel/evl/wait.c          |  5 ++--
+ 8 files changed, 72 insertions(+), 114 deletions(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 0284f1ea61e3..8d89f7dd82a1 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -69,12 +69,7 @@ void evl_flush_mutex(struct evl_mutex *mutex,
+ 
+ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
+ 
+-#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
+ void evl_detect_boost_drop(struct evl_thread *owner);
+-#else
+-static inline
+-void evl_detect_boost_drop(struct evl_thread *owner) { }
+-#endif
+ 
+ void evl_abort_mutex_wait(struct evl_thread *thread,
+ 			struct evl_wait_channel *wchan);
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 0b940d1b8eca..7ee27955b95d 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -767,9 +767,10 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
+ 	TP_ARGS(thread, attrs)
+ );
+ 
+-#define evl_print_thread_mode(__mode)		\
+-	__print_flags(__mode, "|",		\
+-		      {T_WARN, "warnsw"})
++#define evl_print_thread_mode(__mode)	\
++	__print_flags(__mode, "|",	\
++		{T_WOSS, "woss"},	\
++		{T_WOLI, "woli"})
+ 
+ TRACE_EVENT(evl_thread_update_mode,
+ 	TP_PROTO(int mode, bool set),
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index f5109f21e1c5..93037c111794 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  3
++#define EVL_ABI_LEVEL  4
+ 
+ struct evl_core_info {
+ 	__u32 abi_level;
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index 5519a51bcb9a..b45dba787948 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -27,11 +27,11 @@
+ #define T_BOOST   0x00000200 /*< PI/PP boost undergoing */
+ #define T_SSTEP   0x00000400 /*< Single-stepped by debugger */
+ #define T_RRB     0x00000800 /*< Undergoes round-robin scheduling */
+-#define T_WARN    0x00001000 /*< Wants SIGDEBUG on error detection */
+-#define T_ROOT    0x00002000 /*< Root thread (in-band kernel placeholder) */
+-#define T_WEAK    0x00004000 /*< Weak scheduling (non real-time) */
+-#define T_USER    0x00008000 /*< Userland thread */
+-#define T_DEBUG   0x00010000 /*< User-level debugging enabled */
++#define T_ROOT    0x00001000 /*< Root thread (in-band kernel placeholder) */
++#define T_WEAK    0x00002000 /*< Weak scheduling (non real-time) */
++#define T_USER    0x00004000 /*< Userland thread */
++#define T_WOSS    0x00008000 /*< Warn on stage switch (SIGDEBUG) */
++#define T_WOLI    0x00010000 /*< Warn on locking inconsistency (SIGDEBUG)  */
+ 
+ /* Information flags (shared) */
+ 
+@@ -69,9 +69,10 @@
+  * 'b' -> Priority boost undergoing
+  * 'T' -> Ptraced and stopped
+  * 'r' -> Undergoes round-robin
+- * 't' -> SIGDEBUG notifications enabled
++ * 'g' -> Warned on stage switch (SIGDEBUG)
++ * 'G' -> Warned on locking inconsistency (SIGDEBUG)
+  */
+-#define EVL_THREAD_STATE_LABELS  "SWDpRUZXHbTrt...."
++#define EVL_THREAD_STATE_LABELS  "SWDpRUZXHbTr...12"
+ 
+ struct evl_user_window {
+ 	__u32 state;
+diff --git a/kernel/evl/Kconfig b/kernel/evl/Kconfig
+index f638ce1422a7..c61a77be71fd 100644
+--- a/kernel/evl/Kconfig
++++ b/kernel/evl/Kconfig
+@@ -174,44 +174,15 @@ config EVL_DEBUG_MEMORY
+ 	  core. This option may induce significant overhead with large
+ 	  heaps.
+ 
+-config EVL_DEBUG_USER
+-	bool "User consistency checks"
+-	help
+-	  This option enables a set of consistency checks for
+-	  detecting wrong runtime behavior in user applications.
+-	  Some of these runtime checks may induce overhead, enable
+-	  them for debugging purposes only.
+-
+-if EVL_DEBUG_USER
+-
+-config EVL_DEBUG_MUTEX_INBAND
+-       bool "Detect in-band mutex owner"
+-       default y
+-       help
+-         A thread which attempts to acquire a mutex currently locked by
+-         another thread running in-band may experience unwanted latency
+-         due to priority inversion.  This switch enables debug
+-         notifications sending a SIGDEBUG signal to the lock owner.
+-
+-	 This option may add overhead to out-of-band execution over
+-	 contented locks.
+-
+-config EVL_DEBUG_MUTEX_SLEEP
+-       bool "Detect sleeping while holding a mutex"
+-       default y
+-       help
+-         A thread which goes sleeping while holding a mutex is prone
+-         to cause unwanted latency to other threads serialized by
+-         the same lock. If debug notifications are enabled for such
+-         thread, it receives a SIGDEBUG signal right before entering
+-	 sleep.
+-
+-	 This option has noticeable overhead for out-of-band threads
+-	 as it disables the normal fast locking operations from
+-	 user-space, causing a system call for each monitor enter/exit
+-	 operation.
+-
+-endif # EVL_DEBUG_USER
++config EVL_DEBUG_WOLI
++	bool "Enable locking consistency checks"
++	help
++	  This option enables a set of consistency checks by default
++	  for every new EVL thread for detecting wrong mutex-based
++	  locking patterns (aka T_WOLI flag), which are otherwise
++	  opted-in programmatically on a per-thread basis when this
++	  option is off. This feature may induce overhead in some
++	  cases, so you should enable it for debugging purposes only.
+ 
+ config EVL_WATCHDOG
+ 	bool "Watchdog support"
+diff --git a/kernel/evl/mutex.c b/kernel/evl/mutex.c
+index 8267d2812f7d..354302b966b0 100644
+--- a/kernel/evl/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -28,28 +28,27 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
+ static inline void disable_inband_switch(struct evl_thread *curr)
+ {
+ 	/*
+-	 * Track mutex locking depth, to prevent weak threads from
++	 * Track mutex locking depth: 1) to prevent weak threads from
+ 	 * being switched back to in-band context on return from OOB
+-	 * syscalls.
++	 * syscalls, 2) when locking consistency is being checked.
+ 	 */
+-	if (curr->state & (T_WEAK|T_DEBUG))
++	if (curr->state & (T_WEAK|T_WOLI))
+ 		atomic_inc(&curr->inband_disable_count);
+ }
+ 
+ static inline bool enable_inband_switch(struct evl_thread *curr)
+ {
+-	if ((curr->state & T_WEAK) ||
+-		IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP)) {
+-		if (unlikely(atomic_dec_return(&curr->inband_disable_count) < 0)) {
+-			atomic_set(&curr->inband_disable_count, 0);
+-			if (curr->state & T_WARN)
+-				evl_signal_thread(curr, SIGDEBUG,
+-						SIGDEBUG_MUTEX_IMBALANCE);
+-			return false;
+-		}
+-	}
++	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
++		return true;
++
++	if (likely(atomic_dec_return(&curr->inband_disable_count) >= 0))
++		return true;
+ 
+-	return true;
++	atomic_set(&curr->inband_disable_count, 0);
++	if (curr->state & T_WOLI)
++		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_IMBALANCE);
++
++	return false;
+ }
+ 
+ static inline void raise_boost_flag(struct evl_thread *owner)
+@@ -248,30 +247,31 @@ static inline void clear_pp_boost(struct evl_mutex *mutex,
+ 	drop_booster(mutex, owner);
+ }
+ 
+-#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
+-
+ /*
+- * Detect when a thread is about to wait on a mutex currently owned by
+- * someone running in-band.
++ * Detect when an out-of-band thread is about to sleep on a mutex
++ * currently owned by another thread running in-band.
+  */
+ static void detect_inband_owner(struct evl_mutex *mutex,
+ 				struct evl_thread *waiter)
+ {
+-	if ((waiter->state & T_WARN) &&
+-		!(waiter->info & T_PIALERT) &&
+-		(mutex->owner->state & T_INBAND)) {
++	if (waiter->info & T_PIALERT) {
++		waiter->info &= ~T_PIALERT;
++		return;
++	}
++
++	if (mutex->owner->state & T_INBAND) {
+ 		waiter->info |= T_PIALERT;
+ 		evl_signal_thread(waiter, SIGDEBUG,
+ 				SIGDEBUG_MIGRATE_PRIOINV);
+-	} else
+-		waiter->info &= ~T_PIALERT;
++	}
+ }
+ 
+ /*
+- * Detect when a thread is about to switch to in-band context while
+- * holding booster(s) (claimed PI or active PP mutex), which denotes a
+- * potential priority inversion. In such an event, any waiter bearing
+- * the T_WARN bit will receive a SIGDEBUG notification.
++ * Detect when a thread is about to switch in-band while holding a
++ * mutex which is causing an active PI or PP boost. Since this would
++ * cause a priority inversion, any thread waiting for this mutex
++ * bearing the T_WOLI bit receives a SIGDEBUG notification in this
++ * case.
+  */
+ void evl_detect_boost_drop(struct evl_thread *owner)
+ {
+@@ -283,7 +283,7 @@ void evl_detect_boost_drop(struct evl_thread *owner)
+ 
+ 	for_each_evl_booster(mutex, owner) {
+ 		evl_for_each_mutex_waiter(waiter, mutex) {
+-			if (waiter->state & T_WARN) {
++			if (waiter->state & T_WOLI) {
+ 				waiter->info |= T_PIALERT;
+ 				evl_signal_thread(waiter, SIGDEBUG,
+ 						SIGDEBUG_MIGRATE_PRIOINV);
+@@ -294,14 +294,6 @@ void evl_detect_boost_drop(struct evl_thread *owner)
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+-#else
+-
+-static inline
+-void detect_inband_owner(struct evl_mutex *mutex,
+-			struct evl_thread *waiter) { }
+-
+-#endif
+-
+ static void init_mutex(struct evl_mutex *mutex,
+ 		struct evl_clock *clock, int flags,
+ 		atomic_t *fastlock, u32 *ceiling_ref)
+@@ -467,7 +459,9 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 	 * this CPU.
+ 	 */
+ 	track_owner(mutex, owner);
+-	detect_inband_owner(mutex, curr);
++
++	if (unlikely(curr->state & T_WOLI))
++		detect_inband_owner(mutex, curr);
+ 
+ 	if (curr->wprio > owner->wprio) {
+ 		if ((owner->info & T_WAKEN) && owner->wwake == &mutex->wchan) {
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 7554b2d87794..fe6929d5673d 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -142,6 +142,9 @@ int evl_init_thread(struct evl_thread *thread,
+ 	if (!(flags & T_ROOT))
+ 		flags |= T_DORMANT | T_INBAND;
+ 
++	if ((flags & T_USER) && IS_ENABLED(CONFIG_EVL_DEBUG_WOLI))
++		flags |= T_WOLI;
++
+ 	/*
+ 	 * If no rq was given, pick an initial CPU for the new thread
+ 	 * which is part of its affinity mask, and therefore also part
+@@ -161,14 +164,6 @@ int evl_init_thread(struct evl_thread *thread,
+ 	if (thread->name == NULL)
+ 		return -ENOMEM;
+ 
+-	/*
+-	 * We mirror the global user debug state into the per-thread
+-	 * state, to speed up branch taking in user-space wherever
+-	 * this needs to be tested.
+-	 */
+-	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP))
+-		flags |= T_DEBUG;
+-
+ 	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
+ 	thread->rq = rq;
+ 	thread->state = flags;
+@@ -735,15 +730,22 @@ void evl_switch_inband(int cause)
+ 	evl_propagate_schedparam_change(curr);
+ 
+ 	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
+-		if (curr->state & T_WARN) {
+-			/* Help debugging spurious mode switches. */
++		/*
++		 * Help debugging spurious stage switches by sending
++		 * SIGDEBUG. We are running inband on the context of
++		 * the receiver, so we may bypass evl_signal_thread()
++		 * for this.
++		 */
++		if (curr->state & T_WOSS) {
+ 			memset(&si, 0, sizeof(si));
+ 			si.si_signo = SIGDEBUG;
+ 			si.si_code = SI_QUEUE;
+ 			si.si_int = cause | sigdebug_marker;
+ 			send_sig_info(SIGDEBUG, &si, p);
+ 		}
+-		evl_detect_boost_drop(curr);
++		/* May check for locking inconsistency too. */
++		if (curr->state & T_WOLI)
++			evl_detect_boost_drop(curr);
+ 	}
+ 
+ 	/* @curr is now running inband. */
+@@ -1525,7 +1527,7 @@ int evl_update_mode(__u32 mask, bool set)
+ 	if (curr == NULL)
+ 		return -EPERM;
+ 
+-	if (mask & ~T_WARN)
++	if (mask & ~(T_WOSS|T_WOLI))
+ 		return -EINVAL;
+ 
+ 	trace_evl_thread_update_mode(mask, set);
+@@ -1591,16 +1593,11 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 
+ 	trace_evl_thread_fault(trapnr, regs);
+ 
+-#if defined(CONFIG_EVL_DEBUG_CORE) || defined(CONFIG_EVL_DEBUG_USER)
+-	if (xnarch_fault_notify(trapnr))
++	if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) &&
++		xnarch_fault_notify(trapnr))
+ 		note_trap(curr, trapnr, regs, "switching in-band");
+-#endif
++
+ 	if (xnarch_fault_pf_p(trapnr))
+-		/*
+-		 * The page fault counter is not SMP-safe, but it's a
+-		 * simple indicator that something went wrong wrt
+-		 * memory locking anyway.
+-		 */
+ 		evl_inc_counter(&curr->stat.pf);
+ 
+ 	/*
+diff --git a/kernel/evl/wait.c b/kernel/evl/wait.c
+index c7661fefc40c..6c4ea209abe1 100644
+--- a/kernel/evl/wait.c
++++ b/kernel/evl/wait.c
+@@ -39,9 +39,8 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+ 
+ 	trace_evl_wait(wq);
+ 
+-	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP) &&
+-		atomic_read(&curr->inband_disable_count) &&
+-		(curr->state & T_WARN))
++	if ((curr->state & T_WOLI) &&
++		atomic_read(&curr->inband_disable_count) > 0)
+ 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
+ 
+ 	if (!(wq->flags & EVL_WAIT_PRIO))
+-- 
+2.16.4
+

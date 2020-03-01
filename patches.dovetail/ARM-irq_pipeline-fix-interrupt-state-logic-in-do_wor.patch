@@ -1,4 +1,4 @@
-From 9f8d6f954789d05221428f31e22bf9afcbd9673d Mon Sep 17 00:00:00 2001
+From 5c890636747ca351db0a19bd7dc89590634d0729 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 18 Mar 2019 17:06:50 +0100
 Subject: [PATCH] ARM: irq_pipeline: fix interrupt state logic in
@@ -9,10 +9,10 @@ Subject: [PATCH] ARM: irq_pipeline: fix interrupt state logic in
  1 file changed, 16 insertions(+), 26 deletions(-)
 
 diff --git a/arch/arm/kernel/signal.c b/arch/arm/kernel/signal.c
-index 673050b228d5..9d4f3cf5cde0 100644
+index 272f9248865c..0f13d009c149 100644
 --- a/arch/arm/kernel/signal.c
 +++ b/arch/arm/kernel/signal.c
-@@ -11,6 +11,7 @@
+@@ -8,6 +8,7 @@
  #include <linux/random.h>
  #include <linux/signal.h>
  #include <linux/personality.h>
@@ -20,7 +20,7 @@ index 673050b228d5..9d4f3cf5cde0 100644
  #include <linux/uaccess.h>
  #include <linux/tracehook.h>
  #include <linux/uprobes.h>
-@@ -644,25 +645,28 @@ static int do_signal(struct pt_regs *regs, int syscall)
+@@ -641,25 +642,28 @@ static int do_signal(struct pt_regs *regs, int syscall)
  asmlinkage int
  do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  {
@@ -57,7 +57,7 @@ index 673050b228d5..9d4f3cf5cde0 100644
  			if (thread_flags & _TIF_SIGPENDING) {
  				int restart = do_signal(regs, syscall);
  				if (unlikely(restart)) {
-@@ -671,8 +675,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+@@ -668,8 +672,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  					 * Deal with it without leaving
  					 * the kernel space.
  					 */
@@ -67,7 +67,7 @@ index 673050b228d5..9d4f3cf5cde0 100644
  				}
  				syscall = 0;
  			} else if (thread_flags & _TIF_UPROBE) {
-@@ -683,23 +686,10 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+@@ -680,23 +683,10 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  				rseq_handle_notify_resume(NULL, regs);
  			}
  		}

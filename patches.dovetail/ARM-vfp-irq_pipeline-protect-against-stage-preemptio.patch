@@ -1,4 +1,4 @@
-From aae02180a00b92bc858b8825de3434fe066d6d10 Mon Sep 17 00:00:00 2001
+From 0b1df6174bf36f1c86088f145f126f192ee14d43 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 17:59:25 +0100
 Subject: [PATCH] ARM: vfp: irq_pipeline: protect against stage preemption
@@ -13,10 +13,10 @@ interrupts in the CPU for protecting the critical sections.
  3 files changed, 37 insertions(+), 16 deletions(-)
 
 diff --git a/arch/arm/vfp/entry.S b/arch/arm/vfp/entry.S
-index 2e78760f349..c375ebf6b50 100644
+index 0186cf9da890..cc56142a4191 100644
 --- a/arch/arm/vfp/entry.S
 +++ b/arch/arm/vfp/entry.S
-@@ -26,6 +26,7 @@
+@@ -23,6 +23,7 @@
  @
  ENTRY(do_vfp)
  	inc_preempt_count r10, r4
@@ -24,7 +24,7 @@ index 2e78760f349..c375ebf6b50 100644
   	ldr	r4, .LCvfp
  	ldr	r11, [r10, #TI_CPU]	@ CPU number
  	add	r10, r10, #TI_VFPSTATE	@ r10 = workspace
-@@ -33,6 +34,7 @@ ENTRY(do_vfp)
+@@ -30,6 +31,7 @@ ENTRY(do_vfp)
  ENDPROC(do_vfp)
  
  ENTRY(vfp_null_entry)
@@ -32,7 +32,7 @@ index 2e78760f349..c375ebf6b50 100644
  	dec_preempt_count_ti r10, r4
  	ret	lr
  ENDPROC(vfp_null_entry)
-@@ -46,6 +48,7 @@ ENDPROC(vfp_null_entry)
+@@ -43,6 +45,7 @@ ENDPROC(vfp_null_entry)
  
  	__INIT
  ENTRY(vfp_testing_entry)
@@ -41,10 +41,10 @@ index 2e78760f349..c375ebf6b50 100644
  	ldr	r0, VFP_arch_address
  	str	r0, [r0]		@ set to non-zero value
 diff --git a/arch/arm/vfp/vfphw.S b/arch/arm/vfp/vfphw.S
-index f74a8f7e5f8..276c26c53bd 100644
+index b2e560290860..1f07393c8907 100644
 --- a/arch/arm/vfp/vfphw.S
 +++ b/arch/arm/vfp/vfphw.S
-@@ -177,6 +177,7 @@ vfp_hw_state_valid:
+@@ -174,6 +174,7 @@ vfp_hw_state_valid:
  					@ out before setting an FPEXC that
  					@ stops us reading stuff
  	VFPFMXR	FPEXC, r1		@ Restore FPEXC last
@@ -52,7 +52,7 @@ index f74a8f7e5f8..276c26c53bd 100644
  	sub	r2, r2, #4		@ Retry current instruction - if Thumb
  	str	r2, [sp, #S_PC]		@ mode it's two 16-bit instructions,
  					@ else it's one 32-bit instruction, so
-@@ -206,6 +207,7 @@ skip:
+@@ -203,6 +204,7 @@ skip:
  	@ Fall into hand on to next handler - appropriate coproc instr
  	@ not recognised by VFP
  
@@ -61,10 +61,10 @@ index f74a8f7e5f8..276c26c53bd 100644
  	dec_preempt_count_ti r10, r4
  	ret	lr
 diff --git a/arch/arm/vfp/vfpmodule.c b/arch/arm/vfp/vfpmodule.c
-index ee7b07938dd..e59096d7c3d 100644
+index 8c9e7f9f0277..54acebb4cd4d 100644
 --- a/arch/arm/vfp/vfpmodule.c
 +++ b/arch/arm/vfp/vfpmodule.c
-@@ -21,6 +21,7 @@
+@@ -18,6 +18,7 @@
  #include <linux/uaccess.h>
  #include <linux/user.h>
  #include <linux/export.h>
@@ -72,7 +72,7 @@ index ee7b07938dd..e59096d7c3d 100644
  
  #include <asm/cp15.h>
  #include <asm/cputype.h>
-@@ -93,6 +94,7 @@ static void vfp_force_reload(unsigned int cpu, struct thread_info *thread)
+@@ -90,6 +91,7 @@ static void vfp_force_reload(unsigned int cpu, struct thread_info *thread)
  static void vfp_thread_flush(struct thread_info *thread)
  {
  	union vfp_state *vfp = &thread->vfpstate;
@@ -80,7 +80,7 @@ index ee7b07938dd..e59096d7c3d 100644
  	unsigned int cpu;
  
  	/*
-@@ -103,11 +105,11 @@ static void vfp_thread_flush(struct thread_info *thread)
+@@ -100,11 +102,11 @@ static void vfp_thread_flush(struct thread_info *thread)
  	 * Do this first to ensure that preemption won't overwrite our
  	 * state saving should access to the VFP be enabled at this point.
  	 */
@@ -94,7 +94,7 @@ index ee7b07938dd..e59096d7c3d 100644
  
  	memset(vfp, 0, sizeof(union vfp_state));
  
-@@ -122,11 +124,12 @@ static void vfp_thread_exit(struct thread_info *thread)
+@@ -119,11 +121,12 @@ static void vfp_thread_exit(struct thread_info *thread)
  {
  	/* release case: Per-thread VFP cleanup. */
  	union vfp_state *vfp = &thread->vfpstate;
@@ -109,7 +109,7 @@ index ee7b07938dd..e59096d7c3d 100644
  }
  
  static void vfp_thread_copy(struct thread_info *thread)
-@@ -162,6 +165,7 @@ static void vfp_thread_copy(struct thread_info *thread)
+@@ -159,6 +162,7 @@ static void vfp_thread_copy(struct thread_info *thread)
  static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
  {
  	struct thread_info *thread = v;
@@ -117,7 +117,7 @@ index ee7b07938dd..e59096d7c3d 100644
  	u32 fpexc;
  #ifdef CONFIG_SMP
  	unsigned int cpu;
-@@ -169,6 +173,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
+@@ -166,6 +170,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
  
  	switch (cmd) {
  	case THREAD_NOTIFY_SWITCH:
@@ -125,7 +125,7 @@ index ee7b07938dd..e59096d7c3d 100644
  		fpexc = fmrx(FPEXC);
  
  #ifdef CONFIG_SMP
-@@ -188,6 +193,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
+@@ -185,6 +190,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
  		 * old state.
  		 */
  		fmxr(FPEXC, fpexc & ~FPEXC_EN);
@@ -133,7 +133,7 @@ index ee7b07938dd..e59096d7c3d 100644
  		break;
  
  	case THREAD_NOTIFY_FLUSH:
-@@ -325,7 +331,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
+@@ -322,7 +328,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
   */
  void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
  {
@@ -142,7 +142,7 @@ index ee7b07938dd..e59096d7c3d 100644
  
  	pr_debug("VFP: bounce: trigger %08x fpexc %08x\n", trigger, fpexc);
  
-@@ -355,6 +361,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+@@ -352,6 +358,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
  		/*
  		 * Synchronous exception, emulate the trigger instruction
  		 */
@@ -150,7 +150,7 @@ index ee7b07938dd..e59096d7c3d 100644
  		goto emulate;
  	}
  
-@@ -367,7 +374,18 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+@@ -364,7 +371,18 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
  		trigger = fmrx(FPINST);
  		regs->ARM_pc -= 4;
  #endif
@@ -170,7 +170,7 @@ index ee7b07938dd..e59096d7c3d 100644
  		/*
  		 * Illegal combination of bits. It can be caused by an
  		 * unallocated VFP instruction but with FPSCR.IXE set and not
-@@ -407,18 +425,14 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+@@ -404,18 +422,14 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
  	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
  		goto exit;
  
@@ -191,7 +191,7 @@ index ee7b07938dd..e59096d7c3d 100644
  	preempt_enable();
  }
  
-@@ -518,7 +532,8 @@ static inline void vfp_pm_init(void) { }
+@@ -515,7 +529,8 @@ static inline void vfp_pm_init(void) { }
   */
  void vfp_sync_hwstate(struct thread_info *thread)
  {
@@ -201,7 +201,7 @@ index ee7b07938dd..e59096d7c3d 100644
  
  	if (vfp_state_in_hw(cpu, thread)) {
  		u32 fpexc = fmrx(FPEXC);
-@@ -531,17 +546,18 @@ void vfp_sync_hwstate(struct thread_info *thread)
+@@ -528,17 +543,18 @@ void vfp_sync_hwstate(struct thread_info *thread)
  		fmxr(FPEXC, fpexc);
  	}
  

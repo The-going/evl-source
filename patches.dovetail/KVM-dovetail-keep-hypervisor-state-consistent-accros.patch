@@ -1,4 +1,4 @@
-From 4d68a58f03fdb8b9eb1bcc7a9c7f958fb6bc9dbb Mon Sep 17 00:00:00 2001
+From bd724cbebc892183cc7bc089f4d15894e2aad4b8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 11 Jan 2019 20:39:32 +0100
 Subject: [PATCH] KVM: dovetail: keep hypervisor state consistent accross stage
@@ -102,10 +102,10 @@ index 31dceafcd98a..88125c1e24ca 100644
  };
  
 diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 79fa4426509c..d5cc7f4c5410 100644
+index d1ad38a3f048..7ded2706cd27 100644
 --- a/include/linux/kvm_host.h
 +++ b/include/linux/kvm_host.h
-@@ -263,10 +263,22 @@ struct kvm_mmio_fragment {
+@@ -260,10 +260,22 @@ struct kvm_mmio_fragment {
  	unsigned len;
  };
  

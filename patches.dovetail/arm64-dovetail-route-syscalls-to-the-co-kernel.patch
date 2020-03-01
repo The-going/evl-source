@@ -1,4 +1,4 @@
-From 0eba752455e94b66c8703c743f4f1df9b4986740 Mon Sep 17 00:00:00 2001
+From b0bba7d5354e2539cdd3bcc226d5e91612fff7f2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 10:50:46 +0200
 Subject: [PATCH] arm64: dovetail: route syscalls to the co-kernel
@@ -9,10 +9,10 @@ Subject: [PATCH] arm64: dovetail: route syscalls to the co-kernel
  2 files changed, 21 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/include/asm/daifflags.h b/arch/arm64/include/asm/daifflags.h
-index 0b93a7588c7d..9e80470c32f8 100644
+index cbe3cdb43ba6..375df9e11bb1 100644
 --- a/arch/arm64/include/asm/daifflags.h
 +++ b/arch/arm64/include/asm/daifflags.h
-@@ -22,7 +22,7 @@
+@@ -11,7 +11,7 @@
  
  /*
   * IRQ_PIPELINE: DAIF masking is only used in contexts where hard

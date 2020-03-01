@@ -1,4 +1,4 @@
-From ccfabab0793893bcc4fb9d1adf0d7eac7e702197 Mon Sep 17 00:00:00 2001
+From f014ea335421f9b8e35f327e8e8de78386e4fb39 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 1 Jun 2019 16:45:32 +0200
 Subject: [PATCH] clocksource: mmio: rename user_mmio_clksrc as mmio_ucs
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource: mmio: rename user_mmio_clksrc as mmio_ucs
  2 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 6c41cbcc96b0..829c106e0807 100644
+index 9f62c384c329..d0cfdd8b27f7 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
-@@ -240,7 +240,7 @@ void update_vsyscall(struct timekeeper *tk)
+@@ -229,7 +229,7 @@ void update_vsyscall(struct timekeeper *tk)
  		if (cd->clock_type >= ARM_CLOCK_USER_MMIO_BASE)
  			snprintf(vdso_data->mmio_dev_name,
  				sizeof(vdso_data->mmio_dev_name),
@@ -22,10 +22,10 @@ index 6c41cbcc96b0..829c106e0807 100644
  	}
  
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index 464fbcee2a82..201278fc6ff5 100644
+index 28710ccdfccf..188cde1bbb46 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
-@@ -60,14 +60,14 @@ u64 clocksource_mmio_readw_down(struct clocksource *c)
+@@ -57,14 +57,14 @@ u64 clocksource_mmio_readw_down(struct clocksource *c)
  }
  
  static inline struct clocksource_user_mmio *
@@ -42,7 +42,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  	u32 upper, old_upper, lower;
  
  	upper = readl_relaxed(ucs->reg_upper);
-@@ -82,7 +82,7 @@ u64 clocksource_dual_mmio_readl_up(struct clocksource *c)
+@@ -79,7 +79,7 @@ u64 clocksource_dual_mmio_readl_up(struct clocksource *c)
  
  u64 clocksource_dual_mmio_readw_up(struct clocksource *c)
  {
@@ -51,7 +51,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  	u16 upper, old_upper, lower;
  
  	upper = readw_relaxed(ucs->reg_upper);
-@@ -200,7 +200,7 @@ static const struct vm_operations_struct clksrc_vmops = {
+@@ -197,7 +197,7 @@ static const struct vm_operations_struct clksrc_vmops = {
  	.close = clksrc_vmclose,
  };
  
@@ -60,7 +60,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  {
  	unsigned long addr, upper_pfn, lower_pfn;
  	struct clocksource_user_mapping *mapping, *tmp;
-@@ -270,7 +270,7 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
+@@ -267,7 +267,7 @@ static int user_mmio_clksrc_mmap(struct file *file, struct vm_area_struct *vma)
  }
  
  static long
@@ -69,7 +69,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  {
  	struct clocksource_user_mapping *mapping;
  	struct clksrc_user_mmio_info __user *u;
-@@ -333,7 +333,7 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+@@ -330,7 +330,7 @@ user_mmio_clksrc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  	return copy_to_user(u, &info, sizeof(*u));
  }
  
@@ -78,7 +78,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  {
  	struct clocksource_user_mmio *ucs;
  
-@@ -346,11 +346,11 @@ static int user_mmio_clksrc_open(struct inode *inode, struct file *file)
+@@ -343,11 +343,11 @@ static int user_mmio_clksrc_open(struct inode *inode, struct file *file)
  	return 0;
  }
  
@@ -94,7 +94,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  
  };
  
-@@ -361,14 +361,14 @@ ucs_create_cdev(struct class *class, struct clocksource_user_mmio *ucs)
+@@ -358,14 +358,14 @@ ucs_create_cdev(struct class *class, struct clocksource_user_mmio *ucs)
  
  	ucs->dev = device_create(class, NULL,
  				MKDEV(MAJOR(user_mmio_devt), ucs->id),
@@ -111,7 +111,7 @@ index 464fbcee2a82..201278fc6ff5 100644
  	ucs->cdev.kobj.parent = &ucs->dev->kobj;
  
  	err = cdev_add(&ucs->cdev, ucs->dev->devt, 1);
-@@ -521,14 +521,14 @@ static int __init mmio_clksrc_chr_dev_init(void)
+@@ -518,14 +518,14 @@ static int __init mmio_clksrc_chr_dev_init(void)
  	struct class *class;
  	int err;
  

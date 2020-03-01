@@ -1,4 +1,4 @@
-From 7a245147b53cae19ad963504aa9f3591348fe491 Mon Sep 17 00:00:00 2001
+From 10854a41b5597f4fb62fd389ed4b1b93a802b577 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Thu, 21 Jul 2016 00:59:57 +0200
 Subject: [PATCH] clocksource: Mmio: add user-mappable mmio clocksources
@@ -13,10 +13,10 @@ to track usage of mappings across fork().
  create mode 100644 include/uapi/linux/clocksource.h
 
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index 4c4df981d8c..c1b0aa58b05 100644
+index 9de751531831..176531be52a7 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
-@@ -9,12 +9,57 @@
+@@ -6,12 +6,57 @@
  #include <linux/errno.h>
  #include <linux/init.h>
  #include <linux/slab.h>
@@ -74,7 +74,7 @@ index 4c4df981d8c..c1b0aa58b05 100644
  static inline struct clocksource_mmio *to_mmio_clksrc(struct clocksource *c)
  {
  	return container_of(c, struct clocksource_mmio, clksrc);
-@@ -40,6 +85,55 @@ u64 clocksource_mmio_readw_down(struct clocksource *c)
+@@ -37,6 +82,55 @@ u64 clocksource_mmio_readw_down(struct clocksource *c)
  	return ~(u64)readw_relaxed(to_mmio_clksrc(c)->reg) & c->mask;
  }
  
@@ -130,7 +130,7 @@ index 4c4df981d8c..c1b0aa58b05 100644
  /**
   * clocksource_mmio_init - Initialize a simple mmio based clocksource
   * @base:	Virtual address of the clock readout register
-@@ -54,6 +148,7 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
+@@ -51,6 +145,7 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
  	u64 (*read)(struct clocksource *))
  {
  	struct clocksource_mmio *cs;
@@ -138,7 +138,7 @@ index 4c4df981d8c..c1b0aa58b05 100644
  
  	if (bits > 64 || bits < 16)
  		return -EINVAL;
-@@ -62,12 +157,382 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
+@@ -59,12 +154,382 @@ int __init clocksource_mmio_init(void __iomem *base, const char *name,
  	if (!cs)
  		return -ENOMEM;
  
@@ -529,7 +529,7 @@ index 4c4df981d8c..c1b0aa58b05 100644
  }
 +device_initcall(mmio_clksrc_chr_dev_init);
 diff --git a/include/linux/clocksource.h b/include/linux/clocksource.h
-index b21db536fd5..d650c1bb03b 100644
+index b21db536fd52..d650c1bb03b3 100644
 --- a/include/linux/clocksource.h
 +++ b/include/linux/clocksource.h
 @@ -19,6 +19,7 @@
@@ -573,7 +573,7 @@ index b21db536fd5..d650c1bb03b 100644
  #define TIMER_OF_DECLARE(name, compat, fn) \
 diff --git a/include/uapi/linux/clocksource.h b/include/uapi/linux/clocksource.h
 new file mode 100644
-index 00000000000..a0a1c274739
+index 000000000000..a0a1c2747398
 --- /dev/null
 +++ b/include/uapi/linux/clocksource.h
 @@ -0,0 +1,33 @@

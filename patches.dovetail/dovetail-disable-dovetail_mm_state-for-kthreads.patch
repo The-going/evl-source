@@ -1,0 +1,26 @@
+From dca8af8570b457b19f9a9134b68fd608c512f400 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 24 Jun 2019 10:25:07 +0200
+Subject: [PATCH] dovetail: disable dovetail_mm_state() for kthreads
+
+---
+ include/linux/dovetail.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index b049ec837b8b..7fdc59934cec 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -188,6 +188,9 @@ struct oob_thread_state *dovetail_task_state(struct task_struct *p)
+ static inline
+ struct oob_mm_state *dovetail_mm_state(void)
+ {
++	if (current->flags & PF_KTHREAD)
++		return NULL;
++
+ 	return &current->mm->oob_state;
+ }
+ 
+-- 
+2.16.4
+

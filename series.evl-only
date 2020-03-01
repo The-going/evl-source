@@ -204,3 +204,15 @@
 	patches.evl-only/evl-thread-clarify-comment.patch
 	patches.evl-only/evl-add-explicit-requirement-for-DEVTMPFS.patch
 	patches.evl-only/evl-thread-fix-leaking-ready-state-in-evl_switch_inb.patch
+	patches.evl-only/evl-sched-tp-finalize-merging.patch
+	patches.evl-only/evl-sched-reorganize-and-clarify-priority-scales.patch
+	patches.evl-only/evl-sched-rename-core-scheduling-class-from-rt-to-fi.patch
+	patches.evl-only/evl-mutex-turn-user-debug-options-into-dynamic-setti.patch
+	patches.evl-only/drivers-evl-latmus-send-incomplete-last-result-bulk.patch
+	patches.evl-only/evl-control-export-device-name-as-symbol.patch
+	patches.evl-only/evl-thread-decode-kernel-mode-fault-with-ksyms.patch
+	patches.evl-only/evl-xbuf-fix-rd-rd-and-wr-wr-races.patch
+	patches.evl-only/evl-proxy-enable-fixed-size-write-polling-for-output.patch
+	patches.evl-only/evl-clock-drop-meaningless-parameter-from-clock_slee.patch
+	patches.evl-only/evl-proxy-enable-inband-writes.patch
+	patches.evl-only/evl-timerfd-enable-get-set-from-in-band-context.patch

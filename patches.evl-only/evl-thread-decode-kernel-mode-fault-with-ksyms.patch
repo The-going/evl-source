@@ -1,0 +1,44 @@
+From 84d4e248a7acf19d98fede714202e9ed93757b96 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 28 Jun 2019 11:15:08 +0200
+Subject: [PATCH] evl/thread: decode kernel-mode fault with ksyms
+
+---
+ kernel/evl/thread.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index fe6929d5673d..c6b4d689caa1 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1567,13 +1567,20 @@ static inline void note_trap(struct evl_thread *curr,
+ 		unsigned int trapnr, struct pt_regs *regs,
+ 		const char *msg)
+ {
+-	printk(EVL_WARNING
+-		"%s %s [pid=%d, excpt=%#x, %spc=%#lx]\n",
+-		curr->name, msg,
+-		evl_get_inband_pid(curr),
+-		trapnr,
+-		user_mode(regs) ? "" : "kernel_",
+-		instruction_pointer(regs));
++	if (user_mode(regs))
++		printk(EVL_WARNING
++			"%s %s [pid=%d, excpt=%d, user_pc=%#lx]\n",
++			curr->name, msg,
++			evl_get_inband_pid(curr),
++			trapnr,
++			instruction_pointer(regs));
++	else
++		printk(EVL_WARNING
++			"%s %s [pid=%d, excpt=%d, %pS]\n",
++			curr->name, msg,
++			evl_get_inband_pid(curr),
++			trapnr,
++			(void *)instruction_pointer(regs));
+ }
+ 
+ /* hard irqs off. */
+-- 
+2.16.4
+

@@ -1,4 +1,4 @@
-From 6a655a8ae7294f3c83fab6ae843dda18efb0bbab Mon Sep 17 00:00:00 2001
+From de4137f06f3192dc698875e9890769bec9f008c7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 16:32:28 +0100
 Subject: [PATCH] ARM64/thread: add thread-local (synchronous) flags
@@ -11,10 +11,10 @@ safe).
  2 files changed, 4 insertions(+)
 
 diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-index bbca68b5473..ecfa7a3ec8a 100644
+index 2372e97db29c..cda49a813c18 100644
 --- a/arch/arm64/include/asm/thread_info.h
 +++ b/arch/arm64/include/asm/thread_info.h
-@@ -38,6 +38,7 @@ typedef unsigned long mm_segment_t;
+@@ -27,6 +27,7 @@ typedef unsigned long mm_segment_t;
   */
  struct thread_info {
  	unsigned long		flags;		/* low level flags */
@@ -22,7 +22,7 @@ index bbca68b5473..ecfa7a3ec8a 100644
  	mm_segment_t		addr_limit;	/* address limit */
  #ifdef CONFIG_ARM64_SW_TTBR0_PAN
  	u64			ttbr0;		/* saved TTBR0_EL1 */
-@@ -68,6 +69,8 @@ void arch_setup_new_exec(void);
+@@ -57,6 +58,8 @@ void arch_setup_new_exec(void);
  
  void arch_release_task_struct(struct task_struct *tsk);
  
@@ -32,10 +32,10 @@ index bbca68b5473..ecfa7a3ec8a 100644
  
  /*
 diff --git a/arch/arm64/kernel/asm-offsets.c b/arch/arm64/kernel/asm-offsets.c
-index 65b8afc8446..833ccecc0f0 100644
+index 02f08768c298..b246a5e7f8fc 100644
 --- a/arch/arm64/kernel/asm-offsets.c
 +++ b/arch/arm64/kernel/asm-offsets.c
-@@ -40,6 +40,7 @@ int main(void)
+@@ -29,6 +29,7 @@ int main(void)
    DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
    BLANK();
    DEFINE(TSK_TI_FLAGS,		offsetof(struct task_struct, thread_info.flags));

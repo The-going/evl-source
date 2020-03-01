@@ -1,4 +1,4 @@
-From aa52380c4cf2043f4613daf7f7c5619814f688e8 Mon Sep 17 00:00:00 2001
+From 7807b17f1ef6bd02eb9b0b4a3adea3f1a10b5253 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 11 Dec 2016 16:32:28 +0100
 Subject: [PATCH] ARM/thread: add thread-local (synchronous) flags
@@ -11,10 +11,10 @@ safe).
  2 files changed, 5 insertions(+)
 
 diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
-index 286eb61c632..390ba31072c 100644
+index 0d0d5178e2c3..704903f82912 100644
 --- a/arch/arm/include/asm/thread_info.h
 +++ b/arch/arm/include/asm/thread_info.h
-@@ -48,6 +48,7 @@ struct cpu_context_save {
+@@ -45,6 +45,7 @@ struct cpu_context_save {
   */
  struct thread_info {
  	unsigned long		flags;		/* low level flags */
@@ -22,7 +22,7 @@ index 286eb61c632..390ba31072c 100644
  	int			preempt_count;	/* 0 => preemptable, <0 => bug */
  	mm_segment_t		addr_limit;	/* address limit */
  	struct task_struct	*task;		/* main task structure */
-@@ -74,10 +75,13 @@ struct thread_info {
+@@ -71,10 +72,13 @@ struct thread_info {
  {									\
  	.task		= &tsk,						\
  	.flags		= 0,						\
@@ -37,10 +37,10 @@ index 286eb61c632..390ba31072c 100644
   * how to get the current stack pointer in C
   */
 diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
-index 28b27104ac0..357ec8ebdc7 100644
+index c773b829ee8e..0821fdd77831 100644
 --- a/arch/arm/kernel/asm-offsets.c
 +++ b/arch/arm/kernel/asm-offsets.c
-@@ -55,6 +55,7 @@ int main(void)
+@@ -52,6 +52,7 @@ int main(void)
  #endif
    BLANK();
    DEFINE(TI_FLAGS,		offsetof(struct thread_info, flags));

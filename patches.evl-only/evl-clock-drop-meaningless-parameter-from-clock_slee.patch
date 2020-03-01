@@ -1,0 +1,80 @@
+From 01b38ccd9dc7be4f6a93fa4320492543fddf935a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 29 Jun 2019 19:35:56 +0200
+Subject: [PATCH] evl/clock: drop meaningless parameter from clock_sleep()
+
+clock_sleep() only accepts absolute timespecs, so we have no use of a
+pointer for collecting the remaining sleep time upon interrupt.
+---
+ include/uapi/evl/clock.h   |  1 -
+ include/uapi/evl/control.h |  2 +-
+ kernel/evl/clock.c         | 18 ++++++------------
+ 3 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/include/uapi/evl/clock.h b/include/uapi/evl/clock.h
+index 3882fa548d22..fa5caa35395b 100644
+--- a/include/uapi/evl/clock.h
++++ b/include/uapi/evl/clock.h
+@@ -18,7 +18,6 @@
+ 
+ struct evl_clock_sleepreq {
+ 	struct timespec timeout;
+-	struct timespec *remain;
+ };
+ 
+ #define EVL_CLKIOC_SLEEP	_IOWR(EVL_CLOCK_IOCBASE, 0, struct evl_clock_sleepreq)
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 3b0770b8c74e..5d9a0a4ae3d3 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  6
++#define EVL_ABI_LEVEL  7
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 1a470e6fa9c9..c8ab6a68888d 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -429,10 +429,13 @@ static long restart_clock_sleep(struct restart_block *param)
+ static int clock_sleep(struct evl_clock *clock,
+ 		struct evl_clock_sleepreq __user *u_req)
+ {
++	struct evl_clock_sleepreq req = {
++		.timeout = {
++			.tv_sec = 0, .tv_nsec = 0
++		},
++	};
+ 	struct evl_thread *curr = evl_current();
+-	struct evl_clock_sleepreq req;
+ 	struct restart_block *restart;
+-	struct timespec remain;
+ 	ktime_t timeout, rem;
+ 	int ret;
+ 
+@@ -449,17 +452,8 @@ static int clock_sleep(struct evl_clock *clock,
+ 	if (curr->local_info & T_SYSRST) {
+ 		curr->local_info &= ~T_SYSRST;
+ 		restart = &current->restart_block;
+-		if (restart->fn != restart_clock_sleep) {
+-			if (req.remain) {
+-				rem = evl_get_stopped_timer_delta(&curr->rtimer);
+-				remain = ktime_to_timespec(rem);
+-				ret = raw_copy_to_user(req.remain, &remain,
+-						sizeof(remain));
+-				if (ret)
+-					return -EFAULT;
+-			}
++		if (restart->fn != restart_clock_sleep)
+ 			return -EINTR;
+-		}
+ 		timeout = restart->nanosleep.expires;
+ 	} else
+ 		timeout = timespec_to_ktime(req.timeout);
+-- 
+2.16.4
+

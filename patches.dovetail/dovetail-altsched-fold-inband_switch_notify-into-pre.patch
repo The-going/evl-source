@@ -1,0 +1,38 @@
+From b12ec4a39c9a0a4b1713e063f455d30071bbdb70 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 24 Jun 2019 10:31:02 +0200
+Subject: [PATCH] dovetail: altsched: fold inband_switch_notify() into
+ prepare_inband_switch()
+
+---
+ include/linux/dovetail.h | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 7fdc59934cec..35d1fd3f8f57 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -91,7 +91,7 @@ static inline void inband_cleanup_notify(struct mm_struct *mm)
+ }
+ 
+ static inline
+-void inband_switch_notify(struct task_struct *next)
++void prepare_inband_switch(struct task_struct *next)
+ {
+ 	struct task_struct *prev = current;
+ 
+@@ -100,11 +100,7 @@ void inband_switch_notify(struct task_struct *next)
+ 		__this_cpu_write(irq_pipeline.rqlock_owner, prev);
+ 		inband_event_notify(INBAND_TASK_SCHEDULE, next);
+ 	}
+-}
+ 
+-static inline void prepare_inband_switch(struct task_struct *next)
+-{
+-	inband_switch_notify(next);
+ 	hard_local_irq_disable();
+ }
+ 
+-- 
+2.16.4
+
