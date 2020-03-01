@@ -1,0 +1,128 @@
+From 0bfd56743bb11a87ba28b2277f377109583237db Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 22 Jul 2019 10:44:47 +0200
+Subject: [PATCH] dovetail: add callouts on interrupt entry and exit
+
+Since an interrupt line may remain blocked in some way until its
+out-of-band handler returns (e.g. handle_level_irq,
+handle_fasteoi_irq), we cannot allow the companion kernel to
+reschedule over such handler immediately.
+
+Instead, we must allow handle_oob_irq() to complete, to make sure the
+interrupt line is unblocked before an out-of-band rescheduling may
+take place.
+
+This patch reverts back to the original behavior (i.e. before we
+allowed the oob handler to reschedule), introducing a couple of
+callouts to notify the companion kernel when the interrupt is about to
+be handled (irq_enter_pipeline()) and when the handling is complete
+and a rescheduling operation can take place (irq_exit_pipeline()).
+---
+ include/dovetail/irq.h | 11 +++++++++++
+ kernel/irq/pipeline.c  | 34 ++++++++++++++++------------------
+ 2 files changed, 27 insertions(+), 18 deletions(-)
+ create mode 100644 include/dovetail/irq.h
+
+diff --git a/include/dovetail/irq.h b/include/dovetail/irq.h
+new file mode 100644
+index 00000000000..ac8b5310e29
+--- /dev/null
++++ b/include/dovetail/irq.h
+@@ -0,0 +1,11 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _DOVETAIL_IRQ_H
++#define _DOVETAIL_IRQ_H
++
++/* Placeholders for pre- and post-IRQ handling. */
++
++static inline void irq_enter_pipeline(void) { }
++
++static inline void irq_exit_pipeline(void) { }
++
++#endif /* !_DOVETAIL_IRQ_H */
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 3674525c21f..deb29b4e7e3 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -11,6 +11,7 @@
+ #include <linux/irq_pipeline.h>
+ #include <linux/irq_work.h>
+ #include <linux/jhash.h>
++#include <dovetail/irq.h>
+ #include <trace/events/irq.h>
+ #include "internals.h"
+ 
+@@ -932,22 +933,22 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 
+ 	set_stage_bit(STAGE_STALL_BIT, oobd);
+ 	do_oob_irq(desc);
+-	oobd = this_oob_staged();
+ 	clear_stage_bit(STAGE_STALL_BIT, oobd);
+ 
+ 	/*
+ 	 * CPU migration and/or stage switching over the handler are
+-	 * allowed.  Our exit logic is as follows:
+-	 *
+-	 *    ENTRY      EXIT      EPILOGUE
+-	 *
+-	 *    oob        oob       nop
+-	 *    inband     oob       switch inband
+-	 *    oob        inband    nop
+-	 *    inband     inband    nop
++	 * NOT allowed. These should take place over
++	 * irq_exit_pipeline().
+ 	 */
+-	if (prevd->stage != &oob_stage && current_irq_staged == oobd)
+-		switch_inband(this_inband_staged());
++	if (irq_pipeline_debug()) {
++		/* No CPU migration allowed. */
++		WARN_ON_ONCE(this_oob_staged() != oobd);
++		/* No stage migration allowed. */
++		WARN_ON_ONCE(current_irq_staged != oobd);
++	}
++
++	if (prevd != oobd)
++		switch_inband(prevd);
+ }
+ 
+ bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off */
+@@ -979,14 +980,7 @@ bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 		return false;
+ 	}
+ 
+-	/*
+-	 * A companion kernel must be allowed to switch context
+-	 * immediately from the IRQ handler we are about to call, so
+-	 * unmark the pipeline entry context until we get back.
+-	 */
+-	preempt_count_sub(PIPELINE_OFFSET);
+ 	dispatch_oob_irq(desc);
+-	preempt_count_add(PIPELINE_OFFSET);
+ 
+ 	return true;
+ }
+@@ -1059,9 +1053,11 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	}
+ 
+ 	copy_timer_regs(desc, regs);
++	irq_enter_pipeline();
+ 	preempt_count_add(PIPELINE_OFFSET);
+ 	generic_handle_irq_desc(desc);
+ 	preempt_count_sub(PIPELINE_OFFSET);
++	irq_exit_pipeline();
+ out:
+ 	set_irq_regs(old_regs);
+ 	trace_irq_pipeline_exit(irq);
+@@ -1086,7 +1082,9 @@ int irq_inject_pipeline(unsigned int irq)
+ 		return -EINVAL;
+ 
+ 	flags = hard_local_irq_save();
++	irq_enter_pipeline();
+ 	handle_oob_irq(desc);
++	irq_exit_pipeline();
+ 	synchronize_pipeline_on_irq();
+ 	hard_local_irq_restore(flags);
+ 
+-- 
+2.16.4
+

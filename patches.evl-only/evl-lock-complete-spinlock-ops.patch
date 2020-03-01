@@ -1,0 +1,58 @@
+From ba69d22c7695d83d6f0f23cf389cb21a1665323d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 1 Aug 2019 17:56:44 +0200
+Subject: [PATCH] evl/lock: complete spinlock ops
+
+---
+ include/evl/lock.h | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/include/evl/lock.h b/include/evl/lock.h
+index 6bb2fa6006a..d92e6bdbcad 100644
+--- a/include/evl/lock.h
++++ b/include/evl/lock.h
+@@ -171,6 +171,28 @@ typedef struct evl_spinlock {
+ 		raw_spin_lock(&(__lock)->_lock);	\
+ 	} while (0)
+ 
++#define evl_spin_lock_nested(__lock, __subclass)			\
++	do {								\
++		evl_disable_preempt();					\
++		raw_spin_lock_nested(&(__lock)->_lock, __subclass);	\
++	} while (0)
++
++#define evl_spin_trylock(__lock)				\
++	({							\
++		int __ret;					\
++		evl_disable_preempt();				\
++		__ret = raw_spin_trylock(&(__lock)->_lock);	\
++		if (!__ret)					\
++			evl_enable_preempt();			\
++		__ret;						\
++	})
++
++#define evl_spin_lock_irq(__lock)			\
++	do {						\
++		evl_disable_preempt();			\
++		raw_spin_lock_irq(&(__lock)->_lock);	\
++	} while (0)
++
+ #define evl_spin_lock_irqsave(__lock, __flags)		\
+ 	do {						\
+ 		splhigh(__flags);			\
+@@ -183,6 +205,12 @@ typedef struct evl_spinlock {
+ 		evl_enable_preempt();			\
+ 	} while (0)
+ 
++#define evl_spin_unlock_irq(__lock)			\
++	do {						\
++		raw_spin_unlock_irq(&(__lock)->_lock);	\
++		evl_enable_preempt();			\
++	} while (0)
++
+ #define evl_spin_unlock_irqrestore(__lock, __flags)	\
+ 	do {						\
+ 		raw_spin_unlock(&(__lock)->_lock);	\
+-- 
+2.16.4
+

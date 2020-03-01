@@ -1,0 +1,144 @@
+From 72785abc34dd3fab17ff0a471d2cdb92e39c24da Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 22 Jul 2019 10:58:57 +0200
+Subject: [PATCH] evl: convert to irq_{enter, exit}_pipeline()
+
+---
+ arch/arm/include/dovetail/irq.h   |  7 +++++++
+ arch/arm64/include/dovetail/irq.h |  7 +++++++
+ arch/x86/include/dovetail/irq.h   |  7 +++++++
+ include/asm-generic/evl/irq.h     | 17 +++++++++++++++++
+ include/evl/irq.h                 |  2 +-
+ kernel/evl/clock.c                |  8 ++------
+ kernel/evl/sched/core.c           |  4 ++--
+ 7 files changed, 43 insertions(+), 9 deletions(-)
+ create mode 100644 arch/arm/include/dovetail/irq.h
+ create mode 100644 arch/arm64/include/dovetail/irq.h
+ create mode 100644 arch/x86/include/dovetail/irq.h
+ create mode 100644 include/asm-generic/evl/irq.h
+
+diff --git a/arch/arm/include/dovetail/irq.h b/arch/arm/include/dovetail/irq.h
+new file mode 100644
+index 00000000000..773c9eba786
+--- /dev/null
++++ b/arch/arm/include/dovetail/irq.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_DOVETAIL_IRQ_H
++#define _EVL_DOVETAIL_IRQ_H
++
++#include <asm-generic/evl/irq.h>
++
++#endif /* !_EVL_DOVETAIL_IRQ_H */
+diff --git a/arch/arm64/include/dovetail/irq.h b/arch/arm64/include/dovetail/irq.h
+new file mode 100644
+index 00000000000..773c9eba786
+--- /dev/null
++++ b/arch/arm64/include/dovetail/irq.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_DOVETAIL_IRQ_H
++#define _EVL_DOVETAIL_IRQ_H
++
++#include <asm-generic/evl/irq.h>
++
++#endif /* !_EVL_DOVETAIL_IRQ_H */
+diff --git a/arch/x86/include/dovetail/irq.h b/arch/x86/include/dovetail/irq.h
+new file mode 100644
+index 00000000000..773c9eba786
+--- /dev/null
++++ b/arch/x86/include/dovetail/irq.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_DOVETAIL_IRQ_H
++#define _EVL_DOVETAIL_IRQ_H
++
++#include <asm-generic/evl/irq.h>
++
++#endif /* !_EVL_DOVETAIL_IRQ_H */
+diff --git a/include/asm-generic/evl/irq.h b/include/asm-generic/evl/irq.h
+new file mode 100644
+index 00000000000..bf50e9a1ebd
+--- /dev/null
++++ b/include/asm-generic/evl/irq.h
+@@ -0,0 +1,17 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_GENERIC_EVL_IRQ_H
++#define _ASM_GENERIC_EVL_IRQ_H
++
++#include <evl/irq.h>
++
++static inline void irq_enter_pipeline(void)
++{
++	evl_enter_irq();
++}
++
++static inline void irq_exit_pipeline(void)
++{
++	evl_exit_irq();
++}
++
++#endif /* !_ASM_GENERIC_EVL_IRQ_H */
+diff --git a/include/evl/irq.h b/include/evl/irq.h
+index 11b079e8427..dd5cd274f66 100644
+--- a/include/evl/irq.h
++++ b/include/evl/irq.h
+@@ -18,7 +18,7 @@ static inline void evl_enter_irq(void)
+ }
+ 
+ /* hard IRQs off. */
+-static inline void evl_leave_irq(void)
++static inline void evl_exit_irq(void)
+ {
+ 	struct evl_rq *rq = this_evl_rq();
+ 
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 00bb9dd3932..3344dbe2bd2 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -345,18 +345,14 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 	if (EVL_WARN_ON_ONCE(CORE, !is_evl_cpu(evl_rq_cpu(this_rq))))
+ 		return;
+ 
+-	evl_enter_irq();
+-
+ 	tmb = evl_this_cpu_timers(&evl_mono_clock);
+ 	do_clock_tick(&evl_mono_clock, tmb);
+ 
+-	evl_leave_irq();
+-
+ 	/*
+ 	 * If an EVL thread was preempted by this clock event, any
+ 	 * transition to the root thread will cause a pending in-band
+-	 * tick to be propagated by evl_schedule() from
+-	 * evl_leave_irq(), so we may have to propagate the in-band
++	 * tick to be propagated by evl_schedule() called from
++	 * evl_exit_irq(), so we may have to propagate the in-band
+ 	 * tick immediately only if the root thread was preempted.
+ 	 */
+ 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index bc6843af5c9..af49d2d6c67 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -177,7 +177,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	 * Postpone evl_init_thread() - which sets RQ_SCHED upon
+ 	 * setting the schedparams for the root thread - until we have
+ 	 * enough of the runqueue initialized, so that attempting to
+-	 * reschedule from evl_leave_irq() later on is harmless.
++	 * reschedule from evl_exit_irq() later on is harmless.
+ 	 */
+ 	iattr.flags = T_ROOT;
+ 	iattr.affinity = *cpumask_of(cpu);
+@@ -305,7 +305,7 @@ int evl_set_thread_policy(struct evl_thread *thread,
+ 	/*
+ 	 * Make sure not to raise RQ_SCHED when setting up the root
+ 	 * thread, so that we can't start rescheduling from
+-	 * evl_leave_irq() before all CPUs have their runqueue fully
++	 * evl_exit_irq() before all CPUs have their runqueue fully
+ 	 * built. Filtering on T_ROOT here is correct because the root
+ 	 * thread enters the idle class once as part of the runqueue
+ 	 * setup process and never leaves it afterwards.
+-- 
+2.16.4
+

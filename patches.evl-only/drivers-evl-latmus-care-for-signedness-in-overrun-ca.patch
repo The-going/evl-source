@@ -1,0 +1,27 @@
+From d4f53d042e60803554c73cf5b07e9c88ea0f27fa Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 21 Jul 2019 22:41:23 +0200
+Subject: [PATCH] drivers/evl: latmus: care for signedness in overrun
+ calculation
+
+---
+ drivers/evl/latmus.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/evl/latmus.c b/drivers/evl/latmus.c
+index 97c63010832..286fc3b830a 100644
+--- a/drivers/evl/latmus.c
++++ b/drivers/evl/latmus.c
+@@ -185,7 +185,8 @@ static int add_measurement_sample(struct latmus_runner *runner,
+ 	state->sum += delta;
+ 	state->ideal = ktime_add(state->ideal, period);
+ 
+-	while (delta > ktime_to_ns(period)) { /* period > 0 */
++	while (delta > 0 &&
++		(unsigned int)delta > ktime_to_ns(period)) { /* period > 0 */
+ 		state->overruns++;
+ 		state->ideal = ktime_add(state->ideal, period);
+ 		delta -= ktime_to_ns(period);
+-- 
+2.16.4
+

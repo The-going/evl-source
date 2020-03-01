@@ -1,0 +1,25 @@
+From ee90180e8ba1d9903caa0f59837a58267203339d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 13 Aug 2019 15:31:13 +0200
+Subject: [PATCH] gpiolib: evl: convert to evl/devices.h
+
+---
+ include/evl/devices/gpio.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/evl/devices/gpio.h b/include/evl/devices/gpio.h
+index 3e7d1c20b73..4a0f15cc9cc 100644
+--- a/include/evl/devices/gpio.h
++++ b/include/evl/devices/gpio.h
+@@ -7,7 +7,7 @@
+ #ifndef _EVL_DEVICES_GPIO_H
+ #define _EVL_DEVICES_GPIO_H
+ 
+-#include <evl/file.h>
++#include <evl/devices.h>
+ #include <uapi/evl/devices/gpio.h>
+ 
+ #ifdef CONFIG_EVL
+-- 
+2.16.4
+

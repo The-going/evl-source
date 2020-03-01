@@ -1,0 +1,35 @@
+From e76e92d1bc7a3a2fb3bd3368218480da039dad19 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 10 Jul 2019 17:59:15 +0200
+Subject: [PATCH] ARM: irq_pipeline: convert to {enter|leave}_irq_pipeline()
+
+---
+ arch/arm/kernel/irq.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/kernel/irq.c b/arch/arm/kernel/irq.c
+index 5912fc46911..f7fd27b352d 100644
+--- a/arch/arm/kernel/irq.c
++++ b/arch/arm/kernel/irq.c
+@@ -24,6 +24,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/irq.h>
+ #include <linux/irqchip.h>
++#include <linux/irq_pipeline.h>
+ #include <linux/random.h>
+ #include <linux/smp.h>
+ #include <linux/init.h>
+@@ -102,8 +103,9 @@ void __init init_IRQ(void)
+ asmlinkage int __exception_irq_entry
+ handle_arch_irq_pipelined(struct pt_regs *regs)
+ {
++	enter_irq_pipeline(regs);
+ 	handle_arch_irq(regs);
+-	return running_inband() && !irqs_disabled();
++	return leave_irq_pipeline(regs);
+ }
+ #endif
+ 
+-- 
+2.16.4
+

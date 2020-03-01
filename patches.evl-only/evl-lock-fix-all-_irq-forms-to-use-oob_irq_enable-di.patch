@@ -1,0 +1,36 @@
+From e3325361d323ce4fe99050a32c40de647dd29629 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 5 Aug 2019 12:28:16 +0200
+Subject: [PATCH] evl/lock: fix all _irq* forms to use oob_irq_enable/disable()
+
+---
+ include/evl/lock.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/include/evl/lock.h b/include/evl/lock.h
+index d92e6bdbcad..878f069e388 100644
+--- a/include/evl/lock.h
++++ b/include/evl/lock.h
+@@ -190,7 +190,8 @@ typedef struct evl_spinlock {
+ #define evl_spin_lock_irq(__lock)			\
+ 	do {						\
+ 		evl_disable_preempt();			\
+-		raw_spin_lock_irq(&(__lock)->_lock);	\
++		oob_irq_disable();			\
++		raw_spin_lock(&(__lock)->_lock);	\
+ 	} while (0)
+ 
+ #define evl_spin_lock_irqsave(__lock, __flags)		\
+@@ -207,7 +208,8 @@ typedef struct evl_spinlock {
+ 
+ #define evl_spin_unlock_irq(__lock)			\
+ 	do {						\
+-		raw_spin_unlock_irq(&(__lock)->_lock);	\
++		raw_spin_unlock(&(__lock)->_lock);	\
++		oob_irq_enable();			\
+ 		evl_enable_preempt();			\
+ 	} while (0)
+ 
+-- 
+2.16.4
+

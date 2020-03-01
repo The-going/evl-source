@@ -1,0 +1,32 @@
+From a5527123ec1be3c8ab0a93a1cf4f8dc84516f6c2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 13 Jul 2019 18:00:43 +0200
+Subject: [PATCH] x86: irq_pipeline: do not pipeline MCE events
+
+Their handlers run in NMI-like context immediately on receipt (no
+deferral via the inband IRQ log).
+---
+ arch/x86/kernel/irq_pipeline.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/kernel/irq_pipeline.c b/arch/x86/kernel/irq_pipeline.c
+index 2373dbe4399..787bcc89322 100644
+--- a/arch/x86/kernel/irq_pipeline.c
++++ b/arch/x86/kernel/irq_pipeline.c
+@@ -60,11 +60,11 @@ void handle_apic_irq(struct irq_desc *desc)
+ 		 */
+ 		smp_thermal_interrupt(regs);
+ 		__ack_APIC_irq();
+-		break;
++		return;
+ 	case THRESHOLD_APIC_VECTOR:
+ 		smp_threshold_interrupt(regs);
+ 		__ack_APIC_irq();
+-		break;
++		return;
+ 	default:
+ 		__ack_APIC_irq();
+ 	}
+-- 
+2.16.4
+

@@ -1,0 +1,59 @@
+From 7d35346ac8e65876c4fd0df7db3d51f2058f42ee Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 17 Aug 2019 17:54:58 +0200
+Subject: [PATCH] evl/irq: fix build with CONFIG_EVL disabled
+
+---
+ arch/arm/include/dovetail/irq.h   | 4 ++++
+ arch/arm64/include/dovetail/irq.h | 4 ++++
+ arch/x86/include/dovetail/irq.h   | 4 ++++
+ 3 files changed, 12 insertions(+)
+
+diff --git a/arch/arm/include/dovetail/irq.h b/arch/arm/include/dovetail/irq.h
+index 773c9eba786..f214e2f6ee2 100644
+--- a/arch/arm/include/dovetail/irq.h
++++ b/arch/arm/include/dovetail/irq.h
+@@ -2,6 +2,10 @@
+ #ifndef _EVL_DOVETAIL_IRQ_H
+ #define _EVL_DOVETAIL_IRQ_H
+ 
++#ifdef CONFIG_EVL
+ #include <asm-generic/evl/irq.h>
++#else
++#include_next <dovetail/irq.h>
++#endif
+ 
+ #endif /* !_EVL_DOVETAIL_IRQ_H */
+diff --git a/arch/arm64/include/dovetail/irq.h b/arch/arm64/include/dovetail/irq.h
+index 773c9eba786..f214e2f6ee2 100644
+--- a/arch/arm64/include/dovetail/irq.h
++++ b/arch/arm64/include/dovetail/irq.h
+@@ -2,6 +2,10 @@
+ #ifndef _EVL_DOVETAIL_IRQ_H
+ #define _EVL_DOVETAIL_IRQ_H
+ 
++#ifdef CONFIG_EVL
+ #include <asm-generic/evl/irq.h>
++#else
++#include_next <dovetail/irq.h>
++#endif
+ 
+ #endif /* !_EVL_DOVETAIL_IRQ_H */
+diff --git a/arch/x86/include/dovetail/irq.h b/arch/x86/include/dovetail/irq.h
+index 773c9eba786..f214e2f6ee2 100644
+--- a/arch/x86/include/dovetail/irq.h
++++ b/arch/x86/include/dovetail/irq.h
+@@ -2,6 +2,10 @@
+ #ifndef _EVL_DOVETAIL_IRQ_H
+ #define _EVL_DOVETAIL_IRQ_H
+ 
++#ifdef CONFIG_EVL
+ #include <asm-generic/evl/irq.h>
++#else
++#include_next <dovetail/irq.h>
++#endif
+ 
+ #endif /* !_EVL_DOVETAIL_IRQ_H */
+-- 
+2.16.4
+

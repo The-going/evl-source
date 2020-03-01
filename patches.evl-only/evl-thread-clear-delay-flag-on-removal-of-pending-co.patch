@@ -1,0 +1,36 @@
+From 9e8802a7fcdc2de5c9cdc56a77b7f95b71e21141 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 2 Aug 2019 10:12:05 +0200
+Subject: [PATCH] evl/thread: clear delay flag on removal of pending condition
+
+Removing T_PEND implies to drop any timeout on wait denoted by
+T_DELAY. Since T_PEND implies sleeping on a wait channel, there is no
+way we could have T_DELAY set separately in this case.
+
+This bug was a sure path to getting half-baked wake ups of timed
+sleep-on operations, which ended up clearing T_PEND but not T_DELAY
+(e.g. evl_wakeup_thread(thread, T_PEND, ...). Since T_DELAY is a
+blocking bit, the thread would remain stuck despite the wake up call.
+
+Oops.
+---
+ kernel/evl/thread.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 30590148c34..b1a4df1a56f 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -528,6 +528,9 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ 	rq = thread->rq;
+ 	oldstate = thread->state;
+ 	if (likely(oldstate & mask)) {
++		if (mask & T_PEND)
++			mask |= T_DELAY;
++
+ 		thread->state &= ~mask;
+ 
+ 		if (mask & (T_DELAY|T_PEND))
+-- 
+2.16.4
+

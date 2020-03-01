@@ -1,0 +1,28 @@
+From f44e736a6d1432265493b42039e8beb3fcace3d9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 13 Jul 2019 21:39:15 +0200
+Subject: [PATCH] evl/thread: drop obsolete comment
+
+---
+ kernel/evl/thread.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 956d7bda8eb..10b98d13c1b 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1736,11 +1736,6 @@ void resume_oob_task(struct task_struct *p) /* hw IRQs off */
+ {
+ 	struct evl_thread *thread = evl_thread_from_task(p);
+ 
+-	/*
+-	 * We fire the handler before the thread is migrated, so that
+-	 * thread->rq does not change between paired invocations of
+-	 * relax_thread/harden handlers.
+-	 */
+ 	xnlock_get(&nklock);
+ 	if (affinity_ok(p))
+ 		evl_release_thread(thread, T_INBAND, 0);
+-- 
+2.16.4
+

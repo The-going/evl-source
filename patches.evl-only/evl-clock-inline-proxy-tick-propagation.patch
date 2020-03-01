@@ -1,0 +1,89 @@
+From ef321cbb10b0f9eac0cd074b51dd0e1cfc2fb494 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 30 Jul 2019 11:18:06 +0200
+Subject: [PATCH] evl/clock: inline proxy tick propagation
+
+---
+ include/evl/tick.h | 15 +++++++++++++++
+ kernel/evl/clock.c |  6 +++---
+ kernel/evl/tick.c  | 12 ------------
+ 3 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/include/evl/tick.h b/include/evl/tick.h
+index d6183106f62..79bb5a852c7 100644
+--- a/include/evl/tick.h
++++ b/include/evl/tick.h
+@@ -10,7 +10,9 @@
+ 
+ #include <linux/types.h>
+ #include <linux/ktime.h>
++#include <linux/tick.h>
+ #include <evl/clock.h>
++#include <evl/sched.h>
+ #include <uapi/evl/types.h>
+ 
+ struct evl_rq;
+@@ -34,6 +36,19 @@ static inline void evl_program_remote_tick(struct evl_clock *clock,
+ #endif
+ }
+ 
++/* hard IRQs off. */
++static inline void evl_notify_proxy_tick(struct evl_rq *this_rq)
++{
++	/*
++	 * A proxy clock event device is active on this CPU, make it
++	 * tick asap when the in-band code resumes; this will honour a
++	 * previous set_next_ktime() request received from the kernel
++	 * we have carried out using our core timing services.
++	 */
++	this_rq->lflags &= ~RQ_TPROXY;
++	tick_notify_proxy();
++}
++
+ int evl_enable_tick(void);
+ 
+ void evl_disable_tick(void);
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 8cc4320a957..c4625bc8480 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -353,10 +353,10 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 
+ 	/*
+ 	 * If an EVL thread was preempted by this clock event, any
+-	 * transition to the root thread will cause a pending in-band
+-	 * tick to be propagated by evl_schedule() called from
++	 * transition to the in-band context will cause a pending
++	 * in-band tick to be propagated by evl_schedule() called from
+ 	 * evl_exit_irq(), so we may have to propagate the in-band
+-	 * tick immediately only if the root thread was preempted.
++	 * tick immediately only if the in-band context was preempted.
+ 	 */
+ 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+ 		evl_notify_proxy_tick(this_rq);
+diff --git a/kernel/evl/tick.c b/kernel/evl/tick.c
+index fab24fe8772..625040277e1 100644
+--- a/kernel/evl/tick.c
++++ b/kernel/evl/tick.c
+@@ -80,18 +80,6 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
+ 	return 0;
+ }
+ 
+-void evl_notify_proxy_tick(struct evl_rq *this_rq) /* hard IRQs off. */
+-{
+-	/*
+-	 * A proxy clock event device is active on this CPU, make it
+-	 * tick asap when the in-band code resumes; this will honour a
+-	 * previous set_next_ktime() request received from the kernel
+-	 * we have carried out using our core timing services.
+-	 */
+-	this_rq->lflags &= ~RQ_TPROXY;
+-	tick_notify_proxy();
+-}
+-
+ #ifdef CONFIG_SMP
+ 
+ static irqreturn_t clock_ipi_handler(int irq, void *dev_id)
+-- 
+2.16.4
+

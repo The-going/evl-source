@@ -1,0 +1,31 @@
+From 771962c91c086036d0e274fb69bd72e750555180 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 12 Jul 2019 17:22:47 +0200
+Subject: [PATCH] evl/irq: exit_oob_irq() must return with irqs off
+
+---
+ kernel/evl/irq.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evl/irq.c b/kernel/evl/irq.c
+index 46cf6cf0e0c..eba62d308d5 100644
+--- a/kernel/evl/irq.c
++++ b/kernel/evl/irq.c
+@@ -28,7 +28,13 @@ void exit_oob_irq(void)
+ 	 * handler on the current CPU, so there is no cache coherence
+ 	 * issue. Remote CPUs pair RQ_SCHED requests with an IPI, so
+ 	 * we don't care about missing them here.
++	 *
++	 * CAUTION: Switching stages as a result of rescheduling may
++	 * re-enable irqs, shut them off before returning if so.
+ 	 */
+-	if (rq->status & RQ_SCHED)
++	if (rq->status & RQ_SCHED) {
+ 		evl_schedule();
++		if (!hard_irqs_disabled())
++			hard_local_irq_disable();
++	}
+ }
+-- 
+2.16.4
+

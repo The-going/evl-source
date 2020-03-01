@@ -1,4 +1,4 @@
-From 19de65c5448682cc401d424af3ca869ab677dd96 Mon Sep 17 00:00:00 2001
+From edb8d94330f5a1a3831ce320cad170ffc7e7804a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -17,10 +17,10 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index 38277af44f5c..0515f591e26a 100644
+index 576c41644e7..9002ee62ecf 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
-@@ -5609,10 +5609,10 @@ static int ftrace_process_locs(struct module *mod,
+@@ -5603,10 +5603,10 @@ static int ftrace_process_locs(struct module *mod,
  	 * reason to cause large interrupt latencies while we do it.
  	 */
  	if (!mod)
@@ -33,7 +33,7 @@ index 38277af44f5c..0515f591e26a 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6156,9 +6156,9 @@ void __init ftrace_init(void)
+@@ -6148,9 +6148,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +45,7 @@ index 38277af44f5c..0515f591e26a 100644
  	if (ret)
  		goto failed;
  
-@@ -6293,7 +6293,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6285,7 +6285,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:
@@ -63,7 +63,7 @@ index 38277af44f5c..0515f591e26a 100644
  }
  
 diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
-index 05b0b3139ebc..8548445439ee 100644
+index 05b0b3139eb..8548445439e 100644
 --- a/kernel/trace/ring_buffer.c
 +++ b/kernel/trace/ring_buffer.c
 @@ -2699,8 +2699,8 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
@@ -111,7 +111,7 @@ index 05b0b3139ebc..8548445439ee 100644
  
  /* The recursive locking above uses 4 bits */
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 81851e8d5df6..22eb1fb2a42d 100644
+index d93b9c9b283..c81234be709 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
 @@ -924,9 +924,9 @@ void tracing_snapshot_instance_cond(struct trace_array *tr, void *cond_data)
@@ -144,10 +144,10 @@ index 81851e8d5df6..22eb1fb2a42d 100644
  	if (!tr->allocated_snapshot) {
  		/* Only the nop tracer should hit this when disabling */
  		WARN_ON_ONCE(tr->current_trace != &nop_trace);
-@@ -6726,13 +6726,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
- 			if (ret < 0)
- 				break;
- 		}
+@@ -6728,13 +6728,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+ 			ret = tracing_alloc_snapshot_instance(tr);
+ 		if (ret < 0)
+ 			break;
 -		local_irq_disable();
 +		hard_local_irq_disable();
  		/* Now, we're going to swap */
@@ -161,7 +161,7 @@ index 81851e8d5df6..22eb1fb2a42d 100644
  	default:
  		if (tr->allocated_snapshot) {
 diff --git a/kernel/trace/trace_branch.c b/kernel/trace/trace_branch.c
-index 3ea65cdff30d..10d680e3239c 100644
+index 3ea65cdff30..10d680e3239 100644
 --- a/kernel/trace/trace_branch.c
 +++ b/kernel/trace/trace_branch.c
 @@ -53,7 +53,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
@@ -183,7 +183,7 @@ index 3ea65cdff30d..10d680e3239c 100644
  
  static inline
 diff --git a/kernel/trace/trace_clock.c b/kernel/trace/trace_clock.c
-index aaf6793ededa..9903dc66e708 100644
+index aaf6793eded..9903dc66e70 100644
 --- a/kernel/trace/trace_clock.c
 +++ b/kernel/trace/trace_clock.c
 @@ -97,7 +97,7 @@ u64 notrace trace_clock_global(void)
@@ -205,7 +205,7 @@ index aaf6793ededa..9903dc66e708 100644
  	return now;
  }
 diff --git a/kernel/trace/trace_functions.c b/kernel/trace/trace_functions.c
-index b611cd36e22d..57c1fc375b3b 100644
+index b611cd36e22..57c1fc375b3 100644
 --- a/kernel/trace/trace_functions.c
 +++ b/kernel/trace/trace_functions.c
 @@ -190,7 +190,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
@@ -227,7 +227,7 @@ index b611cd36e22d..57c1fc375b3b 100644
  
  static struct tracer_opt func_opts[] = {
 diff --git a/kernel/trace/trace_functions_graph.c b/kernel/trace/trace_functions_graph.c
-index 69ebf3c2f1b5..813e9d422acd 100644
+index 69ebf3c2f1b..813e9d422ac 100644
 --- a/kernel/trace/trace_functions_graph.c
 +++ b/kernel/trace/trace_functions_graph.c
 @@ -172,7 +172,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
@@ -267,7 +267,7 @@ index 69ebf3c2f1b5..813e9d422acd 100644
  
  void set_graph_array(struct trace_array *tr)
 diff --git a/kernel/trace/trace_irqsoff.c b/kernel/trace/trace_irqsoff.c
-index 7316cfc95e27..780a529f3984 100644
+index 7316cfc95e2..780a529f398 100644
 --- a/kernel/trace/trace_irqsoff.c
 +++ b/kernel/trace/trace_irqsoff.c
 @@ -26,7 +26,7 @@ static int				tracer_enabled __read_mostly;
@@ -298,7 +298,7 @@ index 7316cfc95e27..780a529f3984 100644
  	__trace_function(tr, ip, parent_ip, flags, pc);
  
 diff --git a/kernel/trace/trace_sched_wakeup.c b/kernel/trace/trace_sched_wakeup.c
-index 743b2b520d34..7ec0ea95898c 100644
+index 743b2b520d3..7ec0ea95898 100644
 --- a/kernel/trace/trace_sched_wakeup.c
 +++ b/kernel/trace/trace_sched_wakeup.c
 @@ -486,7 +486,9 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
@@ -312,7 +312,7 @@ index 743b2b520d34..7ec0ea95898c 100644
  
  out_unlock:
 diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
-index 5d16f73898db..5477e8204967 100644
+index 5d16f73898d..5477e820496 100644
 --- a/kernel/trace/trace_stack.c
 +++ b/kernel/trace/trace_stack.c
 @@ -72,8 +72,9 @@ static void check_stack(unsigned long ip, unsigned long *stack)

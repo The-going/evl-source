@@ -1,0 +1,60 @@
+From 98a77bde60ac3a876b166ee3fcab8668d36d259e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 13 Aug 2019 15:21:55 +0200
+Subject: [PATCH] include/evl: add device-related main header
+
+As we want to minimize the impact of adding out-of-band support into
+existing in-band driver code, we provide a dedicated header which can
+be read when CONFIG_EVL is enabled or disabled. This header should
+give access to:
+
+- the basic support code the OOB driver may need from the EVL core
+  when CONFIG_EVL is on.
+
+- a set of null placeholders minimizing the need for #ifdeffery in
+  common types and definitions when CONFIG_EVL is off.
+---
+ include/evl/devices.h | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+ create mode 100644 include/evl/devices.h
+
+diff --git a/include/evl/devices.h b/include/evl/devices.h
+new file mode 100644
+index 00000000000..3cd847d5735
+--- /dev/null
++++ b/include/evl/devices.h
+@@ -0,0 +1,31 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVL_DEVICES_H
++#define _EVL_DEVICES_H
++
++#ifdef CONFIG_EVL
++
++#include <evl/file.h>
++#include <evl/lock.h>
++#include <evl/mutex.h>
++#include <evl/wait.h>
++
++#else  /* !CONFIG_EVL */
++
++struct evl_file { };
++
++#define evl_open_file(__efilp, __filp)	({ 0; })
++#define evl_release_file(__efilp)	do { } while (0)
++
++#endif	/* !CONFIG_EVL */
++
++static inline bool evl_enabled(void)
++{
++	return IS_ENABLED(CONFIG_EVL);
++}
++
++#endif /* !_EVL_DEVICES_H */
+-- 
+2.16.4
+

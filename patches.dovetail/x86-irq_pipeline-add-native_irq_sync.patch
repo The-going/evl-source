@@ -1,0 +1,28 @@
+From 19cfa507b28e7de4687218d3f6311b843075a2a4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 16 Jul 2019 10:06:00 +0200
+Subject: [PATCH] x86: irq_pipeline: add native_irq_sync()
+
+---
+ arch/x86/include/asm/irqflags.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/x86/include/asm/irqflags.h b/arch/x86/include/asm/irqflags.h
+index a5fb034e804..9471ceaea11 100644
+--- a/arch/x86/include/asm/irqflags.h
++++ b/arch/x86/include/asm/irqflags.h
+@@ -59,6 +59,11 @@ static inline void native_irq_enable(void)
+ 	asm volatile("sti": : :"memory");
+ }
+ 
++static inline void native_irq_sync(void)
++{
++	asm volatile("sti ; nop ; cli": : :"memory");
++}
++
+ static inline unsigned long native_irq_save(void)
+ {
+ 	unsigned long flags;
+-- 
+2.16.4
+

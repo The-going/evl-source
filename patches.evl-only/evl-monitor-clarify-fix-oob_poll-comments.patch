@@ -1,0 +1,47 @@
+From 243f413d9fb4f5b9c43d5065aabe06158a47858c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 6 Aug 2019 15:24:09 +0200
+Subject: [PATCH] evl/monitor: clarify/fix oob_poll comments
+
+---
+ kernel/evl/monitor.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index f8225c06406..737690a0d33 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -679,12 +679,11 @@ static __poll_t monitor_oob_poll(struct file *filp,
+ 		case EVL_EVENT_GATED:
+ 			/*
+ 			 * The poll interface does not cope with the
+-			 * gated event one, we cannot figure out which
+-			 * gate protects the event when signaling it
+-			 * from userland in order to mark that gate,
+-			 * so we cannot force a kernel entry upon gate
+-			 * release. Therefore, polling such event will
+-			 * block indefinitely.
++			 * gated event semantics, since we could not
++			 * release the gate protecting the event and
++			 * enter a poll wait atomically to prevent
++			 * missed wakeups.  Therefore, polling a gated
++			 * event leads to an error.
+ 			 */
+ 			ret = POLLERR;
+ 			break;
+@@ -695,9 +694,9 @@ static __poll_t monitor_oob_poll(struct file *filp,
+ 		 * A mutex should be held only for a short period of
+ 		 * time, with the locked state appearing as a discrete
+ 		 * event to users. Assume a gate lock is always
+-		 * readable then. If this is about probing for a mutex
+-		 * state from userland then trylock() should be used
+-		 * instead of poll().
++		 * readable (as "unlocked") then. If this is about
++		 * probing for a mutex state from userland then
++		 * trylock() should be used instead of poll().
+ 		 */
+ 		ret = POLLIN|POLLRDNORM;
+ 		break;
+-- 
+2.16.4
+

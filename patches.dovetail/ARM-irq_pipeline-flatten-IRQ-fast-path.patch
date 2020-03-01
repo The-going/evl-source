@@ -1,0 +1,25 @@
+From 84d281c5afb294ea826bf52e0cfc0a9b4abe31bf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 13 Jul 2019 17:06:35 +0200
+Subject: [PATCH] ARM: irq_pipeline: flatten IRQ fast path
+
+---
+ arch/arm/kernel/irq_pipeline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/kernel/irq_pipeline.c b/arch/arm/kernel/irq_pipeline.c
+index d27402b739e..dfcf6e12504 100644
+--- a/arch/arm/kernel/irq_pipeline.c
++++ b/arch/arm/kernel/irq_pipeline.c
+@@ -85,7 +85,7 @@ void arch_do_IRQ_pipelined(struct irq_desc *desc)
+ 	}
+ #endif
+ 
+-	do_domain_irq(irq, regs);
++	__handle_domain_irq(NULL, irq, false, regs);
+ }
+ 
+ void __init arch_irq_pipeline_init(void)
+-- 
+2.16.4
+

@@ -1,0 +1,34 @@
+From f017eb116b8d252491e472dd1e5e04b591eaaa7b Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 22 Jul 2019 10:58:21 +0200
+Subject: [PATCH] gpiolib: evl: convert to irq_{enter, exit}_pipeline()
+
+---
+ drivers/gpio/gpiolib.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index ce84e02c361..6e4cc9d70f5 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -958,8 +958,6 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+ 	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
+ 		return IRQ_NONE;
+ 
+-	evl_enter_irq();
+-
+ 	raw_spin_lock_irqsave(&le->oob_state.lock, flags);
+ 
+ 	/*
+@@ -976,8 +974,6 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+ 
+ 	raw_spin_unlock_irqrestore(&le->oob_state.lock, flags);
+ 
+-	evl_leave_irq();
+-
+ 	return IRQ_HANDLED;
+ }
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,50 @@
+From 5f767f9a9c3849a26106a05c747ec40e4301fe51 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 7 Aug 2019 15:27:53 +0200
+Subject: [PATCH] evl/clock: switch timer oob_read() return to u64 value
+
+Better align with the regular timerfd API for POLA and simpler
+emulation.
+---
+ include/uapi/evl/control.h | 2 +-
+ kernel/evl/clock.c         | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 42fdca08aec..ced92c0c0f9 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  10
++#define EVL_ABI_LEVEL  11
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 4cdb7661792..cd6db5865c9 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -697,7 +697,7 @@ static long timerfd_common_ioctl(struct file *filp,
+ static ssize_t timerfd_oob_read(struct file *filp,
+ 				char __user *u_buf, size_t count)
+ {
+-	__u32 __user *u_ticks = (__u32 __user *)u_buf, ticks = 0;
++	__u64 __user *u_ticks = (__u64 __user *)u_buf, ticks = 0;
+ 	struct evl_timerfd *timerfd = filp->private_data;
+ 	ktime_t timeout = EVL_INFINITE;
+ 	int ret;
+@@ -715,7 +715,7 @@ static ssize_t timerfd_oob_read(struct file *filp,
+ 
+ 	ticks = 1;
+ 	if (evl_timer_is_periodic(&timerfd->timer))
+-		ticks += (u32)evl_get_timer_overruns(&timerfd->timer);
++		ticks += evl_get_timer_overruns(&timerfd->timer);
+ 
+ 	if (raw_put_user(ticks, u_ticks))
+ 		return -EFAULT;
+-- 
+2.16.4
+

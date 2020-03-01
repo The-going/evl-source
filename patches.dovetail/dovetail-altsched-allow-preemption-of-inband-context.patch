@@ -1,0 +1,95 @@
+From b73488dd465bf747f2f56f85a4210e9ba1dc4d4e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 14 Jul 2019 22:21:34 +0200
+Subject: [PATCH] dovetail: altsched: allow preemption of inband context switch
+
+Most of the time spent in context_switch() involves switching the
+memory context (switch_mm_irqs_off) then the register file
+(switch_to). Depending on the hardware, such time can amount to tenths
+of microseconds, especially when CPU caches are under pressure.
+
+Introduce a short opportunity for preemption in this otherwise atomic
+path right after the mm was switched but before switch_to() is called,
+so that out-of-band interrupts can be taken, which in turn allows oob
+tasks to preempt eventually. The dovetail_context_switch() machinery
+already works in a way which guarantees that any in-band context
+preempted in a middle of a switch can safely resume from this
+location.
+---
+ kernel/dovetail.c   | 10 ++++------
+ kernel/sched/core.c | 15 ++++++++++++++-
+ 2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 12784a3b0d7..ebc6519f4fd 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -271,7 +271,6 @@ static void finalize_oob_transition(void) /* hard IRQs off */
+ 	struct irq_stage_data *p;
+ 	struct task_struct *t;
+ 
+-	check_inband_stage();
+ 	pd = raw_cpu_ptr(&irq_pipeline);
+ 	t = pd->task_inflight;
+ 	if (t == NULL)
+@@ -305,6 +304,7 @@ void oob_trampoline(void)
+ {
+ 	unsigned long flags;
+ 
++	check_inband_stage();
+ 	flags = hard_local_irq_save();
+ 	finalize_oob_transition();
+ 	hard_local_irq_restore(flags);
+@@ -330,9 +330,10 @@ int inband_switch_tail(void)
+ 	 * which one we are on.
+ 	 */
+ 	inband = current_irq_stage == &inband_stage;
+-	if (inband)
++	if (inband) {
+ 		finalize_oob_transition();
+-	else {
++		hard_local_irq_enable();
++	} else {
+ 		set_thread_local_flags(_TLF_OOB);
+ 		if (!IS_ENABLED(CONFIG_HAVE_PERCPU_PREEMPT_COUNT)) {
+ 			WARN_ON_ONCE(dovetail_debug() &&
+@@ -341,9 +342,6 @@ int inband_switch_tail(void)
+ 		}
+ 	}
+ 
+-	if (inband)
+-		hard_local_irq_enable();
+-
+ 	return !inband;
+ }
+ 
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 4ed1a616ddd..0eb98c3d43e 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -2811,8 +2811,21 @@ context_switch(struct rq *rq, struct task_struct *prev,
+ 		next->active_mm = oldmm;
+ 		mmgrab(oldmm);
+ 		enter_lazy_tlb(oldmm, next);
+-	} else
++	} else {
+ 		switch_mm_irqs_off(oldmm, mm, next);
++		/*
++		 * If dovetail is enabled, insert a short window of
++		 * opportunity for preemption by out-of-band IRQs
++		 * before finalizing the context switch.
++		 * dovetail_context_switch() can deal with preempting
++		 * partially switched in-band contexts.
++		 */
++		if (dovetailing()) {
++			prev->active_mm = mm;
++			hard_local_irq_sync();
++			prev->active_mm = oldmm;
++		}
++	}
+ 
+ 	if (!prev->mm) {
+ 		prev->active_mm = NULL;
+-- 
+2.16.4
+

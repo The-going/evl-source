@@ -1,0 +1,65 @@
+From 8d4d1aad94daac7263c2a743e4a1cd8ac422ab5f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 11 Jul 2019 17:15:49 +0200
+Subject: [PATCH] evl/thread: flesh out state info returned by
+ EVL_THRIOC_GET_STATE
+
+This enables threads running out-of-band to retrieve most of the raw
+thread-related state information "evl ps" accesses through /sysfs
+attributes.
+---
+ include/uapi/evl/control.h | 2 +-
+ include/uapi/evl/thread.h  | 7 ++++++-
+ kernel/evl/thread.c        | 5 +++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 7dcf042f597..bfedf4287fd 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  8
++#define EVL_ABI_LEVEL  9
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index b45dba78794..f75b07542fa 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -82,7 +82,12 @@ struct evl_user_window {
+ 
+ struct evl_thread_state {
+ 	struct evl_sched_attrs eattrs;
+-	int cpu;
++	__u32 cpu;
++	__u32 state;
++	__u32 isw;
++	__u32 csw;
++	__u32 sc;
++	__u64 xtime;
+ };
+ 
+ #define EVL_THREAD_IOCBASE	'T'
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index c6b4d689caa..956d7bda8eb 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -2017,6 +2017,11 @@ void evl_get_thread_state(struct evl_thread *thread,
+ 	statebuf->eattrs.sched_priority = thread->cprio;
+ 	__get_sched_attrs(thread->sched_class, thread, &statebuf->eattrs);
+ 	statebuf->cpu = evl_rq_cpu(thread->rq);
++	statebuf->state = evl_rq_cpu(thread->rq);
++	statebuf->isw = thread->stat.isw.counter;
++	statebuf->csw = thread->stat.csw.counter;
++	statebuf->sc = thread->stat.sc.counter;
++	statebuf->xtime = ktime_to_ns(thread->stat.account.total);
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ EXPORT_SYMBOL_GPL(evl_get_thread_state);
+-- 
+2.16.4
+

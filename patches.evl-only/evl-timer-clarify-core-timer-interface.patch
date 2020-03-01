@@ -1,0 +1,231 @@
+From 64844105889b4e4457024e2a90c2f0ffec59a6d4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 3 Aug 2019 17:18:44 +0200
+Subject: [PATCH] evl/timer: clarify core timer interface
+
+---
+ drivers/evl/hectic.c     |  2 +-
+ include/evl/timer.h      | 31 +++++++++++++++----------------
+ kernel/evl/clock.c       |  4 ++--
+ kernel/evl/sched/core.c  | 12 ++++++------
+ kernel/evl/sched/quota.c | 12 ++++++------
+ kernel/evl/sched/tp.c    |  4 ++--
+ kernel/evl/thread.c      |  8 ++++----
+ kernel/evl/timer.c       |  7 ++++---
+ 8 files changed, 40 insertions(+), 40 deletions(-)
+
+diff --git a/drivers/evl/hectic.c b/drivers/evl/hectic.c
+index 81c85837506..f7449faac49 100644
+--- a/drivers/evl/hectic.c
++++ b/drivers/evl/hectic.c
+@@ -598,7 +598,7 @@ static int hectic_open(struct inode *inode, struct file *filp)
+ 	ctx->pause_us = 0;
+ 
+ 	init_irq_work(&ctx->wake_utask, rtswitch_utask_waker);
+-	evl_init_core_timer(&ctx->wake_up_delay, timed_wake_up);
++	evl_init_timer(&ctx->wake_up_delay, timed_wake_up);
+ 
+ 	filp->private_data = ctx;
+ 
+diff --git a/include/evl/timer.h b/include/evl/timer.h
+index b835a78c446..b25c6661368 100644
+--- a/include/evl/timer.h
++++ b/include/evl/timer.h
+@@ -221,8 +221,8 @@ static inline unsigned long evl_get_timer_gravity(struct evl_timer *timer)
+ static inline void evl_update_timer_date(struct evl_timer *timer)
+ {
+ 	evl_tdate(timer) = ktime_add_ns(timer->start_date,
+-					(timer->periodic_ticks * ktime_to_ns(timer->interval))
+-					- evl_get_timer_gravity(timer));
++		(timer->periodic_ticks * ktime_to_ns(timer->interval))
++			- evl_get_timer_gravity(timer));
+ }
+ 
+ static inline
+@@ -242,17 +242,27 @@ void __evl_init_timer(struct evl_timer *timer,
+ 		struct evl_clock *clock,
+ 		void (*handler)(struct evl_timer *timer),
+ 		struct evl_rq *rq,
++		const char *name,
+ 		int flags);
+ 
+ void evl_set_timer_gravity(struct evl_timer *timer,
+ 			int gravity);
+ 
+-#define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
++#define evl_init_timer_on_rq(__timer, __clock, __handler, __rq, __flags) \
++	__evl_init_timer(__timer, __clock, __handler,			\
++			__rq, #__handler, __flags)
++
++#define evl_init_timer_on_cpu(__timer, __cpu, __handler)		\
+ 	do {								\
+-		__evl_init_timer(__timer, __clock, __handler, __rq, __flags); \
+-		evl_set_timer_name(__timer, #__handler);		\
++		struct evl_rq *__rq = evl_cpu_rq(__cpu);		\
++		evl_init_timer_on_rq(__timer, &evl_mono_clock, __handler, \
++				__rq, EVL_TIMER_IGRAVITY);		\
+ 	} while (0)
+ 
++#define evl_init_timer(__timer, __handler)				\
++	evl_init_timer_on_rq(__timer, &evl_mono_clock, __handler, NULL,	\
++			EVL_TIMER_IGRAVITY)
++
+ #ifdef CONFIG_EVL_RUNSTATS
+ 
+ static inline
+@@ -299,17 +309,6 @@ const char *evl_get_timer_name(struct evl_timer *timer)
+ 	return timer->name;
+ }
+ 
+-#define evl_init_core_timer(__timer, __handler)				\
+-	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
+-		EVL_TIMER_IGRAVITY)
+-
+-#define evl_init_timer_on_cpu(__timer, __cpu, __handler)		\
+-	do {								\
+-		struct evl_rq *__rq = evl_cpu_rq(__cpu);		\
+-		evl_init_timer(__timer, &evl_mono_clock, __handler,	\
+-			__rq, EVL_TIMER_IGRAVITY);			\
+-	} while (0)
+-
+ bool evl_timer_deactivate(struct evl_timer *timer);
+ 
+ /* timer base locked. */
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 8795f353e2f..4cdb7661792 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -777,8 +777,8 @@ static int new_timerfd(struct evl_clock *clock)
+ 	 * everything we need for a graceful cleanup.
+ 	 */
+ 	evl_get_element(&clock->element);
+-	evl_init_timer(&timerfd->timer, clock, timerfd_handler,
+-		NULL, EVL_TIMER_UGRAVITY);
++	evl_init_timer_on_rq(&timerfd->timer, clock, timerfd_handler,
++			NULL, EVL_TIMER_UGRAVITY);
+ 	evl_init_wait(&timerfd->readers, clock, EVL_WAIT_PRIO);
+ 	evl_init_poll_head(&timerfd->poll_head);
+ 
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index af49d2d6c67..e314f961f2d 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -156,17 +156,17 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	 * events are handled specifically by the generic timer code
+ 	 * (do_clock_tick()).
+ 	 */
+-	evl_init_timer(&rq->inband_timer, &evl_mono_clock, NULL,
+-		rq, EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&rq->inband_timer, &evl_mono_clock, NULL,
++			rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
+ 	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
+-	evl_init_timer(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
+-		rq, EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
++			rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
+ 	evl_set_timer_priority(&rq->rrbtimer, EVL_TIMER_LOPRIO);
+ #ifdef CONFIG_EVL_WATCHDOG
+-	evl_init_timer(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
+-		rq, EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
++			rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&rq->wdtimer, "[watchdog]");
+ 	evl_set_timer_priority(&rq->wdtimer, EVL_TIMER_LOPRIO);
+ #endif /* CONFIG_EVL_WATCHDOG */
+diff --git a/kernel/evl/sched/quota.c b/kernel/evl/sched/quota.c
+index a00f6a3f222..fe422a8711d 100644
+--- a/kernel/evl/sched/quota.c
++++ b/kernel/evl/sched/quota.c
+@@ -219,14 +219,14 @@ static void quota_init(struct evl_rq *rq)
+ 	qs->period = quota_period;
+ 	INIT_LIST_HEAD(&qs->groups);
+ 
+-	evl_init_timer(&qs->refill_timer,
+-		&evl_mono_clock, quota_refill_handler, rq,
+-		EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&qs->refill_timer,
++			&evl_mono_clock, quota_refill_handler, rq,
++			EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&qs->refill_timer, "[quota-refill]");
+ 
+-	evl_init_timer(&qs->limit_timer,
+-		&evl_mono_clock, quota_limit_handler, rq,
+-		EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&qs->limit_timer,
++			&evl_mono_clock, quota_limit_handler, rq,
++			EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&qs->limit_timer, "[quota-limit]");
+ }
+ 
+diff --git a/kernel/evl/sched/tp.c b/kernel/evl/sched/tp.c
+index f200522b59a..2ae572398c7 100644
+--- a/kernel/evl/sched/tp.c
++++ b/kernel/evl/sched/tp.c
+@@ -81,8 +81,8 @@ static void tp_init(struct evl_rq *rq)
+ 	tp->gps = NULL;
+ 	INIT_LIST_HEAD(&tp->threads);
+ 	evl_init_schedq(&tp->idle.runnable);
+-	evl_init_timer(&tp->tf_timer, &evl_mono_clock, tp_tick_handler,
+-		rq, EVL_TIMER_IGRAVITY);
++	evl_init_timer_on_rq(&tp->tf_timer, &evl_mono_clock, tp_tick_handler,
++			rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&tp->tf_timer, "[tp-tick]");
+ }
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index dacde886c0e..e528065e3fd 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -191,12 +191,12 @@ int evl_init_thread(struct evl_thread *thread,
+ 	init_completion(&thread->exited);
+ 
+ 	gravity = flags & T_USER ? EVL_TIMER_UGRAVITY : EVL_TIMER_KGRAVITY;
+-	evl_init_timer(&thread->rtimer, &evl_mono_clock, timeout_handler,
+-		rq, gravity);
++	evl_init_timer_on_rq(&thread->rtimer, &evl_mono_clock, timeout_handler,
++			rq, gravity);
+ 	evl_set_timer_name(&thread->rtimer, thread->name);
+ 	evl_set_timer_priority(&thread->rtimer, EVL_TIMER_HIPRIO);
+-	evl_init_timer(&thread->ptimer, &evl_mono_clock, periodic_handler,
+-		rq, gravity);
++	evl_init_timer_on_rq(&thread->ptimer, &evl_mono_clock, periodic_handler,
++			rq, gravity);
+ 	evl_set_timer_name(&thread->ptimer, thread->name);
+ 	evl_set_timer_priority(&thread->ptimer, EVL_TIMER_HIPRIO);
+ 
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index 461968fa66f..0e7afa89196 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -290,14 +290,15 @@ void __evl_init_timer(struct evl_timer *timer,
+ 		struct evl_clock *clock,
+ 		void (*handler)(struct evl_timer *timer),
+ 		struct evl_rq *rq,
+-		int opflags)
++		const char *name,
++		int flags)
+ {
+ 	int cpu;
+ 
+ 	timer->clock = clock;
+ 	evl_tdate(timer) = EVL_INFINITE;
+ 	evl_set_timer_priority(timer, EVL_TIMER_STDPRIO);
+-	timer->status = EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK);
++	timer->status = EVL_TIMER_DEQUEUED|(flags & EVL_TIMER_INIT_MASK);
+ 	timer->handler = handler;
+ 	timer->interval = EVL_INFINITE;
+ 
+@@ -313,7 +314,7 @@ void __evl_init_timer(struct evl_timer *timer,
+ #endif
+ 	timer->base = evl_percpu_timers(clock, cpu);
+ 	timer->clock = clock;
+-	timer->name = "<timer>";
++	timer->name = name ?: "<timer>";
+ 	evl_reset_timer_stats(timer);
+ }
+ EXPORT_SYMBOL_GPL(__evl_init_timer);
+-- 
+2.16.4
+

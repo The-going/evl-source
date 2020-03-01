@@ -1,0 +1,31 @@
+From 8d04675e96b16ed95f448705e7369dafaa28eb4f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 16 Jul 2019 10:02:30 +0200
+Subject: [PATCH] genirq: irq_pipeline: add hard_local_irq_sync()
+
+hard_local_irq_sync() is a generic helper backed by arch-specific code
+which should synchronize with pending hard irqs by creating a short
+window of opportunity for the CPU to be interrupted, before returning
+with hard irqs off once done.
+
+We need this for inserting a preemptible spot into the in-band context
+switching code.
+---
+ include/asm-generic/irq_pipeline.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/asm-generic/irq_pipeline.h b/include/asm-generic/irq_pipeline.h
+index 4263f7044f9..98619b08e4f 100644
+--- a/include/asm-generic/irq_pipeline.h
++++ b/include/asm-generic/irq_pipeline.h
+@@ -30,6 +30,7 @@ unsigned long inband_irqs_disabled(void);
+ #define hard_local_irq_restore(__flags)		native_irq_restore(__flags)
+ #define hard_local_irq_enable()			native_irq_enable()
+ #define hard_local_irq_disable()		native_irq_disable()
++#define hard_local_irq_sync()			native_irq_sync()
+ #define hard_local_save_flags()			native_save_flags()
+ 
+ #define hard_irqs_disabled()			native_irqs_disabled()
+-- 
+2.16.4
+

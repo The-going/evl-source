@@ -1,0 +1,135 @@
+From 9d679f65040f27258964d1a64c01e071cb206b44 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 12 Jul 2019 19:51:15 +0200
+Subject: [PATCH] genirq: irq_pipeline: add IRQ descriptor cache
+
+Really ugly performances of the radix tree in sparse mode may be
+observed under mm stress on low-end hardware, use a local descriptor
+cache to ease the pain.
+---
+ include/linux/irq_pipeline.h |  6 +++++
+ kernel/irq/irqdesc.c         |  1 +
+ kernel/irq/pipeline.c        | 52 +++++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 56 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index f56568cf7bc..3ebfaa5a914 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -176,4 +176,10 @@ static inline bool inband_irq_pending(void)
+ 
+ #endif /* !CONFIG_IRQ_PIPELINE */
+ 
++#if !defined(CONFIG_IRQ_PIPELINE) || !defined(CONFIG_SPARSE_IRQ)
++static inline void uncache_irq_desc(unsigned int irq) { }
++#else
++void uncache_irq_desc(unsigned int irq);
++#endif
++
+ #endif /* _LINUX_IRQ_PIPELINE_H */
+diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
+index faec5fad647..258850ed3aa 100644
+--- a/kernel/irq/irqdesc.c
++++ b/kernel/irq/irqdesc.c
+@@ -440,6 +440,7 @@ static void free_desc(unsigned int irq)
+ 	 * irq_sysfs_init() as well.
+ 	 */
+ 	kobject_del(&desc->kobj);
++	uncache_irq_desc(irq);
+ 	delete_irq_desc(irq);
+ 
+ 	/*
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 9f2abbdde22..f4eb7e602ba 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -10,6 +10,7 @@
+ #include <linux/irqdomain.h>
+ #include <linux/irq_pipeline.h>
+ #include <linux/irq_work.h>
++#include <linux/jhash.h>
+ #include <trace/events/irq.h>
+ #include "internals.h"
+ 
+@@ -130,6 +131,51 @@ static struct irq_domain_ops sirq_domain_ops = {
+ 	.map	= sirq_map,
+ };
+ 
++#ifdef CONFIG_SPARSE_IRQ
++/*
++ * The performances of the radix tree in sparse mode are really ugly
++ * under mm stress on some hw, use a local descriptor cache to ease
++ * the pain.
++ */
++#define DESC_CACHE_SZ  128
++
++static struct irq_desc *desc_cache[DESC_CACHE_SZ] __cacheline_aligned;
++
++static inline u32 hash_irq(unsigned int irq)
++{
++	return jhash(&irq, sizeof(irq), irq) % DESC_CACHE_SZ;
++}
++
++static __always_inline
++struct irq_desc *cached_irq_to_desc(unsigned int irq)
++{
++	int hval = hash_irq(irq);
++	struct irq_desc *desc = desc_cache[hval];
++
++	if (unlikely(desc == NULL || irq_desc_get_irq(desc) != irq)) {
++		desc = irq_to_desc(irq);
++		desc_cache[hval] = desc;
++	}
++
++	return desc;
++}
++
++void uncache_irq_desc(unsigned int irq)
++{
++	int hval = hash_irq(irq);
++
++	desc_cache[hval] = NULL;
++}
++
++#else
++
++static struct irq_desc *cached_irq_to_desc(unsigned int irq)
++{
++	return irq_to_desc(irq);
++}
++
++#endif
++
+ /**
+  *	handle_synthetic_irq -  synthetic irq handler
+  *	@desc:	the interrupt description structure for this irq
+@@ -965,7 +1011,7 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	trace_irq_pipeline_entry(irq);
+ 
+ 	old_regs = set_irq_regs(regs);
+-	desc = irq_to_desc(irq);
++	desc = cached_irq_to_desc(irq);
+ 
+ 	if (irq_pipeline_debug()) {
+ 		if (!hard_irqs_disabled()) {
+@@ -1032,7 +1078,7 @@ int irq_inject_pipeline(unsigned int irq)
+ 	struct irq_desc *desc;
+ 	unsigned long flags;
+ 
+-	desc = irq_to_desc(irq);
++	desc = cached_irq_to_desc(irq);
+ 	if (desc == NULL)
+ 		return -EINVAL;
+ 
+@@ -1088,7 +1134,7 @@ void sync_current_irq_stage(void) /* hw IRQs off */
+ 		 */
+ 		barrier();
+ 
+-		desc = irq_to_desc(irq);
++		desc = cached_irq_to_desc(irq);
+ 
+ 		if (stage == &inband_stage) {
+ 			hard_local_irq_enable();
+-- 
+2.16.4
+

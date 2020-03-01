@@ -1,0 +1,64 @@
+From 2b0e65ea6b7346f51ad760a4b509007b302682ae Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 13 Aug 2019 15:11:45 +0200
+Subject: [PATCH] evl/file: do not pollute namespace if disabled
+
+---
+ include/evl/file.h | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/include/evl/file.h b/include/evl/file.h
+index 67adafb56a0..e90104abcb2 100644
+--- a/include/evl/file.h
++++ b/include/evl/file.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_FILE_H
+ #define _EVL_FILE_H
+ 
++#ifdef CONFIG_EVL
++
+ #include <linux/spinlock.h>
+ #include <linux/atomic.h>
+ #include <linux/rbtree.h>
+@@ -19,8 +21,6 @@ struct files_struct;
+ struct evl_element;
+ struct evl_poll_node;
+ 
+-#ifdef CONFIG_EVL
+-
+ struct evl_file {
+ 	struct file *filp;
+ 	atomic_t oob_refs;
+@@ -63,6 +63,15 @@ void evl_put_file(struct evl_file *efilp) /* OOB */
+ 		__evl_put_file(efilp);
+ }
+ 
++struct evl_file *evl_watch_fd(unsigned int fd,
++			struct evl_poll_node *node);
++
++void evl_ignore_fd(struct evl_poll_node *node);
++
++int evl_init_files(void);
++
++void evl_cleanup_files(void);
++
+ #else
+ 
+ struct evl_file { };
+@@ -73,13 +82,4 @@ struct evl_file { };
+ 
+ #endif	/* !CONFIG_EVL */
+ 
+-struct evl_file *evl_watch_fd(unsigned int fd,
+-			struct evl_poll_node *node);
+-
+-void evl_ignore_fd(struct evl_poll_node *node);
+-
+-int evl_init_files(void);
+-
+-void evl_cleanup_files(void);
+-
+ #endif /* !_EVL_FILE_H */
+-- 
+2.16.4
+

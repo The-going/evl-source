@@ -1,0 +1,47 @@
+From bf1b7c29326843d6d11ef0459b17858ac2b13ade Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 17 Jul 2019 11:02:19 +0200
+Subject: [PATCH] gpiolib: evl: convert to evl_{enter, leave}_irq()
+
+---
+ drivers/gpio/gpiolib.c     | 4 ++++
+ include/evl/devices/gpio.h | 1 +
+ 2 files changed, 5 insertions(+)
+
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index 6e4cc9d70f5..ce84e02c361 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -958,6 +958,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+ 	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
+ 		return IRQ_NONE;
+ 
++	evl_enter_irq();
++
+ 	raw_spin_lock_irqsave(&le->oob_state.lock, flags);
+ 
+ 	/*
+@@ -974,6 +976,8 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+ 
+ 	raw_spin_unlock_irqrestore(&le->oob_state.lock, flags);
+ 
++	evl_leave_irq();
++
+ 	return IRQ_HANDLED;
+ }
+ 
+diff --git a/include/evl/devices/gpio.h b/include/evl/devices/gpio.h
+index ab1a12f9e99..3e7d1c20b73 100644
+--- a/include/evl/devices/gpio.h
++++ b/include/evl/devices/gpio.h
+@@ -14,6 +14,7 @@
+ 
+ #include <evl/poll.h>
+ #include <evl/wait.h>
++#include <evl/irq.h>
+ 
+ struct lineevent_oob_state {
+ 	struct evl_file efile;
+-- 
+2.16.4
+

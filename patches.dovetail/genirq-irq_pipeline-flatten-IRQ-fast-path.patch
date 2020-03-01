@@ -1,0 +1,238 @@
+From dfa04aa223a058335e9dbdadcba9badad69932e9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 13 Jul 2019 17:06:27 +0200
+Subject: [PATCH] genirq: irq_pipeline: flatten IRQ fast path
+
+---
+ include/linux/irq_pipeline.h |  9 ---------
+ include/linux/irqdesc.h      | 18 +++++++++++++++---
+ kernel/irq/irqdesc.c         | 45 +++++++++++++++++---------------------------
+ kernel/irq/pipeline.c        | 37 ++++++++++++++++--------------------
+ 4 files changed, 48 insertions(+), 61 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index 3ebfaa5a914..1868cfee7b9 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -30,9 +30,6 @@ void arch_irq_pipeline_init(void);
+ 
+ int irq_inject_pipeline(unsigned int irq);
+ 
+-int generic_pipeline_irq(unsigned int irq,
+-			 struct pt_regs *regs);
+-
+ void synchronize_pipeline(void);
+ 
+ static __always_inline void synchronize_pipeline_on_irq(void)
+@@ -147,12 +144,6 @@ void irq_pipeline_clear(struct irq_desc *desc) { }
+ static inline
+ void irq_pipeline_oops(void) { }
+ 
+-static inline
+-int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+-{
+-	return 0;
+-}
+-
+ static inline bool handle_oob_irq(struct irq_desc *desc)
+ {
+ 	return false;
+diff --git a/include/linux/irqdesc.h b/include/linux/irqdesc.h
+index 5a74f7c58f8..3f38f784f83 100644
+--- a/include/linux/irqdesc.h
++++ b/include/linux/irqdesc.h
+@@ -158,6 +158,8 @@ static inline void generic_handle_irq_desc(struct irq_desc *desc)
+ 
+ int generic_handle_irq(unsigned int irq);
+ 
++int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs);
++
+ #ifdef CONFIG_HANDLE_DOMAIN_IRQ
+ /*
+  * Convert a HW interrupt number to a logical one using a IRQ domain,
+@@ -168,19 +170,29 @@ int generic_handle_irq(unsigned int irq);
+ int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
+ 			bool lookup, struct pt_regs *regs);
+ 
++#ifdef CONFIG_IRQ_PIPELINE
++unsigned int irq_find_mapping(struct irq_domain *host,
++			irq_hw_number_t hwirq);
++
++static inline int handle_domain_irq(struct irq_domain *domain,
++				    unsigned int hwirq, struct pt_regs *regs)
++{
++	unsigned int irq = irq_find_mapping(domain, hwirq);
++
++	return generic_pipeline_irq(irq, regs);
++}
++#else
+ static inline int handle_domain_irq(struct irq_domain *domain,
+ 				    unsigned int hwirq, struct pt_regs *regs)
+ {
+ 	return __handle_domain_irq(domain, hwirq, true, regs);
+ }
+-
+-int do_domain_irq(unsigned int irq, struct pt_regs *regs);
++#endif	/* !CONFIG_IRQ_PIPELINE */
+ 
+ #ifdef CONFIG_IRQ_DOMAIN
+ int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
+ 		      struct pt_regs *regs);
+ #endif
+-
+ #endif
+ 
+ /* Test to see if a driver has successfully requested an irq */
+diff --git a/kernel/irq/irqdesc.c b/kernel/irq/irqdesc.c
+index 258850ed3aa..1f4945133c6 100644
+--- a/kernel/irq/irqdesc.c
++++ b/kernel/irq/irqdesc.c
+@@ -633,22 +633,35 @@ int generic_handle_irq(unsigned int irq)
+ 
+ 	if (!desc)
+ 		return -EINVAL;
+-
+ 	generic_handle_irq_desc(desc);
+-
+ 	return 0;
+ }
+ EXPORT_SYMBOL_GPL(generic_handle_irq);
+ 
+ #ifdef CONFIG_HANDLE_DOMAIN_IRQ
+-
+-int do_domain_irq(unsigned int irq, struct pt_regs *regs)
++/**
++ * __handle_domain_irq - Invoke the handler for a HW irq belonging to a domain
++ * @domain:	The domain where to perform the lookup
++ * @hwirq:	The HW irq number to convert to a logical one
++ * @lookup:	Whether to perform the domain lookup or not
++ * @regs:	Register file coming from the low-level handling code
++ *
++ * Returns:	0 on success, or -EINVAL if conversion has failed
++ */
++int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
++			bool lookup, struct pt_regs *regs)
+ {
+ 	struct pt_regs *old_regs = set_irq_regs(regs);
++	unsigned int irq = hwirq;
+ 	int ret = 0;
+ 
+ 	irq_enter();
+ 
++#ifdef CONFIG_IRQ_DOMAIN
++	if (lookup)
++		irq = irq_find_mapping(domain, hwirq);
++#endif
++
+ 	/*
+ 	 * Some hardware gives randomly wrong interrupts.  Rather
+ 	 * than crashing, do something sensible.
+@@ -666,30 +679,6 @@ int do_domain_irq(unsigned int irq, struct pt_regs *regs)
+ }
+ 
+ #ifdef CONFIG_IRQ_DOMAIN
+-/**
+- * __handle_domain_irq - Invoke the handler for a HW irq belonging to a domain
+- * @domain:	The domain where to perform the lookup
+- * @hwirq:	The HW irq number to convert to a logical one
+- * @lookup:	Whether to perform the domain lookup or not
+- * @regs:	Register file coming from the low-level handling code
+- *
+- * Returns:	0 on success, or -EINVAL if conversion has failed
+- */
+-int __handle_domain_irq(struct irq_domain *domain, unsigned int hwirq,
+-			bool lookup, struct pt_regs *regs)
+-{
+-	unsigned int irq = hwirq;
+-
+-#ifdef CONFIG_IRQ_DOMAIN
+-	if (lookup)
+-		irq = irq_find_mapping(domain, hwirq);
+-#endif
+-	if (irqs_pipelined())
+-		return generic_pipeline_irq(irq, regs);
+-
+-	return do_domain_irq(irq, regs);
+-}
+-
+ /**
+  * handle_domain_nmi - Invoke the handler for a HW irq belonging to a domain
+  * @domain:	The domain where to perform the lookup
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index f4eb7e602ba..01b5f6a03f6 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -949,10 +949,19 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 		switch_inband(prevd);
+ }
+ 
+-static bool inject_irq(struct irq_desc *desc)
++bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ {
+ 	unsigned int irq = irq_desc_get_irq(desc);
+ 
++	/*
++	 * Flow handlers of chained interrupts have no business
++	 * running here: they should decode the event, invoking
++	 * generic_handle_irq() for each cascaded IRQ.
++	 */
++	if (WARN_ON_ONCE(irq_pipeline_debug() &&
++			 irq_settings_is_chained(desc)))
++		return false;
++
+ 	/*
+ 	 * If no oob stage is present, all interrupts must go to the
+ 	 * inband stage through the interrupt log.
+@@ -964,14 +973,14 @@ static bool inject_irq(struct irq_desc *desc)
+ 	 * This routine returns a boolean status telling the caller
+ 	 * whether an out-of-band interrupt was delivered.
+ 	 */
+-	if (likely(oob_stage_present()) && irq_settings_is_oob(desc)) {
+-		dispatch_oob_irq(desc);
+-		return true;
++	if (!oob_stage_present() || !irq_settings_is_oob(desc)) {
++		irq_post_stage(&inband_stage, irq);
++		return false;
+ 	}
+ 
+-	irq_post_stage(&inband_stage, irq);
++	dispatch_oob_irq(desc);
+ 
+-	return false;
++	return true;
+ }
+ 
+ static inline
+@@ -1052,20 +1061,6 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	return ret;
+ }
+ 
+-bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off */
+-{
+-	/*
+-	 * Flow handlers of chained interrupts have no business
+-	 * running here: they should decode the event, invoking
+-	 * generic_handle_irq() for each cascaded IRQ.
+-	 */
+-	if (WARN_ON_ONCE(irq_pipeline_debug() &&
+-			 irq_settings_is_chained(desc)))
+-		return false;
+-
+-	return inject_irq(desc);
+-}
+-
+ /**
+  *	irq_inject_pipeline - Inject a software-generated IRQ into the
+  *	pipeline @irq: IRQ to inject
+@@ -1084,7 +1079,7 @@ int irq_inject_pipeline(unsigned int irq)
+ 
+ 	flags = hard_local_irq_save();
+ 	enter_oob_irq();
+-	inject_irq(desc);
++	handle_oob_irq(desc);
+ 	exit_oob_irq();
+ 	synchronize_pipeline_on_irq();
+ 	hard_local_irq_restore(flags);
+-- 
+2.16.4
+

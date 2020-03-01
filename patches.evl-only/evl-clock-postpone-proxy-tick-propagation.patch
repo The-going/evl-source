@@ -1,0 +1,115 @@
+From 4aa98c201cfa8ccddde5b5c11a02f6b20f509d13 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 21 Jul 2019 22:27:53 +0200
+Subject: [PATCH] evl/clock: postpone proxy tick propagation
+
+Propagating the proxy tick to the inband stage is a low priority task:
+postpone this until the very end of the core tick interrupt, saving
+a branch to a trivial handler in the same move.
+---
+ kernel/evl/clock.c      | 28 +++++++++++++++++++---------
+ kernel/evl/sched/core.c | 21 ++++-----------------
+ 2 files changed, 23 insertions(+), 26 deletions(-)
+
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 81ad32141cd..258faa4abda 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -307,19 +307,29 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
+ 		evl_account_timer_fired(timer);
+ 		timer->status |= EVL_TIMER_FIRED;
+ 
+-		if (timer->status & EVL_TIMER_PERIODIC) {
+-			do {
+-				timer->periodic_ticks++;
+-				evl_update_timer_date(timer);
+-			} while (evl_tdate(timer) < now);
++		/*
++		 * Propagating the proxy tick to the inband stage is a
++		 * low priority task: postpone this until the very end
++		 * of the core tick interrupt.
++		 */
++		if (unlikely(timer == &rq->inband_timer)) {
++			rq->lflags |= RQ_TPROXY;
++			rq->lflags &= ~RQ_TDEFER;
++			continue;
+ 		}
+ 
+ 		raw_spin_unlock(&tmb->lock);
+ 		timer->handler(timer);
+ 		raw_spin_lock(&tmb->lock);
+ 
+-		if (timer_needs_enqueuing(timer) &&
+-			evl_timer_on_rq(timer, rq))
++		if (!timer_needs_enqueuing(timer))
++			continue;
++		do {
++			timer->periodic_ticks++;
++			evl_update_timer_date(timer);
++		} while (evl_tdate(timer) < now);
++
++		if (likely(evl_timer_on_rq(timer, rq)))
+ 			evl_enqueue_timer(timer, tq);
+ 	}
+ 
+@@ -343,6 +353,8 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 	tmb = evl_this_cpu_timers(&evl_mono_clock);
+ 	do_clock_tick(&evl_mono_clock, tmb);
+ 
++	evl_leave_irq();
++
+ 	/*
+ 	 * If an EVL thread was preempted by this clock event, any
+ 	 * transition to the root thread will cause a pending in-band
+@@ -352,8 +364,6 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 	 */
+ 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+ 		evl_notify_proxy_tick(this_rq);
+-
+-	evl_leave_irq();
+ }
+ 
+ void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index f758bdcb97d..bc6843af5c9 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -125,20 +125,6 @@ static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
+ 	xnlock_put(&nklock);
+ }
+ 
+-static void proxy_tick_handler(struct evl_timer *timer) /* hard irqs off */
+-{
+-	struct evl_rq *this_rq;
+-
+-	/*
+-	 * Propagating the proxy tick to the host kernel is a low
+-	 * priority duty: postpone this until the end of the core tick
+-	 * handler.
+-	 */
+-	this_rq = container_of(timer, struct evl_rq, inband_timer);
+-	this_rq->lflags |= RQ_TPROXY;
+-	this_rq->lflags &= ~RQ_TDEFER;
+-}
+-
+ static void init_rq(struct evl_rq *rq, int cpu)
+ {
+ 	struct evl_sched_class *sched_class;
+@@ -166,10 +152,11 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	rq->curr = &rq->root_thread;
+ 
+ 	/*
+-	 * No direct handler here since proxy timer events are handled
+-	 * specifically by the generic timer code.
++	 * No handler needed for the inband timer since proxy timer
++	 * events are handled specifically by the generic timer code
++	 * (do_clock_tick()).
+ 	 */
+-	evl_init_timer(&rq->inband_timer, &evl_mono_clock, proxy_tick_handler,
++	evl_init_timer(&rq->inband_timer, &evl_mono_clock, NULL,
+ 		rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
+ 	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
+-- 
+2.16.4
+

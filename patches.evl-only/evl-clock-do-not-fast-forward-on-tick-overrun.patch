@@ -1,0 +1,41 @@
+From 9e269ecd0e4487fa1dcb84f1e8cca5a356a4fc61 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 21 Jul 2019 22:50:05 +0200
+Subject: [PATCH] evl/clock: do not fast-forward on tick overrun
+
+If a tick is overrunning, assume the best to do is to signal the next
+event immediately instead of advancing to the next release point past
+the current date, hoping that we are not outpaced by too short a
+period. In the latter case, we are toast and would lock up regardless
+of the implementation anyway.
+---
+ kernel/evl/clock.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 258faa4abda..00bb9dd3932 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -322,15 +322,12 @@ static void do_clock_tick(struct evl_clock *clock, struct evl_timerbase *tmb)
+ 		timer->handler(timer);
+ 		raw_spin_lock(&tmb->lock);
+ 
+-		if (!timer_needs_enqueuing(timer))
+-			continue;
+-		do {
++		if (timer_needs_enqueuing(timer)) {
+ 			timer->periodic_ticks++;
+ 			evl_update_timer_date(timer);
+-		} while (evl_tdate(timer) < now);
+-
+-		if (likely(evl_timer_on_rq(timer, rq)))
+-			evl_enqueue_timer(timer, tq);
++			if (likely(evl_timer_on_rq(timer, rq)))
++				evl_enqueue_timer(timer, tq);
++		}
+ 	}
+ 
+ 	rq->lflags &= ~RQ_TIMER;
+-- 
+2.16.4
+

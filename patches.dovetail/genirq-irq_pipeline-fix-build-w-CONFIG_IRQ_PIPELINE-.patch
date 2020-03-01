@@ -1,0 +1,34 @@
+From 72c1e4626385533846ad0f6095b38d15ab48af9c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 30 Jul 2019 16:35:21 +0200
+Subject: [PATCH] genirq: irq_pipeline: fix build w/ CONFIG_IRQ_PIPELINE
+ disabled
+
+---
+ include/asm-generic/irq_pipeline.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/asm-generic/irq_pipeline.h b/include/asm-generic/irq_pipeline.h
+index 98619b08e4f..f056d9c1712 100644
+--- a/include/asm-generic/irq_pipeline.h
++++ b/include/asm-generic/irq_pipeline.h
+@@ -30,7 +30,6 @@ unsigned long inband_irqs_disabled(void);
+ #define hard_local_irq_restore(__flags)		native_irq_restore(__flags)
+ #define hard_local_irq_enable()			native_irq_enable()
+ #define hard_local_irq_disable()		native_irq_disable()
+-#define hard_local_irq_sync()			native_irq_sync()
+ #define hard_local_save_flags()			native_save_flags()
+ 
+ #define hard_irqs_disabled()			native_irqs_disabled()
+@@ -80,6 +79,8 @@ static inline void irq_pipeline_nmi_exit(void) { }
+ 
+ #endif /* !CONFIG_IRQ_PIPELINE */
+ 
++#define hard_local_irq_sync()			native_irq_sync()
++
+ #if defined(CONFIG_SMP) && defined(CONFIG_IRQ_PIPELINE)
+ #define hard_smp_local_irq_save()		hard_local_irq_save()
+ #define hard_smp_local_irq_restore(__flags)	hard_local_irq_restore(__flags)
+-- 
+2.16.4
+

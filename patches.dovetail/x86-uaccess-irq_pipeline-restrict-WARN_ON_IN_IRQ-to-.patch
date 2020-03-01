@@ -1,0 +1,29 @@
+From 21db9e6d48dfa8d0a285310a861762e747a8916d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 2 Aug 2019 17:26:14 +0200
+Subject: [PATCH] x86/uaccess: irq_pipeline: restrict WARN_ON_IN_IRQ() to
+ in-band check
+
+Prevent false positives when uaccess helpers are called from
+out-of-band context, since the latter may have preempted an in-band
+IRQ context.
+---
+ arch/x86/include/asm/uaccess.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
+index c82abd6e4ca..035ca4fd9f6 100644
+--- a/arch/x86/include/asm/uaccess.h
++++ b/arch/x86/include/asm/uaccess.h
+@@ -66,7 +66,7 @@ static inline bool __chk_range_not_ok(unsigned long addr, unsigned long size, un
+ })
+ 
+ #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+-# define WARN_ON_IN_IRQ()	WARN_ON_ONCE(!in_task())
++# define WARN_ON_IN_IRQ()	WARN_ON_ONCE(running_inband() && !in_task())
+ #else
+ # define WARN_ON_IN_IRQ()
+ #endif
+-- 
+2.16.4
+

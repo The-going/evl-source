@@ -1,0 +1,45 @@
+From 2db3888fbd4c1a5a6f713ebd8584a5a9fe9e96f5 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 11 Jul 2019 22:16:17 +0200
+Subject: [PATCH] evl/sched: remove wrong branch prediction hint
+
+---
+ include/evl/sched.h     | 7 +++----
+ kernel/evl/sched/core.c | 2 +-
+ 2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 463767378b5..b6cb041255c 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -280,11 +280,10 @@ static inline bool evl_schedule(void)
+ 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
+ 		return false;
+ 
+-	if (unlikely(running_inband()))
+-		return (bool)run_oob_call((int (*)(void *))__evl_schedule,
+-					this_rq);
++	if (running_oob())
++		return __evl_schedule(this_rq);
+ 
+-	return __evl_schedule(this_rq);
++	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
+ }
+ 
+ static inline int evl_preempt_count(void)
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index 8dba933b834..f5d366f85f4 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -594,7 +594,7 @@ static inline void set_thread_running(struct evl_rq *rq,
+ 
+ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
+ {
+-	struct evl_sched_class *sched_class __maybe_unused;
++	struct evl_sched_class *sched_class;
+ 	struct evl_thread *curr = rq->curr;
+ 	struct evl_thread *thread;
+ 
+-- 
+2.16.4
+

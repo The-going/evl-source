@@ -1,0 +1,30 @@
+From 9cee71651debe409d131584ef37a7256afd76f9f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 16 Jul 2019 10:05:50 +0200
+Subject: [PATCH] ARM: irq_pipeline: add native_irq_sync()
+
+---
+ arch/arm/include/asm/irqflags.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm/include/asm/irqflags.h b/arch/arm/include/asm/irqflags.h
+index 4cb53cad3bc..a51be113176 100644
+--- a/arch/arm/include/asm/irqflags.h
++++ b/arch/arm/include/asm/irqflags.h
+@@ -152,6 +152,13 @@ static inline void native_irq_disable(void)
+ #define local_abt_disable()	do { } while (0)
+ #endif
+ 
++static inline void native_irq_sync(void)
++{
++	native_irq_enable();
++	isb();
++	native_irq_disable();
++}
++
+ /*
+  * Save the current interrupt enable state.
+  */
+-- 
+2.16.4
+

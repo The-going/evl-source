@@ -1,0 +1,133 @@
+From 7a005b1838361cee04cf6966edaa7f37dc4a809e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 17 Jul 2019 10:56:40 +0200
+Subject: [PATCH] evl/irq: introduce evl_enter_irq(), evl_leave_irq()
+
+Since we want to be able to reschedule immediately from interrupt
+handlers, the pipeline no longer fires the {enter, exit}_oob_irq()
+notifiers which became useless.
+
+Interrupt handlers must now call explicitly:
+
+- evl_enter_irq() on entry to block rescheduling attempts
+- evl_leave_irq() at exit to trigger a call to evl_schedule()
+---
+ kernel/evl/irq.c => include/evl/irq.h | 11 +++++++----
+ kernel/evl/Makefile                   |  1 -
+ kernel/evl/clock.c                    |  7 ++++++-
+ kernel/evl/sched/core.c               |  4 ++--
+ 4 files changed, 15 insertions(+), 8 deletions(-)
+ rename kernel/evl/irq.c => include/evl/irq.h (84%)
+
+diff --git a/kernel/evl/irq.c b/include/evl/irq.h
+similarity index 84%
+rename from kernel/evl/irq.c
+rename to include/evl/irq.h
+index eba62d308d5..11b079e8427 100644
+--- a/kernel/evl/irq.c
++++ b/include/evl/irq.h
+@@ -4,12 +4,13 @@
+  * Copyright (C) 2017 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <linux/interrupt.h>
+-#include <linux/irq.h>
++#ifndef _EVL_IRQ_H
++#define _EVL_IRQ_H
++
+ #include <evl/sched.h>
+ 
+ /* hard IRQs off. */
+-void enter_oob_irq(void)
++static inline void evl_enter_irq(void)
+ {
+ 	struct evl_rq *rq = this_evl_rq();
+ 
+@@ -17,7 +18,7 @@ void enter_oob_irq(void)
+ }
+ 
+ /* hard IRQs off. */
+-void exit_oob_irq(void)
++static inline void evl_leave_irq(void)
+ {
+ 	struct evl_rq *rq = this_evl_rq();
+ 
+@@ -38,3 +39,5 @@ void exit_oob_irq(void)
+ 			hard_local_irq_disable();
+ 	}
+ }
++
++#endif /* !_EVL_IRQ_H */
+diff --git a/kernel/evl/Makefile b/kernel/evl/Makefile
+index d7248a6e613..35a2b38a186 100644
+--- a/kernel/evl/Makefile
++++ b/kernel/evl/Makefile
+@@ -8,7 +8,6 @@ evl-y :=		\
+ 	factory.o	\
+ 	file.o		\
+ 	init.o		\
+-	irq.o		\
+ 	lock.o		\
+ 	memory.o	\
+ 	monitor.o	\
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index d7411a52ead..bd1fab485d4 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -30,6 +30,7 @@
+ #include <evl/factory.h>
+ #include <evl/control.h>
+ #include <evl/file.h>
++#include <evl/irq.h>
+ #include <asm/evl/syscall.h>
+ #include <uapi/evl/clock.h>
+ #include <trace/events/evl.h>
+@@ -335,6 +336,8 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 	if (EVL_WARN_ON_ONCE(CORE, !is_evl_cpu(evl_rq_cpu(this_rq))))
+ 		return;
+ 
++	evl_enter_irq();
++
+ 	tmb = evl_this_cpu_timers(&evl_mono_clock);
+ 	do_clock_tick(&evl_mono_clock, tmb);
+ 
+@@ -342,11 +345,13 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
+ 	 * If an EVL thread was preempted by this clock event, any
+ 	 * transition to the root thread will cause a pending in-band
+ 	 * tick to be propagated by evl_schedule() from
+-	 * exit_oob_irq(), so we may have to propagate the in-band
++	 * evl_leave_irq(), so we may have to propagate the in-band
+ 	 * tick immediately only if the root thread was preempted.
+ 	 */
+ 	if ((this_rq->lflags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+ 		evl_notify_proxy_tick(this_rq);
++
++	evl_leave_irq();
+ }
+ 
+ void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index f5d366f85f4..f758bdcb97d 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -190,7 +190,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	 * Postpone evl_init_thread() - which sets RQ_SCHED upon
+ 	 * setting the schedparams for the root thread - until we have
+ 	 * enough of the runqueue initialized, so that attempting to
+-	 * reschedule from exit_oob_irq() later on is harmless.
++	 * reschedule from evl_leave_irq() later on is harmless.
+ 	 */
+ 	iattr.flags = T_ROOT;
+ 	iattr.affinity = *cpumask_of(cpu);
+@@ -318,7 +318,7 @@ int evl_set_thread_policy(struct evl_thread *thread,
+ 	/*
+ 	 * Make sure not to raise RQ_SCHED when setting up the root
+ 	 * thread, so that we can't start rescheduling from
+-	 * exit_oob_irq() before all CPUs have their runqueue fully
++	 * evl_leave_irq() before all CPUs have their runqueue fully
+ 	 * built. Filtering on T_ROOT here is correct because the root
+ 	 * thread enters the idle class once as part of the runqueue
+ 	 * setup process and never leaves it afterwards.
+-- 
+2.16.4
+

@@ -1,0 +1,41 @@
+From 9385422dbf4626a62b83c45798ed770a9ae70641 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 13 Aug 2019 15:31:30 +0200
+Subject: [PATCH] include/evl: file: remove placeholders
+
+Moved to evl/devices.h.
+---
+ include/evl/file.h | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/include/evl/file.h b/include/evl/file.h
+index e90104abcb2..15f6cd5184c 100644
+--- a/include/evl/file.h
++++ b/include/evl/file.h
+@@ -7,8 +7,6 @@
+ #ifndef _EVL_FILE_H
+ #define _EVL_FILE_H
+ 
+-#ifdef CONFIG_EVL
+-
+ #include <linux/spinlock.h>
+ #include <linux/atomic.h>
+ #include <linux/rbtree.h>
+@@ -72,14 +70,4 @@ int evl_init_files(void);
+ 
+ void evl_cleanup_files(void);
+ 
+-#else
+-
+-struct evl_file { };
+-
+-#define evl_open_file(__efilp, __filp)	({ 0; })
+-
+-#define evl_release_file(__efilp)	do { } while (0)
+-
+-#endif	/* !CONFIG_EVL */
+-
+ #endif /* !_EVL_FILE_H */
+-- 
+2.16.4
+

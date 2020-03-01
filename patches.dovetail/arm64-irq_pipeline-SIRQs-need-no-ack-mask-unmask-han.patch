@@ -1,0 +1,26 @@
+From 0a5d6448b0fdccc9022af92189192a0a67fc00ac Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 21 Jul 2019 21:48:40 +0200
+Subject: [PATCH] arm64: irq_pipeline: SIRQs need no ack, mask, unmask handlers
+
+---
+ arch/arm64/kernel/irq_pipeline.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/arch/arm64/kernel/irq_pipeline.c b/arch/arm64/kernel/irq_pipeline.c
+index 668f48b8264..0c06922a5fa 100644
+--- a/arch/arm64/kernel/irq_pipeline.c
++++ b/arch/arm64/kernel/irq_pipeline.c
+@@ -28,9 +28,6 @@ static struct irq_chip sipic_chip = {
+ 	.irq_shutdown	= sipic_irq_noop,
+ 	.irq_enable	= sipic_irq_noop,
+ 	.irq_disable	= sipic_irq_noop,
+-	.irq_ack	= sipic_irq_noop,
+-	.irq_mask	= sipic_irq_noop,
+-	.irq_unmask	= sipic_irq_noop,
+ 	.flags		= IRQCHIP_PIPELINE_SAFE | IRQCHIP_SKIP_SET_WAKE,
+ };
+ 
+-- 
+2.16.4
+

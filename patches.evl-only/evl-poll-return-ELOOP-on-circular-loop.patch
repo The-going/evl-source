@@ -1,0 +1,25 @@
+From cd446e71f4500b33278b8ea365108fa7292f7f85 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 9 Aug 2019 15:44:59 +0200
+Subject: [PATCH] evl/poll: return -ELOOP on circular loop
+
+---
+ kernel/evl/poll.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index 2ef902d73b7..6ff002e4de6 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -137,7 +137,7 @@ static int check_no_loop_deeper(struct poll_group *origin,
+ 	int ret = 0;
+ 
+ 	if (depth >= POLLER_NEST_MAX)
+-		return -EINVAL;
++		return -ELOOP;
+ 
+ 	efilp = evl_get_file(item->fd);
+ 	if (efilp == NULL)
+-- 
+2.16.4
+

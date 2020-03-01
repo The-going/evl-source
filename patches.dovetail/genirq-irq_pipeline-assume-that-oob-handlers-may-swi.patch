@@ -1,0 +1,86 @@
+From 54caba0837ce0ec3b0f2eb33e948836b60495bd8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 17 Jul 2019 10:47:11 +0200
+Subject: [PATCH] genirq: irq_pipeline: assume that oob handlers may switch
+ context
+
+A companion kernel must be allowed to switch context immediately from
+an out-of-band handler. Drop the enter/exit_oob_irq() notifiers which
+don't fit this requirement, assume that the companion kernel can
+trigger the interrupt entry/exit work upon each event without specific
+support from the pipeline.
+---
+ include/linux/irq_pipeline.h |  7 -------
+ kernel/irq/pipeline.c        | 13 +++++++------
+ 2 files changed, 7 insertions(+), 13 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index 1868cfee7b9..de0c8368dea 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -44,22 +44,15 @@ static __always_inline void synchronize_pipeline_on_irq(void)
+ 		synchronize_pipeline();
+ }
+ 
+-void enter_oob_irq(void);
+-
+ static __always_inline void enter_irq_pipeline(struct pt_regs *regs)
+ {
+-	enter_oob_irq();
+ }
+ 
+-void exit_oob_irq(void);
+-
+ void dovetail_call_mayday(struct thread_info *ti,
+ 			  struct pt_regs *regs);
+ 
+ static __always_inline bool leave_irq_pipeline(struct pt_regs *regs)
+ {
+-	exit_oob_irq();
+-
+ 	/*
+ 	 * We have to synchronize the logs because interrupts might
+ 	 * have been logged while we were busy handling an OOB event
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 01b5f6a03f6..847b3956796 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -801,10 +801,6 @@ void hard_preempt_enable(unsigned long flags)
+ }
+ EXPORT_SYMBOL_GPL(hard_preempt_enable);
+ 
+-void __weak enter_oob_irq(void) { }
+-
+-void __weak exit_oob_irq(void) { }
+-
+ static inline
+ irqreturn_t __call_action_handler(struct irqaction *action,
+ 				  struct irq_desc *desc)
+@@ -978,7 +974,14 @@ bool handle_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 		return false;
+ 	}
+ 
++	/*
++	 * A companion kernel must be allowed to switch context
++	 * immediately from the IRQ handler we are about to call, so
++	 * unmark the pipeline entry context until we get back.
++	 */
++	preempt_count_sub(PIPELINE_OFFSET);
+ 	dispatch_oob_irq(desc);
++	preempt_count_add(PIPELINE_OFFSET);
+ 
+ 	return true;
+ }
+@@ -1078,9 +1081,7 @@ int irq_inject_pipeline(unsigned int irq)
+ 		return -EINVAL;
+ 
+ 	flags = hard_local_irq_save();
+-	enter_oob_irq();
+ 	handle_oob_irq(desc);
+-	exit_oob_irq();
+ 	synchronize_pipeline_on_irq();
+ 	hard_local_irq_restore(flags);
+ 
+-- 
+2.16.4
+

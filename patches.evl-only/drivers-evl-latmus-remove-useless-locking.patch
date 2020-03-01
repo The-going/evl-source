@@ -1,0 +1,30 @@
+From 09a3d7fab5c1a7565fdace7ec0119b64a8c8d9e4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 16 Jul 2019 15:36:58 +0200
+Subject: [PATCH] drivers/evl: latmus: remove useless locking
+
+---
+ drivers/evl/latmus.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/drivers/evl/latmus.c b/drivers/evl/latmus.c
+index b4b1c795eb7..97c63010832 100644
+--- a/drivers/evl/latmus.c
++++ b/drivers/evl/latmus.c
+@@ -241,13 +241,8 @@ static void latmus_irq_handler(struct evl_timer *timer) /* hard irqs off */
+ 
+ 	irq_runner = container_of(timer, struct irq_runner, timer);
+ 	now = evl_read_clock(&evl_mono_clock);
+-
+-	xnlock_get(&nklock);
+-
+ 	if (irq_runner->runner.add_sample(&irq_runner->runner, now))
+ 		evl_stop_timer(timer);
+-
+-	xnlock_put(&nklock);
+ }
+ 
+ static void destroy_irq_runner(struct latmus_runner *runner)
+-- 
+2.16.4
+

@@ -1,0 +1,459 @@
+From e0d35b94342159959f45fb841a9a567327428f2f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 3 Aug 2019 16:01:42 +0200
+Subject: [PATCH] evl/timer: prevent core timers from landing on unclocked CPUs
+
+We must make sure that evl_init_core_timer() is not set up on a CPU
+which will not receive ticks because the underlying clock device has a
+restricted CPU affinity.
+
+At this chance, simplify the timer affinity handling.
+---
+ include/evl/timer.h        | 22 +++--------
+ include/trace/events/evl.h |  2 +-
+ kernel/evl/clock.c         | 27 +++++++------
+ kernel/evl/init.c          |  5 ++-
+ kernel/evl/thread.c        | 34 ++++++++--------
+ kernel/evl/timer.c         | 98 ++++++++++++++++------------------------------
+ 6 files changed, 77 insertions(+), 111 deletions(-)
+
+diff --git a/include/evl/timer.h b/include/evl/timer.h
+index ad6ef79684e..b835a78c446 100644
+--- a/include/evl/timer.h
++++ b/include/evl/timer.h
+@@ -320,12 +320,6 @@ static inline ktime_t evl_get_timer_expiry(struct evl_timer *timer)
+ 			evl_get_timer_gravity(timer));
+ }
+ 
+-static inline
+-void evl_move_timer_backward(struct evl_timer *timer, ktime_t delta)
+-{
+-	evl_tdate(timer) = ktime_sub(evl_tdate(timer), delta);
+-}
+-
+ /* no lock required. */
+ ktime_t evl_get_timer_date(struct evl_timer *timer);
+ 
+@@ -383,30 +377,26 @@ void evl_enqueue_timer(struct evl_timer *timer,
+ 
+ unsigned long evl_get_timer_overruns(struct evl_timer *timer);
+ 
+-void evl_bolt_timer(struct evl_timer *timer,
++void evl_move_timer(struct evl_timer *timer,
+ 		struct evl_clock *clock,
+ 		struct evl_rq *rq);
+ 
+ #ifdef CONFIG_SMP
+ 
+-void __evl_set_timer_rq(struct evl_timer *timer,
+-			struct evl_clock *clock,
+-			struct evl_rq *rq);
+-
+ static inline void evl_set_timer_rq(struct evl_timer *timer,
+ 				struct evl_rq *rq)
+ {
+ 	if (rq != timer->rq)
+-		__evl_set_timer_rq(timer, timer->clock, rq);
++		evl_move_timer(timer, timer->clock, rq);
+ }
+ 
+-static inline void evl_prepare_timer_wait(struct evl_timer *timer,
++static inline void evl_prepare_timed_wait(struct evl_timer *timer,
+ 					struct evl_clock *clock,
+ 					struct evl_rq *rq)
+ {
+ 	/* We may change the reference clock before waiting. */
+ 	if (rq != timer->rq || clock != timer->clock)
+-		__evl_set_timer_rq(timer, clock, rq);
++		evl_move_timer(timer, clock, rq);
+ }
+ 
+ static inline bool evl_timer_on_rq(struct evl_timer *timer,
+@@ -421,12 +411,12 @@ static inline void evl_set_timer_rq(struct evl_timer *timer,
+ 				struct evl_rq *rq)
+ { }
+ 
+-static inline void evl_prepare_timer_wait(struct evl_timer *timer,
++static inline void evl_prepare_timed_wait(struct evl_timer *timer,
+ 					struct evl_clock *clock,
+ 					struct evl_rq *rq)
+ {
+ 	if (clock != timer->clock)
+-		evl_bolt_timer(timer, clock, rq);
++		evl_move_timer(timer, clock, rq);
+ }
+ 
+ static inline bool evl_timer_on_rq(struct evl_timer *timer,
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index c04cda0396d..96f9a86b71a 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -631,7 +631,7 @@ TRACE_EVENT(evl_timer_start,
+ 		ktime_to_ns(__entry->interval))
+ );
+ 
+-TRACE_EVENT(evl_timer_bolt,
++TRACE_EVENT(evl_timer_move,
+ 	TP_PROTO(struct evl_timer *timer,
+ 		 struct evl_clock *clock,
+ 		 unsigned int cpu),
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index c4625bc8480..8795f353e2f 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -49,7 +49,8 @@ static void adjust_timer(struct evl_clock *clock,
+ 	ktime_t period, diff;
+ 	s64 div;
+ 
+-	evl_move_timer_backward(timer, delta);
++	/* Apply the new offset from the master base. */
++	evl_tdate(timer) = ktime_sub(evl_tdate(timer), delta);
+ 
+ 	if (!evl_timer_is_periodic(timer))
+ 		goto enqueue;
+@@ -193,12 +194,17 @@ int evl_init_clock(struct evl_clock *clock,
+ 	 * A CPU affinity set may be defined for each clock,
+ 	 * enumerating the CPUs which can receive ticks from the
+ 	 * backing clock device.  When given, this set must be a
+-	 * subset of the out-of-band CPU set.
++	 * subset of the out-of-band CPU set. Otherwise, this is a
++	 * global device for which we pick a constant affinity based
++	 * on a known-to-be-always-valid CPU, i.e. the first OOB CPU
++	 * available.
+ 	 */
+ #ifdef CONFIG_SMP
+-	if (!affinity)	/* Is this device global? */
++	if (!affinity) {
+ 		cpumask_clear(&clock->affinity);
+-	else {
++		cpumask_set_cpu(cpumask_first(&evl_oob_cpus),
++				&clock->affinity);
++	} else {
+ 		cpumask_and(&clock->affinity, affinity, &evl_oob_cpus);
+ 		if (cpumask_empty(&clock->affinity))
+ 			return -EINVAL;
+@@ -214,7 +220,7 @@ int evl_init_clock(struct evl_clock *clock,
+ 	 * of them might remain unused depending on the CPU affinity
+ 	 * of the event source(s). If the clock device is global
+ 	 * without any particular IRQ affinity, all timers will be
+-	 * queued to CPU0.
++	 * queued to the first OOB CPU.
+ 	 */
+ 	for_each_online_cpu(cpu) {
+ 		tmb = evl_percpu_timers(clock, cpu);
+@@ -368,12 +374,12 @@ void evl_announce_tick(struct evl_clock *clock) /* hard irqs off */
+ 
+ #ifdef CONFIG_SMP
+ 	/*
+-	 * Some external clock devices may be global without any
+-	 * particular IRQ affinity, in which case the associated
+-	 * timers will be queued to CPU0.
++	 * Some external clock devices may tick on any CPU, expect the
++	 * timers to be be queued to the first legit CPU for them
++	 * (i.e. global devices with no affinity).
+ 	 */
+ 	if (!cpumask_test_cpu(evl_rq_cpu(this_evl_rq()), &clock->affinity))
+-		tmb = evl_percpu_timers(clock, 0);
++		tmb = evl_percpu_timers(clock, cpumask_first(&clock->affinity));
+ 	else
+ #endif
+ 		tmb = evl_this_cpu_timers(clock);
+@@ -1099,8 +1105,7 @@ int __init evl_clock_init(void)
+ 	evl_reset_clock_gravity(&evl_mono_clock);
+ 	evl_reset_clock_gravity(&evl_realtime_clock);
+ 
+-	ret = evl_init_clock(&evl_mono_clock,
+-			&evl_oob_cpus);
++	ret = evl_init_clock(&evl_mono_clock, &evl_oob_cpus);
+ 	if (ret)
+ 		return ret;
+ 
+diff --git a/kernel/evl/init.c b/kernel/evl/init.c
+index 9c0583a7426..442e3d1f3d1 100644
+--- a/kernel/evl/init.c
++++ b/kernel/evl/init.c
+@@ -160,8 +160,9 @@ static int __init evl_init(void)
+ 	}
+ 
+ 	/*
+-	 * Set of CPUs the core knows about (>= set of CPUs running
+-	 * EVL threads).
++	 * Set of CPUs the core knows about and which should run an
++	 * in-band proxy timer. This set includes the subset of CPUs
++	 * which may run EVL threads, aka evl_cpu_affinity.
+ 	 */
+ 	if (oobcpus_arg && *oobcpus_arg) {
+ 		if (cpulist_parse(oobcpus_arg, &evl_oob_cpus)) {
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 68337d5a036..3feb011f244 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -57,9 +57,6 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+ 		container_of(timer, struct evl_thread, ptimer);
+ 
+ 	evl_wakeup_thread(thread, T_WAIT, T_TIMEO);
+-	xnlock_get(&nklock);
+-	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
+-	xnlock_put(&nklock);
+ }
+ 
+ static inline void enlist_new_thread(struct evl_thread *thread)
+@@ -481,20 +478,23 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 	}
+ 
+ 	/*
+-	 * wchan + timeout: timed wait for a resource (T_PEND|T_DELAY)
+-	 * wchan + !timeout: unbounded sleep on resource (T_PEND)
++	 *  wchan + timeout: timed wait for a resource (T_PEND|T_DELAY)
++	 *  wchan + !timeout: unbounded sleep on resource (T_PEND)
+ 	 * !wchan + timeout: timed sleep (T_DELAY)
+ 	 * !wchan + !timeout: periodic wait (T_WAIT)
+ 	 */
+ 	if (timeout_mode != EVL_REL || !timeout_infinite(timeout)) {
+-		evl_prepare_timer_wait(&curr->rtimer, clock,
++		evl_prepare_timed_wait(&curr->rtimer, clock,
+ 				evl_thread_rq(curr));
+ 		if (timeout_mode == EVL_REL)
+ 			timeout = evl_abs_timeout(&curr->rtimer, timeout);
+ 		evl_start_timer(&curr->rtimer, timeout, EVL_INFINITE);
+ 		curr->state |= T_DELAY;
+-	} else if (!wchan)
++	} else if (!wchan) {
++		evl_prepare_timed_wait(&curr->ptimer, clock,
++				evl_thread_rq(curr));
+ 		curr->state |= T_WAIT;
++	}
+ 
+ 	if (oldstate & T_READY) {
+ 		evl_dequeue_thread(curr);
+@@ -528,6 +528,7 @@ bool evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ 	rq = thread->rq;
+ 	oldstate = thread->state;
+ 	if (likely(oldstate & mask)) {
++		/* Clear T_DELAY along w/ T_PEND in state. */
+ 		if (mask & T_PEND)
+ 			mask |= T_DELAY;
+ 
+@@ -934,7 +935,7 @@ int evl_set_thread_period(struct evl_clock *clock,
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+-	evl_prepare_timer_wait(&curr->ptimer, clock, evl_thread_rq(curr));
++	evl_prepare_timed_wait(&curr->ptimer, clock, evl_thread_rq(curr));
+ 
+ 	if (timeout_infinite(idate))
+ 		idate = evl_abs_timeout(&curr->ptimer, period);
+@@ -964,7 +965,7 @@ int evl_wait_thread_period(unsigned long *overruns_r)
+ 	clock = curr->ptimer.clock;
+ 	now = evl_read_clock(clock);
+ 	if (likely(now < evl_get_timer_next_date(&curr->ptimer))) {
+-		evl_sleep_on(EVL_INFINITE, EVL_REL, NULL, NULL); /* T_WAIT */
++		evl_sleep_on(EVL_INFINITE, EVL_REL, clock, NULL); /* T_WAIT */
+ 		hard_local_irq_restore(flags);
+ 		evl_schedule();
+ 		if (unlikely(curr->info & T_BREAK))
+@@ -1121,9 +1122,10 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *rq)
+ 	trace_evl_thread_migrate(thread, evl_rq_cpu(rq));
+ 	/*
+ 	 * Timer migration is postponed until the next timeout happens
+-	 * for the periodic and rrb timers. The resource timer will be
+-	 * moved to the right CPU next time evl_prepare_timer_wait()
+-	 * is called for it.
++	 * for the periodic and rrb timers. The resource/periodic
++	 * timer will be moved to the right CPU next time
++	 * evl_prepare_timed_wait() is called for it (via
++	 * evl_sleep_on()).
+ 	 */
+ 	evl_migrate_rq(thread, rq);
+ 
+@@ -1675,8 +1677,8 @@ static void handle_migration_event(struct dovetail_migration_data *d)
+ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
+ {
+ 	struct evl_thread *thread = evl_thread_from_task(p);
+-	struct evl_rq *rq;
+ 	int cpu = task_cpu(p);
++	struct evl_rq *rq;
+ 
+ 	/*
+ 	 * To maintain consistency between both the EVL and in-band
+@@ -1714,9 +1716,9 @@ static inline bool affinity_ok(struct task_struct *p) /* nklocked, IRQs off */
+ 		return true;
+ 
+ 	/*
+-	 * The current thread moved to a supported real-time CPU,
+-	 * which is not part of its original affinity mask
+-	 * though. Assume user wants to extend this mask.
++	 * If the current thread moved to a supported out-of-band CPU,
++	 * which is not part of its original affinity mask, assume
++	 * user wants to extend this mask.
+ 	 */
+ 	if (!cpumask_test_cpu(cpu, &thread->affinity))
+ 		cpumask_set_cpu(cpu, &thread->affinity);
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index c5ed8531433..461968fa66f 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -262,57 +262,27 @@ static inline int get_clock_cpu(struct evl_clock *clock, int cpu)
+ 	 * suggested CPU does not receive events from this device,
+ 	 * return the first one which does instead.
+ 	 *
+-	 * A global clock device with no particular IRQ affinity may
+-	 * tick on any CPU, but timers should always be queued on
+-	 * CPU0.
+-	 *
+-	 * NOTE: we have scheduler slots initialized for all online
+-	 * CPUs, we can program and receive clock ticks on any of
+-	 * them. So there is no point in restricting the valid CPU set
+-	 * to cobalt_cpu_affinity, which specifically refers to the
+-	 * set of CPUs which may run real-time threads. Although
+-	 * receiving a clock tick for waking up a thread living on a
+-	 * remote CPU is not optimal since this involves IPI-signaled
+-	 * rescheds, this is still a valid case.
++	 * NOTE: we have run queues initialized for all online CPUs,
++	 * we can program and receive clock ticks on any of them. So
++	 * there is no point in restricting the valid CPU set to
++	 * evl_cpu_affinity, which specifically refers to the set of
++	 * CPUs which may run EVL threads. Although receiving a clock
++	 * tick for waking up a thread living on a remote CPU is not
++	 * optimal since this involves IPI-signaled rescheds, this is
++	 * still acceptable.
+ 	 */
+-	if (cpumask_empty(&clock->affinity))
+-		return 0;
+-
+ 	if (cpumask_test_cpu(cpu, &clock->affinity))
+ 		return cpu;
+ 
+ 	return cpumask_first(&clock->affinity);
+ }
+ 
+-/**
+- * __evl_set_timer_rq - change the CPU affinity of a timer
+- * @timer:      timer to modify
+- * @rq:         runqueue to assign the timer to
+- */
+-void __evl_set_timer_rq(struct evl_timer *timer,
+-			struct evl_clock *clock,
+-			struct evl_rq *rq)
+-{
+-	int cpu;
+-
+-	requires_ugly_lock();
+-
+-	/*
+-	 * Figure out which CPU is best suited for managing this
+-	 * timer, preferably picking evl_rq_cpu(rq) if the ticking
+-	 * device moving the timer clock beats on that CPU. Otherwise,
+-	 * pick the first CPU from the clock affinity mask if set. If
+-	 * not, the timer is backed by a global device with no
+-	 * particular IRQ affinity, so it should always be queued to
+-	 * CPU0.
+-	 */
+-	cpu = 0;
+-	if (!cpumask_empty(&clock->master->affinity))
+-		cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
++#else
+ 
+-	evl_bolt_timer(timer, clock, evl_cpu_rq(cpu));
++static inline int get_clock_cpu(struct evl_clock *clock, int cpu)
++{
++	return 0;
+ }
+-EXPORT_SYMBOL_GPL(__evl_set_timer_rq);
+ 
+ #endif /* CONFIG_SMP */
+ 
+@@ -322,27 +292,26 @@ void __evl_init_timer(struct evl_timer *timer,
+ 		struct evl_rq *rq,
+ 		int opflags)
+ {
+-	int cpu __maybe_unused;
++	int cpu;
+ 
+ 	timer->clock = clock;
+ 	evl_tdate(timer) = EVL_INFINITE;
+ 	evl_set_timer_priority(timer, EVL_TIMER_STDPRIO);
+-	timer->status = (EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK));
++	timer->status = EVL_TIMER_DEQUEUED|(opflags & EVL_TIMER_INIT_MASK);
+ 	timer->handler = handler;
+ 	timer->interval = EVL_INFINITE;
++
+ 	/*
+-	 * Set the timer affinity, preferably to rq if given, CPU0
+-	 * otherwise.
++	 * Set the timer affinity to the CPU rq is on if given, or the
++	 * first CPU which may run EVL threads otherwise.
+ 	 */
+-	if (!rq)
+-		rq = evl_cpu_rq(0);
++	cpu = rq ?
++		get_clock_cpu(clock->master, evl_rq_cpu(rq)) :
++		cpumask_first(&evl_cpu_affinity);
+ #ifdef CONFIG_SMP
+-	cpu = 0;
+-	if (!cpumask_empty(&clock->master->affinity))
+-		cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
+ 	timer->rq = evl_cpu_rq(cpu);
+ #endif
+-	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
++	timer->base = evl_percpu_timers(clock, cpu);
+ 	timer->clock = clock;
+ 	timer->name = "<timer>";
+ 	evl_reset_timer_stats(timer);
+@@ -374,13 +343,13 @@ void evl_destroy_timer(struct evl_timer *timer)
+ EXPORT_SYMBOL_GPL(evl_destroy_timer);
+ 
+ /*
+- * evl_bolt_timer - change the reference clock and/or the CPU
++ * evl_move_timer - change the reference clock and/or the CPU
+  *                     affinity of a timer
+  * @timer:      timer to modify
+  * @clock:      reference clock
+  * @rq:         runqueue to assign the timer to
+  */
+-void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
++void evl_move_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+ 		struct evl_clock *clock, struct evl_rq *rq)
+ {
+ 	struct evl_timerbase *old_base, *new_base;
+@@ -388,19 +357,18 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+ 	unsigned long flags;
+ 	int cpu;
+ 
+-	trace_evl_timer_bolt(timer, clock, evl_rq_cpu(rq));
++	requires_ugly_lock();	/* XXX: why that? */
++
++	trace_evl_timer_move(timer, clock, evl_rq_cpu(rq));
+ 
+ 	/*
+-	 * This assertion triggers when the timer is migrated to a CPU
+-	 * for which we do not expect any clock events/IRQs from the
+-	 * associated clock device. If so, the timer would never fire
+-	 * since clock ticks would never happen on that CPU.
++	 * Find out which CPU is best suited for managing this timer,
++	 * preferably picking evl_rq_cpu(rq) if the ticking device
++	 * moving the timer clock beats on that CPU. Otherwise, pick
++	 * the first CPU from the clock affinity mask if set.
+ 	 */
+-	cpu = evl_rq_cpu(rq);
+-	if (EVL_WARN_ON_SMP(CORE,
+-			!cpumask_empty(&master->affinity) &&
+-			!cpumask_test_cpu(cpu, &master->affinity)))
+-		return;
++	cpu = get_clock_cpu(clock->master, evl_rq_cpu(rq));
++	rq = evl_cpu_rq(cpu);
+ 
+ 	old_base = lock_timer_base(timer, &flags);
+ 
+@@ -435,7 +403,7 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+ 		unlock_timer_base(old_base, flags);
+ 	}
+ }
+-EXPORT_SYMBOL_GPL(evl_bolt_timer);
++EXPORT_SYMBOL_GPL(evl_move_timer);
+ 
+ unsigned long evl_get_timer_overruns(struct evl_timer *timer)
+ {
+-- 
+2.16.4
+

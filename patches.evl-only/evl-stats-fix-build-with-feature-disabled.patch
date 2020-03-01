@@ -1,0 +1,57 @@
+From 53ba86256f4cb6a4d11200aeb0f5ebd38b588920 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 25 Jul 2019 21:15:43 +0200
+Subject: [PATCH] evl/stats: fix build with feature disabled
+
+---
+ include/evl/stat.h  | 6 ++++--
+ kernel/evl/thread.c | 9 +++++----
+ 2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/include/evl/stat.h b/include/evl/stat.h
+index 3a5d340d053..a94aa709c9f 100644
+--- a/include/evl/stat.h
++++ b/include/evl/stat.h
+@@ -23,7 +23,9 @@ struct evl_account {
+ 
+ /*
+  * Return current date which can be passed to other accounting
+- * services for immediate accounting.
++ * services for immediate accounting. We do not use sched_clock() on
++ * purpose: its worst case execution time may be really bad under some
++ * combination of clock data updates and high cache pressure.
+  */
+ static inline ktime_t evl_get_timestamp(void)
+ {
+@@ -80,7 +82,7 @@ static inline void evl_reset_account(struct evl_account *account)
+ #define evl_close_account(__rq, __new_account)			\
+ 	do {							\
+ 		(__rq)->last_account_switch =			\
+-			evl_read_coreclk_monotonic();		\
++			evl_get_timestamp();			\
+ 		(__rq)->current_account = (__new_account);	\
+ 	} while (0)
+ 
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 10b98d13c1b..30590148c34 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -2013,10 +2013,11 @@ void evl_get_thread_state(struct evl_thread *thread,
+ 	__get_sched_attrs(thread->sched_class, thread, &statebuf->eattrs);
+ 	statebuf->cpu = evl_rq_cpu(thread->rq);
+ 	statebuf->state = evl_rq_cpu(thread->rq);
+-	statebuf->isw = thread->stat.isw.counter;
+-	statebuf->csw = thread->stat.csw.counter;
+-	statebuf->sc = thread->stat.sc.counter;
+-	statebuf->xtime = ktime_to_ns(thread->stat.account.total);
++	statebuf->isw = evl_get_counter(&thread->stat.isw);
++	statebuf->csw = evl_get_counter(&thread->stat.csw);
++	statebuf->sc = evl_get_counter(&thread->stat.sc);
++	statebuf->xtime = ktime_to_ns(evl_get_account_total(
++					&thread->stat.account));
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ EXPORT_SYMBOL_GPL(evl_get_thread_state);
+-- 
+2.16.4
+

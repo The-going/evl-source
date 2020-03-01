@@ -1,0 +1,180 @@
+From c01d887dac6fcf4516dfaee8d4174779b9a0c7c3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 10 Jul 2019 17:46:13 +0200
+Subject: [PATCH] genirq: irq_pipeline: synchronize pipeline on last pending
+ IRQ
+
+We currently synchronize the pipeline unconditionally after each
+iteration of the interrupt decoding loop by the irqchip driver, which
+almost always involves playing in-band IRQs whenever some events are
+logged.
+
+Instead of this, give a bonus to external out-of-band IRQs which are
+immediately handled on pipeline entry but might be pending at the same
+time than in-band events in the irqchip, by saving the time required
+to run the synchronization code until the last IRQ is pulled out from
+the interrupt controller.
+
+Likewise, the companion kernel should be notified of the interrupt
+frame unwinding via exit_oob_irq() only when the last IRQ has been
+decoded, so that out-of-band rescheduling can happen only after the
+interrupt level is back to normal in the irqchip.
+
+Define enter_irq_pipeline() and leave_irq_pipeline() as generic
+services for performing the necessary actions.
+---
+ include/linux/irq_pipeline.h | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ kernel/irq/pipeline.c        | 47 +------------------------------------------
+ 2 files changed, 49 insertions(+), 46 deletions(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index b936d0049ba..8ddda27db0e 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -33,6 +33,54 @@ int irq_inject_pipeline(unsigned int irq);
+ int generic_pipeline_irq(unsigned int irq,
+ 			 struct pt_regs *regs);
+ 
++void synchronize_pipeline(void);
++
++static __always_inline void synchronize_pipeline_on_irq(void)
++{
++	/*
++	 * Optimize if we preempted the high priority oob stage: we
++	 * don't need to synchronize the pipeline unless there is a
++	 * pending interrupt for it.
++	 */
++	if (running_inband() ||
++	    stage_irqs_pending(this_oob_staged()))
++		synchronize_pipeline();
++}
++
++void enter_oob_irq(void);
++
++static __always_inline void enter_irq_pipeline(struct pt_regs *regs)
++{
++	enter_oob_irq();
++}
++
++void exit_oob_irq(void);
++
++static __always_inline bool leave_irq_pipeline(struct pt_regs *regs)
++{
++	exit_oob_irq();
++
++	/*
++	 * We have to synchronize the logs because interrupts might
++	 * have been logged while we were busy handling an OOB event
++	 * coming from the hardware:
++	 *
++	 * - as a result of calling an OOB handler which in turned
++	 * posted them.
++	 *
++	 * - because we posted them directly for scheduling the
++	 * interrupt to happen from the inband stage.
++	 *
++	 * This also means that hardware-originated OOB events have
++	 * higher precedence when received than software-originated
++	 * ones, which are synced once all IRQ flow handlers involved
++	 * in the interrupt have run.
++	 */
++	synchronize_pipeline_on_irq();
++
++	return running_inband() && !irqs_disabled();
++}
++
+ bool handle_oob_irq(struct irq_desc *desc);
+ 
+ void arch_do_IRQ_pipelined(struct irq_desc *desc);
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 6785cfd83ac..9f2abbdde22 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -10,7 +10,6 @@
+ #include <linux/irqdomain.h>
+ #include <linux/irq_pipeline.h>
+ #include <linux/irq_work.h>
+-#include <linux/dovetail.h>
+ #include <trace/events/irq.h>
+ #include "internals.h"
+ 
+@@ -205,7 +204,7 @@ void sync_irq_stage(struct irq_stage *top)
+ 	}
+ }
+ 
+-static void synchronize_pipeline(void) /* hardirqs off */
++void synchronize_pipeline(void) /* hardirqs off */
+ {
+ 	struct irq_stage *top = &oob_stage;
+ 
+@@ -760,18 +759,6 @@ void __weak enter_oob_irq(void) { }
+ 
+ void __weak exit_oob_irq(void) { }
+ 
+-static inline void check_pending_mayday(struct pt_regs *regs)
+-{
+-#ifdef CONFIG_DOVETAIL
+-	/*
+-	 * Sending MAYDAY is in essence a rare case, so prefer test
+-	 * then maybe clear over test_and_clear.
+-	 */
+-	if (user_mode(regs) && test_thread_flag(TIF_MAYDAY))
+-		dovetail_call_mayday(current_thread_info(), regs);
+-#endif
+-}
+-
+ static inline
+ irqreturn_t __call_action_handler(struct irqaction *action,
+ 				  struct irq_desc *desc)
+@@ -941,18 +928,6 @@ static bool inject_irq(struct irq_desc *desc)
+ 	return false;
+ }
+ 
+-static inline void synchronize_pipeline_on_irq(void)
+-{
+-	/*
+-	 * Optimize if we preempted the high priority oob stage: we
+-	 * don't need to synchronize the pipeline unless there is a
+-	 * pending interrupt for it.
+-	 */
+-	if (running_inband() ||
+-	    stage_irqs_pending(this_oob_staged()))
+-		synchronize_pipeline();
+-}
+-
+ static inline
+ void copy_timer_regs(struct irq_desc *desc, struct pt_regs *regs)
+ {
+@@ -1021,29 +996,9 @@ int generic_pipeline_irq(unsigned int irq, struct pt_regs *regs)
+ 	}
+ 
+ 	copy_timer_regs(desc, regs);
+-	enter_oob_irq();
+ 	preempt_count_add(PIPELINE_OFFSET);
+ 	generic_handle_irq_desc(desc);
+ 	preempt_count_sub(PIPELINE_OFFSET);
+-	/*
+-	 * We have to synchronize the logs because interrupts might
+-	 * have been logged while we were busy handling an OOB event
+-	 * coming from the hardware:
+-	 *
+-	 * - as a result of calling an OOB handler which in turned
+-	 * posted them.
+-	 *
+-	 * - because we posted them directly for scheduling the
+-	 * interrupt to happen from the inband stage.
+-	 *
+-	 * This also means that hardware-originated OOB events have
+-	 * higher precedence when received than software-originated
+-	 * ones, which are synced once all IRQ flow handlers involved
+-	 * in the interrupt have run.
+-	 */
+-	exit_oob_irq();
+-	synchronize_pipeline_on_irq();
+-	check_pending_mayday(regs);
+ out:
+ 	set_irq_regs(old_regs);
+ 	trace_irq_pipeline_exit(irq);
+-- 
+2.16.4
+

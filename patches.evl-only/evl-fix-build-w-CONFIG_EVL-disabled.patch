@@ -1,0 +1,63 @@
+From 033660fa8cf0303ac87f11772c25b35a08de4157 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 3 Aug 2019 16:37:26 +0200
+Subject: [PATCH] evl: fix build w/ CONFIG_EVL disabled
+
+---
+ include/asm-generic/evl/irq.h         |  4 ++++
+ include/asm-generic/evl/thread_info.h | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/include/asm-generic/evl/irq.h b/include/asm-generic/evl/irq.h
+index bf50e9a1ebd..ea3d047c33a 100644
+--- a/include/asm-generic/evl/irq.h
++++ b/include/asm-generic/evl/irq.h
+@@ -6,12 +6,16 @@
+ 
+ static inline void irq_enter_pipeline(void)
+ {
++#ifdef CONFIG_EVL
+ 	evl_enter_irq();
++#endif
+ }
+ 
+ static inline void irq_exit_pipeline(void)
+ {
++#ifdef CONFIG_EVL
+ 	evl_exit_irq();
++#endif
+ }
+ 
+ #endif /* !_ASM_GENERIC_EVL_IRQ_H */
+diff --git a/include/asm-generic/evl/thread_info.h b/include/asm-generic/evl/thread_info.h
+index bc1c7ada97a..99cfd71e49b 100644
+--- a/include/asm-generic/evl/thread_info.h
++++ b/include/asm-generic/evl/thread_info.h
+@@ -2,6 +2,8 @@
+ #ifndef _ASM_GENERIC_EVL_THREAD_INFO_H
+ #define _ASM_GENERIC_EVL_THREAD_INFO_H
+ 
++#ifdef CONFIG_EVL
++
+ struct evl_thread;
+ 
+ struct oob_thread_state {
+@@ -16,4 +18,15 @@ void evl_init_thread_state(struct oob_thread_state *p)
+ 	p->preempt_count = 0;
+ }
+ 
++#else
++
++struct oob_thread_state { };
++
++static inline
++void evl_init_thread_state(struct oob_thread_state *p)
++{
++}
++
++#endif	/* !CONFIG_EVL */
++
+ #endif /* !_ASM_GENERIC_EVL_THREAD_INFO_H */
+-- 
+2.16.4
+

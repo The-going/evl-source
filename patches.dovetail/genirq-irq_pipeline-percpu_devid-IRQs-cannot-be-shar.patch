@@ -1,0 +1,51 @@
+From d67c67191f52277f5d1bf4d9984bf846c9b44e2e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 22 Jul 2019 20:55:33 +0200
+Subject: [PATCH] genirq: irq_pipeline: percpu_devid IRQs cannot be shared
+
+Use this invariant to implement a faster path when dispatching those
+events to the out-of-band stage.
+---
+ kernel/irq/pipeline.c | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 94bddebe7ec..07dbedff571 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -870,15 +870,25 @@ static void do_oob_irq(struct irq_desc *desc)
+ 	struct irqaction *action;
+ 	void *dev_id;
+ 
+-	for_each_action_of_desc(desc, action) {
++	action = desc->action;
++	if (unlikely(action == NULL))
++		goto done;
++
++	if (percpu_devid) {
+ 		trace_irq_handler_entry(irq, action);
+-		dev_id = percpu_devid ? raw_cpu_ptr(action->percpu_dev_id)
+-			: action->dev_id;
+-		res = action->handler(irq, dev_id);
+-		trace_irq_handler_exit(irq, action, res);
+-		ret |= res;
++		dev_id = raw_cpu_ptr(action->percpu_dev_id);
++		ret = action->handler(irq, dev_id);
++		trace_irq_handler_exit(irq, action, ret);
++	} else {
++		for_each_action_of_desc(desc, action) {
++			trace_irq_handler_entry(irq, action);
++			dev_id = action->dev_id;
++			res = action->handler(irq, dev_id);
++			trace_irq_handler_exit(irq, action, res);
++			ret |= res;
++		}
+ 	}
+-
++done:
+ 	if (likely(ret & IRQ_HANDLED)) {
+ 		desc->irqs_unhandled = 0;
+ 		return;
+-- 
+2.16.4
+

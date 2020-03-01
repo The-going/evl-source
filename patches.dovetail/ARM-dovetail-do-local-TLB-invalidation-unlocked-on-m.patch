@@ -1,0 +1,51 @@
+From a9bd8ef131620abd9fbc78c2c26f6441a0e98a57 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 27 Jul 2019 19:15:21 +0200
+Subject: [PATCH] ARM: dovetail: do local TLB invalidation unlocked on mm
+ switch
+
+TLB invalidation is a potentially long operation on some hardware when
+caches are under pressure. We may safely run such invalidation for the
+current CPU unlocked before leaving the mm context switching code,
+reducing the spinning time of other CPUs proportionally.
+---
+ arch/arm/mm/context.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mm/context.c b/arch/arm/mm/context.c
+index 381c9683104..0cf14bd0c26 100644
+--- a/arch/arm/mm/context.c
++++ b/arch/arm/mm/context.c
+@@ -238,6 +238,7 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
+ {
+ 	unsigned long flags;
+ 	unsigned int cpu = raw_smp_processor_id();
++	bool need_flush;
+ 	u64 asid;
+ 
+ 	WARN_ON_ONCE(dovetail_debug() && !hard_irqs_disabled());
+@@ -265,15 +266,16 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
+ 		atomic64_set(&mm->context.id, asid);
+ 	}
+ 
+-	if (cpumask_test_and_clear_cpu(cpu, &tlb_flush_pending)) {
+-		local_flush_bp_all();
+-		local_flush_tlb_all();
+-	}
+-
++	need_flush = cpumask_test_and_clear_cpu(cpu, &tlb_flush_pending);
+ 	atomic64_set(&per_cpu(active_asids, cpu), asid);
+ 	cpumask_set_cpu(cpu, mm_cpumask(mm));
+ 	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+ 
++	if (need_flush) {
++		local_flush_bp_all();
++		local_flush_tlb_all();
++	}
++
+ switch_mm_fastpath:
+ 	cpu_switch_mm(mm->pgd, mm);
+ }
+-- 
+2.16.4
+
