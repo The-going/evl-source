@@ -1,4 +1,4 @@
-From d7d0d0fb38c362ffb302c03fa30db0d5020b2c4f Mon Sep 17 00:00:00 2001
+From 9fae6c8dd7953e341a45090f7387bf6a619c66f2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 19:36:20 +0200
 Subject: [PATCH] locking: irq_pipeline: make debug optional for hard spinlocks
@@ -27,10 +27,10 @@ index d818ebfd9f8e..4263f7044f95 100644
  
  #endif /* __ASM_GENERIC_IRQ_PIPELINE_H */
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index cc0b951a3c40..c2519775ed38 100644
+index 7da91e32b3d6..8f95ee91f576 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
-@@ -303,14 +303,14 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+@@ -312,14 +312,14 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
   * or they are too narrow (they suffer from a false class-split):
   */
  #define lockdep_set_class(lock, key) \
@@ -50,7 +50,7 @@ index cc0b951a3c40..c2519775ed38 100644
  
  #define lockdep_set_novalidate_class(lock) \
  	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
-@@ -318,7 +318,7 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+@@ -327,7 +327,7 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
   * Compare locking classes
   */
  #define lockdep_match_class(lock, key) \
@@ -59,7 +59,7 @@ index cc0b951a3c40..c2519775ed38 100644
  
  static inline int lockdep_match_key(struct lockdep_map *lock,
  				    struct lock_class_key *key)
-@@ -357,8 +357,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
+@@ -366,8 +366,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
  	return lock_is_held_type(lock, -1);
  }
  
@@ -70,7 +70,7 @@ index cc0b951a3c40..c2519775ed38 100644
  
  extern void lock_set_class(struct lockdep_map *lock, const char *name,
  			   struct lock_class_key *key, unsigned int subclass,
-@@ -383,26 +383,27 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
+@@ -392,26 +392,27 @@ extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
  #define lockdep_depth(tsk)	(debug_locks ? (tsk)->lockdep_depth : 0)
  
  #define lockdep_assert_held(l)	do {				\
@@ -78,7 +78,7 @@ index cc0b951a3c40..c2519775ed38 100644
 +		WARN_ON(debug_locks && !LOCKDEP_HARD_DEBUG_RET(l, 1, lockdep_is_held(l))); \
  	} while (0)
  
- #define lockdep_assert_held_exclusive(l)	do {			\
+ #define lockdep_assert_held_write(l)	do {			\
 -		WARN_ON(debug_locks && !lockdep_is_held_type(l, 0));	\
 +		WARN_ON(debug_locks && !LOCKDEP_HARD_DEBUG_RET(l, 1, lockdep_is_held_type(l, 0))); \
  	} while (0)
@@ -267,10 +267,10 @@ index 962550ca59af..b63f16dc6b32 100644
  	if (!hard_irqs_disabled_flags(flags))
  		hard_local_irq_enable();
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index f197eaac9ac7..28c07eafc928 100644
+index 1f3126c548cd..4a2452658078 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -687,8 +687,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
+@@ -724,8 +724,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
  	restore_stage(flags);
  }
  
@@ -279,7 +279,7 @@ index f197eaac9ac7..28c07eafc928 100644
  #else
  
  #define lockdep_stage_test_and_disable(__irqsoff)		\
-@@ -707,7 +705,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
+@@ -744,7 +742,6 @@ static inline void lockdep_stage_restore(unsigned long flags)
  	})
  
  #define lockdep_stage_restore(__flags)		raw_local_irq_restore(__flags)
@@ -288,10 +288,10 @@ index f197eaac9ac7..28c07eafc928 100644
  #endif /* !CONFIG_IRQ_PIPELINE */
  
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d54daf8ce149..674f191f01a1 100644
+index dafbfb53bc46..b395882c0c4f 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1174,6 +1174,7 @@ config LOCK_STAT
+@@ -1171,6 +1171,7 @@ config LOCK_STAT
  	select DEBUG_MUTEXES
  	select DEBUG_RT_MUTEXES if RT_MUTEXES
  	select DEBUG_LOCK_ALLOC
@@ -299,7 +299,7 @@ index d54daf8ce149..674f191f01a1 100644
  	default n
  	help
  	 This feature enables tracking lock contention points
-@@ -1251,8 +1252,23 @@ config DEBUG_LOCK_ALLOC
+@@ -1248,8 +1249,23 @@ config DEBUG_LOCK_ALLOC
  	 spin_lock_init()/mutex_init()/etc., or whether there is any lock
  	 held during task exit.
  

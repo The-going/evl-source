@@ -1,4 +1,4 @@
-From fd3ed338efa2df94da98f04c91019b9d527bfcb8 Mon Sep 17 00:00:00 2001
+From c374ba4b634aa1c3e0be4e15f29126b35c24dceb Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 5 May 2019 18:27:46 +0200
 Subject: [PATCH] stop_machine: irq_pipeline: ensure no in-band IRQ is deferred
@@ -12,10 +12,10 @@ virtual interrupt disabling in MULTI_STOP_DISABLE_IRQ to ensure this.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/stop_machine.c b/kernel/stop_machine.c
-index 773519599277..e60d5d451917 100644
+index 9d372cbc0974..72fad723cc42 100644
 --- a/kernel/stop_machine.c
 +++ b/kernel/stop_machine.c
-@@ -205,8 +205,8 @@ static int multi_cpu_stop(void *data)
+@@ -214,8 +214,8 @@ static int multi_cpu_stop(void *data)
  			curstate = msdata->state;
  			switch (curstate) {
  			case MULTI_STOP_DISABLE_IRQ:

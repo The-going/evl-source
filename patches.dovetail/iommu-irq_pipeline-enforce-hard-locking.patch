@@ -1,4 +1,4 @@
-From 1243b0d8dcf8f1a51101e977445a68265f6e07f8 Mon Sep 17 00:00:00 2001
+From 0530566b70ea7ae9cd1d45065fdebc9c5f02e128 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 09:12:19 +0200
 Subject: [PATCH] iommu: irq_pipeline: enforce hard locking
@@ -8,10 +8,10 @@ Subject: [PATCH] iommu: irq_pipeline: enforce hard locking
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/intel-iommu.h b/include/linux/intel-iommu.h
-index 6a8dd4af0147..44a6ad8c0c81 100644
+index f2ae8a006ff8..95118e96a1cd 100644
 --- a/include/linux/intel-iommu.h
 +++ b/include/linux/intel-iommu.h
-@@ -516,7 +516,7 @@ struct intel_iommu {
+@@ -522,7 +522,7 @@ struct intel_iommu {
  	u64		cap;
  	u64		ecap;
  	u32		gcmd; /* Holds TE, EAFL. Don't need SRTP, SFL, WBF */

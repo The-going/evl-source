@@ -1,4 +1,4 @@
-From a8d706a6f912ef0072991b25bfe88db4b9736964 Mon Sep 17 00:00:00 2001
+From db0e555d0bbc4d7df6107454ba320874ec6fb0ff Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 26 Jun 2018 12:04:25 +0200
 Subject: [PATCH] mm: dovetail: allow force commit of pages in mappings
@@ -11,7 +11,7 @@ Subject: [PATCH] mm: dovetail: allow force commit of pages in mappings
  4 files changed, 79 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index dd0b5f4e1e45..dab5e2d982bb 100644
+index 0334ca97c584..f6eff9a46cd3 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
 @@ -2891,5 +2891,16 @@ void __init setup_nr_node_ids(void);
@@ -44,10 +44,10 @@ index ecdc6542070f..cefa20991d06 100644
  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
  				 MMF_DISABLE_THP_MASK)
 diff --git a/mm/memory.c b/mm/memory.c
-index ddf20bd0c317..2d4ff4b97d7b 100644
+index e2bb51b6242e..a1d5be98d205 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -4674,6 +4674,66 @@ long copy_huge_page_from_user(struct page *dst_page,
+@@ -4619,6 +4619,66 @@ long copy_huge_page_from_user(struct page *dst_page,
  }
  #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
  

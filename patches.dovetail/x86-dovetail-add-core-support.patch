@@ -1,4 +1,4 @@
-From 1ac609c41bfcae15793f5b6cdae83850b5d5f0d3 Mon Sep 17 00:00:00 2001
+From ebb6840bdb331cf588adfdba88ceebdea8dfcd4c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 6 May 2019 17:08:45 +0200
 Subject: [PATCH] x86: dovetail: add core support
@@ -13,10 +13,10 @@ Subject: [PATCH] x86: dovetail: add core support
  create mode 100644 arch/x86/include/asm/dovetail.h
 
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index e2993889ab3e..dcaa7febcadf 100644
+index adb5d34814d8..610f1e7b7478 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -27,6 +27,7 @@ config X86_64
+@@ -28,6 +28,7 @@ config X86_64
  	select ARCH_USE_CMPXCHG_LOCKREF
  	select HAVE_ARCH_SOFT_DIRTY
  	select HAVE_IRQ_PIPELINE
@@ -24,7 +24,7 @@ index e2993889ab3e..dcaa7febcadf 100644
  	select MODULES_USE_ELF_RELA
  	select NEED_DMA_MAP_STATE
  	select SWIOTLB
-@@ -184,6 +185,7 @@ config X86
+@@ -189,6 +190,7 @@ config X86
  	select HAVE_MOD_ARCH_SPECIFIC
  	select HAVE_MOVE_PMD
  	select HAVE_NMI
@@ -32,7 +32,7 @@ index e2993889ab3e..dcaa7febcadf 100644
  	select HAVE_OPROFILE
  	select HAVE_OPTPROBES
  	select HAVE_PCSPKR_PLATFORM
-@@ -835,6 +837,7 @@ config JAILHOUSE_GUEST
+@@ -853,6 +855,7 @@ config ACRN_GUEST
  
  endif #HYPERVISOR_GUEST
  
@@ -63,10 +63,10 @@ index 000000000000..0cd94cae9c19
 +
 +#endif /* _ASM_X86_DOVETAIL_H */
 diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 66f7aa204ff2..abcb0bf8c279 100644
+index 6540d929d1ed..3d80ebf398d0 100644
 --- a/arch/x86/include/asm/processor.h
 +++ b/arch/x86/include/asm/processor.h
-@@ -512,8 +512,12 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
+@@ -515,8 +515,12 @@ static inline void arch_thread_struct_whitelist(unsigned long *offset,
   */
  #define TS_COMPAT		0x0002	/* 32bit syscall active (64BIT)*/
  #define TS_OOB			0x0004	/* Thread is running out-of-band */
@@ -122,11 +122,11 @@ index f9453536f9bb..40590cdb4b78 100644
  #define _TIF_LAZY_MMU_UPDATES	(1 << TIF_LAZY_MMU_UPDATES)
  #define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
 diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index 950b56f2c531..7125e4fbb0bd 100644
+index eb77b8c2b6d3..974c7a4a16cf 100644
 --- a/arch/x86/kernel/asm-offsets.c
 +++ b/arch/x86/kernel/asm-offsets.c
-@@ -41,6 +41,7 @@ static void __used common(void)
- 	OFFSET(TASK_TI_flags, task_struct, thread_info.flags);
+@@ -40,6 +40,7 @@ static void __used common(void)
+ 	BLANK();
  	OFFSET(TASK_TI_status, task_struct, thread_info.status);
  	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
 +	DEFINE(TASK_oob_mask, STAGE_MASK);

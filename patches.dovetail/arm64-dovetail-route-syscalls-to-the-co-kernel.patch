@@ -1,26 +1,12 @@
-From b0bba7d5354e2539cdd3bcc226d5e91612fff7f2 Mon Sep 17 00:00:00 2001
+From baf815f43f8540d4de2c8d9382ddd6fcd3321d30 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 10:50:46 +0200
 Subject: [PATCH] arm64: dovetail: route syscalls to the co-kernel
 
 ---
- arch/arm64/include/asm/daifflags.h |  2 +-
- arch/arm64/kernel/syscall.c        | 21 ++++++++++++++++++++-
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ arch/arm64/kernel/syscall.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm64/include/asm/daifflags.h b/arch/arm64/include/asm/daifflags.h
-index cbe3cdb43ba6..375df9e11bb1 100644
---- a/arch/arm64/include/asm/daifflags.h
-+++ b/arch/arm64/include/asm/daifflags.h
-@@ -11,7 +11,7 @@
- 
- /*
-  * IRQ_PIPELINE: DAIF masking is only used in contexts where hard
-- * interrupt masking applies, so no need to virtualize for the root
-+ * interrupt masking applies, so no need to virtualize for the inband
-  * stage here (the pipeline core does assume this).
-  */
- 
 diff --git a/arch/arm64/kernel/syscall.c b/arch/arm64/kernel/syscall.c
 index 871c739f060a..15ce595fee11 100644
 --- a/arch/arm64/kernel/syscall.c

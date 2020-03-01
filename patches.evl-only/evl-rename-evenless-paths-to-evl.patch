@@ -1,4 +1,4 @@
-From 90513a8c166b361fb132136e3c040ead0b9d60b2 Mon Sep 17 00:00:00 2001
+From 497adb843d59b8049e09623bcb4d1a6ed47309b3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -196,10 +196,10 @@ Subject: [PATCH] evl: rename evenless/ paths to evl/
  rename kernel/{evenless => evl}/xbuf.c (98%)
 
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 2fadd924aeef..16d4d0b2ef31 100644
+index 501549900bfb..c09eeb57efcc 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -270,7 +270,7 @@ endif
+@@ -269,7 +269,7 @@ endif
  endif
  
  ifeq ($(CONFIG_EVL),y)
@@ -321,10 +321,10 @@ index df9f454d7b7e..d9771dda64f2 100644
 -#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 +#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index aa4589585627..d7e454b8f2bd 100644
+index 00e0a86940d1..d7675b2e0953 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -87,7 +87,7 @@ endif
+@@ -101,7 +101,7 @@ endif
  CHECKFLAGS	+= -D__aarch64__
  
  ifeq ($(CONFIG_EVL),y)
@@ -484,7 +484,7 @@ index 000000000000..212ff2528aac
 +
 +#endif /* !_EVL_ARM64_ASM_UAPI_SYSCALL_H */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 35c8d596043c..273c3f2a6494 100644
+index 616792f36ebc..b61d8b8c8c5b 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -30,7 +30,7 @@ source "drivers/block/Kconfig"
@@ -497,7 +497,7 @@ index 35c8d596043c..273c3f2a6494 100644
  # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index f337a917c32a..f0df2e534bc6 100644
+index 5abf1fec252c..f4e366aa8f42 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -1933,7 +1933,7 @@ index 6730247e8da3..9d8256629839 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index d944e677c779..7497b096a98d 100644
+index 2f1a1732ce61..0b2f19262cd2 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o

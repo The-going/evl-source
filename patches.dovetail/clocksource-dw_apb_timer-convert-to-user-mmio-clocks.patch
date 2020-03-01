@@ -1,4 +1,4 @@
-From c293abb0c61729c517257c9c35339dbdb9847a31 Mon Sep 17 00:00:00 2001
+From 17f70f5d6f761e66649b5f5ce0a28ebdd996ce0d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 24 Jul 2018 21:42:33 +0200
 Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
@@ -10,10 +10,10 @@ Subject: [PATCH] clocksource/dw_apb_timer: convert to user mmio clocksource
  3 files changed, 20 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 820fa9a159f3..46a8f33cc87c 100644
+index 34973beea912..1cd25fba6e2c 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -57,6 +57,7 @@ config DIGICOLOR_TIMER
+@@ -62,6 +62,7 @@ config DIGICOLOR_TIMER
  
  config DW_APB_TIMER
  	bool "DW APB timer driver" if COMPILE_TEST

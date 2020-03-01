@@ -1,4 +1,4 @@
-From e341fc29568ef41177050292f5a8d5dbf2d09f9e Mon Sep 17 00:00:00 2001
+From 5fc5caf0a7d6c70862c3de912aa65251f9951033 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 5 Apr 2019 16:51:52 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: dovetail: fix call to
@@ -31,10 +31,10 @@ index 9a65d1c735ae..9f62c384c329 100644
 +		d->clock_type = ARM_CLOCK_ARCH_TIMER;
  }
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index 632ad33f0616..a282cbd21f1b 100644
+index 5f174dab9073..fa9db9cdcabe 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
-@@ -968,6 +968,10 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
+@@ -961,6 +961,10 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
  	return &arch_timer_kvm_info;
  }
  
@@ -45,7 +45,7 @@ index 632ad33f0616..a282cbd21f1b 100644
  static void __init arch_counter_register(unsigned type)
  {
  	u64 start_count;
-@@ -992,9 +996,7 @@ static void __init arch_counter_register(unsigned type)
+@@ -985,9 +989,7 @@ static void __init arch_counter_register(unsigned type)
  		arch_timer_read_counter = rd;
  		clocksource_counter.archdata.vdso_direct = vdso_default;
  

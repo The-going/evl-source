@@ -1,4 +1,4 @@
-From 51633e31452cbcb0a75171c49135975ecf42c592 Mon Sep 17 00:00:00 2001
+From bb2f7da47d05e7d3ccdaa1e850a18cbf54fdb70b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 May 2019 12:29:30 +0200
 Subject: [PATCH] evl: add x86 support
@@ -21,10 +21,10 @@ Subject: [PATCH] evl: add x86 support
  create mode 100644 arch/x86/include/uapi/asm/evl/syscall.h
 
 diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index dcaa7febcadf..07be8a21bc25 100644
+index 610f1e7b7478..4b15f4564eb0 100644
 --- a/arch/x86/Kconfig
 +++ b/arch/x86/Kconfig
-@@ -28,6 +28,7 @@ config X86_64
+@@ -29,6 +29,7 @@ config X86_64
  	select HAVE_ARCH_SOFT_DIRTY
  	select HAVE_IRQ_PIPELINE
  	select HAVE_DOVETAIL
@@ -32,7 +32,7 @@ index dcaa7febcadf..07be8a21bc25 100644
  	select MODULES_USE_ELF_RELA
  	select NEED_DMA_MAP_STATE
  	select SWIOTLB
-@@ -837,6 +838,7 @@ config JAILHOUSE_GUEST
+@@ -855,6 +856,7 @@ config ACRN_GUEST
  
  endif #HYPERVISOR_GUEST
  

@@ -1,4 +1,4 @@
-From 4ef33ca046955f5eeaa420a92eadce48c1f2f2dc Mon Sep 17 00:00:00 2001
+From 1b69b332f56956f034ede4c423f318a1b7fd4c10 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 24 Apr 2019 12:42:47 +0200
 Subject: [PATCH] x86/thread: export offset of synchronous status
@@ -8,13 +8,13 @@ Subject: [PATCH] x86/thread: export offset of synchronous status
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index 168543d077d7..950b56f2c531 100644
+index 5c7ee3df4d0b..eb77b8c2b6d3 100644
 --- a/arch/x86/kernel/asm-offsets.c
 +++ b/arch/x86/kernel/asm-offsets.c
-@@ -39,6 +39,7 @@ static void __used common(void)
+@@ -38,6 +38,7 @@ static void __used common(void)
+ #endif
  
  	BLANK();
- 	OFFSET(TASK_TI_flags, task_struct, thread_info.flags);
 +	OFFSET(TASK_TI_status, task_struct, thread_info.status);
  	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
  

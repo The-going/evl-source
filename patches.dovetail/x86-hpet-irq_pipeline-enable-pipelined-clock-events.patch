@@ -1,41 +1,40 @@
-From 72832449fc81d3d02b0b568136b0e94affb264fe Mon Sep 17 00:00:00 2001
+From ea21ba634815d722c9431e6bbc357656eff991ae Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:23:29 +0200
 Subject: [PATCH] x86/hpet: irq_pipeline: enable pipelined clock events
 
 ---
- arch/x86/kernel/hpet.c | 5 +++--
+ arch/x86/kernel/hpet.c | 4 ++--
  arch/x86/kernel/time.c | 2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/kernel/hpet.c b/arch/x86/kernel/hpet.c
-index a0573f2e7763..2e4a11d371de 100644
+index c6f791bc481e..aa0ec1ed1a72 100644
 --- a/arch/x86/kernel/hpet.c
 +++ b/arch/x86/kernel/hpet.c
-@@ -419,7 +419,8 @@ static int hpet_legacy_next_event(unsigned long delta,
- static struct clock_event_device hpet_clockevent = {
- 	.name			= "hpet",
- 	.features		= CLOCK_EVT_FEAT_PERIODIC |
--				  CLOCK_EVT_FEAT_ONESHOT,
-+				  CLOCK_EVT_FEAT_ONESHOT |
-+				  CLOCK_EVT_FEAT_PIPELINE,
- 	.set_state_periodic	= hpet_legacy_set_periodic,
- 	.set_state_oneshot	= hpet_legacy_set_oneshot,
- 	.set_state_shutdown	= hpet_legacy_shutdown,
-@@ -525,7 +526,7 @@ static irqreturn_t hpet_interrupt_handler(int irq, void *data)
+@@ -405,7 +405,7 @@ static void hpet_init_clockevent(struct hpet_channel *hc, unsigned int rating)
+ 	evt->set_next_event	= hpet_clkevt_set_next_event;
+ 	evt->set_state_shutdown	= hpet_clkevt_set_state_shutdown;
+ 
+-	evt->features = CLOCK_EVT_FEAT_ONESHOT;
++	evt->features = CLOCK_EVT_FEAT_ONESHOT|CLOCK_EVT_FEAT_PIPELINE;
+ 	if (hc->boot_cfg & HPET_TN_PERIODIC) {
+ 		evt->features		|= CLOCK_EVT_FEAT_PERIODIC;
+ 		evt->set_state_periodic	= hpet_clkevt_set_state_periodic;
+@@ -518,7 +518,7 @@ static irqreturn_t hpet_msi_interrupt_handler(int irq, void *data)
  		return IRQ_HANDLED;
  	}
  
--	hevt->event_handler(hevt);
-+	clockevents_handle_event(hevt);
+-	evt->event_handler(evt);
++	clockevents_handle_event(evt);
  	return IRQ_HANDLED;
  }
  
 diff --git a/arch/x86/kernel/time.c b/arch/x86/kernel/time.c
-index 0e14f6c0d35e..3e59b5b9a722 100644
+index 7ce29cee9f9e..1326d5dbe967 100644
 --- a/arch/x86/kernel/time.c
 +++ b/arch/x86/kernel/time.c
-@@ -59,7 +59,7 @@ EXPORT_SYMBOL(profile_pc);
+@@ -58,7 +58,7 @@ EXPORT_SYMBOL(profile_pc);
   */
  static irqreturn_t timer_interrupt(int irq, void *dev_id)
  {

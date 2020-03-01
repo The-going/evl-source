@@ -1,4 +1,4 @@
-From 161e5156d46d2d3c99fdd90a3ac8edd2bfe0d251 Mon Sep 17 00:00:00 2001
+From 917dffd2253421050ae87fa8cc63e52b696704ad Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 5 Jul 2018 08:41:15 +0200
 Subject: [PATCH] sched: dovetail: announce CPU migration for task
@@ -8,10 +8,10 @@ Subject: [PATCH] sched: dovetail: announce CPU migration for task
  1 file changed, 1 insertion(+)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 1ed47217920c..36b7a7a4057d 100644
+index f7721b1092ac..ff1a749d596f 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1151,6 +1151,7 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
+@@ -1559,6 +1559,7 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
  		goto out;
  
  	dest_cpu = cpumask_any_and(cpu_valid_mask, new_mask);

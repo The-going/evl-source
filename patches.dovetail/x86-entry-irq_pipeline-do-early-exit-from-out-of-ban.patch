@@ -1,4 +1,4 @@
-From 23214caeaa8762dc9c6f5aa182329b6822c7db86 Mon Sep 17 00:00:00 2001
+From fcbb217d467026c21e05ad73bee8080caeb14e24 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 May 2019 15:57:54 +0200
 Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
@@ -11,10 +11,10 @@ Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
  4 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
-index 16eaca2551d8..07696095b55c 100644
+index 3edf33826339..c737f2398944 100644
 --- a/arch/x86/entry/common.c
 +++ b/arch/x86/entry/common.c
-@@ -207,6 +207,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+@@ -202,6 +202,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
  	struct thread_info *ti = current_thread_info();
  	u32 cached_flags;
  
@@ -24,10 +24,10 @@ index 16eaca2551d8..07696095b55c 100644
  
  	lockdep_assert_irqs_disabled();
 diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index c74aff4f576f..cffce17ef253 100644
+index 7288eb0b1d9a..8854adc52acf 100644
 --- a/arch/x86/entry/entry_64.S
 +++ b/arch/x86/entry/entry_64.S
-@@ -565,10 +565,11 @@ ENTRY(interrupt_entry)
+@@ -579,10 +579,11 @@ ENTRY(interrupt_entry)
  
  1:
  	ENTER_IRQ_STACK old_rsp=%rdi save_ret=1
@@ -43,7 +43,7 @@ index c74aff4f576f..cffce17ef253 100644
  #ifndef CONFIG_IRQ_PIPELINE
  	TRACE_IRQS_OFF
  #endif
-@@ -1376,6 +1377,14 @@ ENTRY(error_exit)
+@@ -1425,6 +1426,14 @@ ENTRY(error_exit)
  	UNWIND_HINT_REGS
  	DISABLE_INTERRUPTS(CLBR_ANY)
  	TRACE_IRQS_OFF
@@ -59,11 +59,11 @@ index c74aff4f576f..cffce17ef253 100644
  	jz	retint_kernel
  	jmp	retint_user
 diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index 7125e4fbb0bd..0dd9bf4be160 100644
+index 974c7a4a16cf..edc4259629ff 100644
 --- a/arch/x86/kernel/asm-offsets.c
 +++ b/arch/x86/kernel/asm-offsets.c
-@@ -41,7 +41,11 @@ static void __used common(void)
- 	OFFSET(TASK_TI_flags, task_struct, thread_info.flags);
+@@ -40,7 +40,11 @@ static void __used common(void)
+ 	BLANK();
  	OFFSET(TASK_TI_status, task_struct, thread_info.status);
  	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
 -	DEFINE(TASK_oob_mask, STAGE_MASK);
@@ -76,10 +76,10 @@ index 7125e4fbb0bd..0dd9bf4be160 100644
  	BLANK();
  	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index 250e4c4ac6d9..6dadc2d57ffe 100644
+index af64519b2695..ad990d84977e 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -522,6 +522,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+@@ -512,6 +512,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
  	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
  		     this_cpu_read(irq_count) != -1);
  

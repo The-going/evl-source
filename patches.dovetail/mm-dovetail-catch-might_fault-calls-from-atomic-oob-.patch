@@ -1,4 +1,4 @@
-From c1931ec7b94ea7da2c0daa16f36e7c537c081bb1 Mon Sep 17 00:00:00 2001
+From 41b320f6c4bdb6d0c8366ab7f1858c78dc0b616f Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Feb 2017 12:24:31 +0100
 Subject: [PATCH] mm: dovetail: catch might_fault() calls from atomic oob
@@ -12,10 +12,10 @@ __might_fault() helper.
  1 file changed, 9 insertions(+)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 2d4ff4b97d7b..8c8652676f27 100644
+index a1d5be98d205..f0ec49981d7e 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -4480,6 +4480,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
+@@ -4425,6 +4425,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
  #if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP)
  void __might_fault(const char *file, int line)
  {

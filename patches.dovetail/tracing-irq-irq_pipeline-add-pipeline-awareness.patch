@@ -1,4 +1,4 @@
-From af3e6d292711d7350032c871ddc6fe81ef8febeb Mon Sep 17 00:00:00 2001
+From f66b081ea7688d63f3de297de6a4ce4cdda41bac Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
@@ -12,10 +12,10 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index 1c80521fd436..c8d1a914d9d8 100644
+index 525a97fbbc60..507ee49f35c7 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -2322,12 +2322,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+@@ -2322,12 +2322,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned short type,
  	entry->flags =
  #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
  		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -92,7 +92,7 @@ index a745b0cee5d3..7316cfc95e27 100644
  	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
  	data->critical_start = 0;
 diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index 54373d93e251..c8957039fad2 100644
+index cab4a5398f1d..424859b9b5c5 100644
 --- a/kernel/trace/trace_output.c
 +++ b/kernel/trace/trace_output.c
 @@ -430,14 +430,19 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)

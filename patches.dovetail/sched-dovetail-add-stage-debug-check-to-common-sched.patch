@@ -1,4 +1,4 @@
-From c7619ff7c9c6cf382bc3555c617444b1e408cada Mon Sep 17 00:00:00 2001
+From 529bb466927d74917c18b2b12c36d3029eeb3a20 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 19:36:14 +0200
 Subject: [PATCH] sched: dovetail: add stage debug check to common scheduling
@@ -19,7 +19,7 @@ This code is compiled in with CONFIG_DEBUG_IRQ_PIPELINE.
  3 files changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index 0c9bc231107f..db575c38e06c 100644
+index 4fa360a13c1e..dc3bc1aac72b 100644
 --- a/include/linux/kernel.h
 +++ b/include/linux/kernel.h
 @@ -14,6 +14,7 @@
@@ -30,7 +30,7 @@ index 0c9bc231107f..db575c38e06c 100644
  #include <asm/byteorder.h>
  #include <asm/div64.h>
  #include <uapi/linux/kernel.h>
-@@ -201,9 +202,12 @@ struct user;
+@@ -203,9 +204,12 @@ struct user;
  
  #ifdef CONFIG_PREEMPT_VOLUNTARY
  extern int _cond_resched(void);
@@ -46,10 +46,10 @@ index 0c9bc231107f..db575c38e06c 100644
  
  #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index bae22f25987d..62326bbe00b9 100644
+index eab66584ecaf..70bb255913c8 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3272,6 +3272,8 @@ static inline void schedule_debug(struct task_struct *prev)
+@@ -3707,6 +3707,8 @@ static inline void schedule_debug(struct task_struct *prev)
  		panic("corrupted stack end detected inside scheduler\n");
  #endif
  
@@ -59,7 +59,7 @@ index bae22f25987d..62326bbe00b9 100644
  		__schedule_bug(prev);
  		preempt_count_set(PREEMPT_DISABLED);
 diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index fa0f9adfb752..7f5cc7eb17b8 100644
+index c1e566a114ca..c0b0b6e17f69 100644
 --- a/kernel/sched/wait.c
 +++ b/kernel/sched/wait.c
 @@ -70,6 +70,8 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,

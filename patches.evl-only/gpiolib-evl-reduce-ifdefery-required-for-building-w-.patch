@@ -1,4 +1,4 @@
-From 6a403ebcfc3ed6199dcc7eb70abccf1ce4b3a203 Mon Sep 17 00:00:00 2001
+From 7e9d298c5a1064e60d3a0fa9cdee6011fb57fa6a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 12:41:25 +0200
 Subject: [PATCH] gpiolib: evl: reduce #ifdefery required for building w/o EVL
@@ -10,7 +10,7 @@ Subject: [PATCH] gpiolib: evl: reduce #ifdefery required for building w/o EVL
  create mode 100644 include/evl/devices/gpio.h
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index 31a3fa7cff59..c48318cfd402 100644
+index 6a93b694a2cd..de264dd86119 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
 @@ -27,11 +27,8 @@
@@ -152,7 +152,7 @@ index 31a3fa7cff59..c48318cfd402 100644
  
  	free_irq(le->irq, le);
  	gpiod_free(le->desc);
-@@ -1306,7 +1297,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -1308,7 +1299,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  	}
  
  	if (oob_handling_requested(lflags)) {
@@ -161,7 +161,7 @@ index 31a3fa7cff59..c48318cfd402 100644
  		if (ret) {
  			fput(file);
  			put_unused_fd(fd);
-@@ -1321,7 +1312,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -1323,7 +1314,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		 * the regular error cleanup path here.
  		 */
  		if (oob_handling_requested(lflags))

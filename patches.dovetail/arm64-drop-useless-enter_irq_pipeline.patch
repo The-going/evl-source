@@ -1,4 +1,4 @@
-From 557ddb253165771b762e233d2b9cb87903f36370 Mon Sep 17 00:00:00 2001
+From dd562a3cc1da23a643d580cbefaeb4fd17e60ba3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 12:59:08 +0200
 Subject: [PATCH] arm64: drop useless enter_irq_pipeline()
@@ -8,10 +8,10 @@ Subject: [PATCH] arm64: drop useless enter_irq_pipeline()
  1 file changed, 1 deletion(-)
 
 diff --git a/arch/arm64/kernel/irq.c b/arch/arm64/kernel/irq.c
-index 6f3257daa62..a0166a45251 100644
+index 0ec289b11693..bd15d2b1e665 100644
 --- a/arch/arm64/kernel/irq.c
 +++ b/arch/arm64/kernel/irq.c
-@@ -41,7 +41,6 @@ int arch_show_interrupts(struct seq_file *p, int prec)
+@@ -43,7 +43,6 @@ int arch_show_interrupts(struct seq_file *p, int prec)
  asmlinkage int __exception_irq_entry
  handle_arch_irq_pipelined(struct pt_regs *regs)
  {

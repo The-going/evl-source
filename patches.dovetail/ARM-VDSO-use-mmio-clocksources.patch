@@ -1,4 +1,4 @@
-From 751c696b8c18a637053d091bd3e4cf93cf780d5d Mon Sep 17 00:00:00 2001
+From f6b03a88db698aa9489e951d275da6dc3ad2f61a Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Sat, 23 Jul 2016 14:36:14 +0200
 Subject: [PATCH] ARM: VDSO: use mmio clocksources
@@ -306,10 +306,10 @@ index aa95ca02614e..7482ed9f414f 100644
 +	d->clock_type = ARM_CLOCK_ARCH_TIMER;
 +}
 diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-index b169e580bf82..22612ca5a738 100644
+index c54cd7ed90ba..b418bc96a149 100644
 --- a/arch/arm/mm/Kconfig
 +++ b/arch/arm/mm/Kconfig
-@@ -885,7 +885,7 @@ config KUSER_HELPERS
+@@ -898,7 +898,7 @@ config KUSER_HELPERS
  
  config VDSO
  	bool "Enable VDSO for acceleration of some system calls"
@@ -835,7 +835,7 @@ index d1fdbb12760a..61f0fbc09eb6 100644
  	if (tv) {
  		tv->tv_sec = ts.tv_sec;
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 3300739edce4..6eabf4cea6ae 100644
+index 5e9317dc3d39..747a04ca03fe 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
 @@ -31,6 +31,11 @@ config CLKBLD_I8253

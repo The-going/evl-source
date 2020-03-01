@@ -255,8 +255,12 @@
 	patches.evl-only/evl-monitor-clarify-fix-oob_poll-comments.patch
 	patches.evl-only/evl-poll-return-ELOOP-on-circular-loop.patch
 	patches.evl-only/evl-clock-switch-timer-oob_read-return-to-u64-value.patch
+	patches.evl-only/evl-sched-properly-annotate-fall-through-cases.patch
 	patches.evl-only/evl-file-do-not-pollute-namespace-if-disabled.patch
 	patches.evl-only/include-evl-add-device-related-main-header.patch
 	patches.evl-only/gpiolib-evl-convert-to-evl-devices.h.patch
 	patches.evl-only/include-evl-file-remove-placeholders.patch
 	patches.evl-only/evl-irq-fix-build-with-CONFIG_EVL-disabled.patch
+	patches.evl-only/evl-monitor-add-support-for-recursive-gate-locking.patch
+	patches.evl-only/evl-wait-remove-left-over-declarations.patch
+	patches.evl-only/include-evl-devices.h-read-in-poll.h.patch

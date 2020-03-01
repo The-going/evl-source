@@ -1,4 +1,4 @@
-From 0e38b75f1e5a52893f3c1c11ea666baeefc86f77 Mon Sep 17 00:00:00 2001
+From 2ccb88798a2f5098dca79c88748fe66714862c60 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 15:35:50 +0200
 Subject: [PATCH] x86/fault: dovetail: add new mappings to the master page
@@ -9,10 +9,10 @@ Subject: [PATCH] x86/fault: dovetail: add new mappings to the master page
  1 file changed, 38 insertions(+)
 
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 7a3aa1fd4adf..440b40000171 100644
+index 1ea1a07cb698..3bbc0a337042 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
-@@ -1561,3 +1561,41 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+@@ -1537,3 +1537,41 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long addr
  	pipelined_fault_exit(flags);
  }
  NOKPROBE_SYMBOL(do_page_fault);

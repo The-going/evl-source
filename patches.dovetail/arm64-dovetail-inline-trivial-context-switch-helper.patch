@@ -1,4 +1,4 @@
-From 6761efda194dd4b43caf3309421dfd03135f4ebe Mon Sep 17 00:00:00 2001
+From 2ff0149bddaa3a34760af507944dbea1f2a1b8a4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 13 Jul 2019 17:45:43 +0200
 Subject: [PATCH] arm64: dovetail: inline trivial context switch helper
@@ -11,7 +11,7 @@ Subject: [PATCH] arm64: dovetail: inline trivial context switch helper
  delete mode 100644 arch/arm64/kernel/dovetail.c
 
 diff --git a/arch/arm64/include/asm/dovetail.h b/arch/arm64/include/asm/dovetail.h
-index c9a51cd389c..4802df0c347 100644
+index c9a51cd389c2..4802df0c347c 100644
 --- a/arch/arm64/include/asm/dovetail.h
 +++ b/arch/arm64/include/asm/dovetail.h
 @@ -6,6 +6,8 @@
@@ -35,10 +35,10 @@ index c9a51cd389c..4802df0c347 100644
  
  #endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/kernel/Makefile b/arch/arm64/kernel/Makefile
-index 83bd4c8cbb0..e6573b1c0fe 100644
+index 85e9129c3768..7028bca90cc2 100644
 --- a/arch/arm64/kernel/Makefile
 +++ b/arch/arm64/kernel/Makefile
-@@ -49,7 +49,6 @@ obj-$(CONFIG_ACPI_NUMA)			+= acpi_numa.o
+@@ -52,7 +52,6 @@ obj-$(CONFIG_ACPI_NUMA)			+= acpi_numa.o
  obj-$(CONFIG_ARM64_ACPI_PARKING_PROTOCOL)	+= acpi_parking_protocol.o
  obj-$(CONFIG_PARAVIRT)			+= paravirt.o
  obj-$(CONFIG_IRQ_PIPELINE)		+= irq_pipeline.o
@@ -48,7 +48,7 @@ index 83bd4c8cbb0..e6573b1c0fe 100644
  obj-$(CONFIG_KEXEC_CORE)		+= machine_kexec.o relocate_kernel.o	\
 diff --git a/arch/arm64/kernel/dovetail.c b/arch/arm64/kernel/dovetail.c
 deleted file mode 100644
-index 9c6235a1622..00000000000
+index 9c6235a16228..000000000000
 --- a/arch/arm64/kernel/dovetail.c
 +++ /dev/null
 @@ -1,12 +0,0 @@

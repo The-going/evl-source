@@ -93,11 +93,9 @@
 	patches.dovetail/arm64-dovetail-route-syscalls-to-the-co-kernel.patch
 	patches.dovetail/arm64-dovetail-route-traps-to-the-co-kernel.patch
 	patches.dovetail/arm64-fpsimd-dovetail-enable-sharing-with-oob-stage.patch
-	patches.dovetail/arm64-dovetail-enable-VDSO-access-from-the-oob-stage.patch
 	patches.dovetail/iio-irq_pipeline-enable-pipelined-interrupt-control.patch
 	patches.dovetail/pinctrl-msm-irq_pipeline-enable-pipelined-interrupt-.patch
 	patches.dovetail/spmi-pmic-arb-irq_pipeline-enable-pipelined-interrup.patch
-	patches.dovetail/arm64-irq_pipeline-fix-user-return-from-el0_irq.patch
 	patches.dovetail/genirq-irq_pipeline-add-helper-probing-for-pending-i.patch
 	patches.dovetail/arm64-irq_pipeline-fix-interrupt-state-logic-in-do_n.patch
 	patches.dovetail/ARM-irq_pipeline-fix-interrupt-state-logic-in-do_wor.patch
@@ -144,7 +142,6 @@
 	patches.dovetail/x86-apic-irq_pipeline-enable-pipelined-clock-events.patch
 	patches.dovetail/x86-hpet-irq_pipeline-enable-pipelined-clock-events.patch
 	patches.dovetail/x86-mtrr-irq_pipeline-guard-against-stage-preemption.patch
-	patches.dovetail/x86-vdso-dovetail-serialize-gtod-update-vs-read.patch
 	patches.dovetail/x86-nmi-irq_pipeline-disable-copy_from_user_nmi-from.patch
 	patches.dovetail/x86-dovetail-add-core-support.patch
 	patches.dovetail/x86-dovetail-enable-context-switching-from-the-oob-s.patch
@@ -237,9 +234,13 @@
 	patches.dovetail/x86-uaccess-irq_pipeline-restrict-WARN_ON_IN_IRQ-to-.patch
 	patches.dovetail/drivers-net-fec-use-lighter-write-barrier-with-devic.patch
 	patches.dovetail/x86-irq_pipeline-hardirqs-off-on-irq-routing.patch
-	patches.dovetail/x86-entry-irq_pipeline-check-stall-bit-in-TRACE_IRQS.patch
-	patches.dovetail/dovetail-altsched-prevent-the-compiler-from-reorderi.patch
 	patches.dovetail/tracing-irq-irq_pipeline-display-preempt_count-in-oo.patch
 	patches.dovetail/tracing-restrict-rcu_idle-context-to-inband-stage.patch
+	patches.dovetail/dovetail-altsched-prevent-the-compiler-from-reorderi.patch
 	patches.dovetail/dovetail-altsched-fix-preemption-count-breakage.patch
 	patches.dovetail/genirq-irq_pipeline-check_inband-must-preserve-the-i.patch
+	patches.dovetail/x86-entry-irq_pipeline-check-stall-bit-in-TRACE_IRQS.patch
+	patches.dovetail/genirq-irq_pipeline-fix-inband_irqs_disabled.patch
+	patches.dovetail/rcu-irq_pipeline-out-of-band-context-is-by-essence-n.patch
+	patches.dovetail/tty-imx-add-raw-console-channel.patch
+	patches.dovetail/regmap-dovetail-add-support-for-out-of-band-locking.patch

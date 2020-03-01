@@ -1,0 +1,62 @@
+From d0f4e69ccf8a124ec8d0df70f0592bcc84333c02 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 18 Aug 2019 16:35:51 +0200
+Subject: [PATCH] evl/monitor: add support for recursive gate locking
+
+Managing recursive mutexes is fully performed from userland in
+libevl. However, by making the lock nesting count visible in the
+shared state, we can have the kernel export it via /sysfs which may be
+helpful to users.
+---
+ include/uapi/evl/control.h | 2 +-
+ include/uapi/evl/monitor.h | 2 ++
+ kernel/evl/monitor.c       | 6 ++++--
+ 3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index ced92c0c0f9b..9c59f62b0e17 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  11
++#define EVL_ABI_LEVEL  12
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+diff --git a/include/uapi/evl/monitor.h b/include/uapi/evl/monitor.h
+index 577388d7a4da..1e27c2458c8f 100644
+--- a/include/uapi/evl/monitor.h
++++ b/include/uapi/evl/monitor.h
+@@ -41,6 +41,8 @@ struct evl_monitor_state {
+ 		struct {
+ 			atomic_t owner;
+ 			__u32 ceiling;
++			__u32 recursive: 1,
++				nesting : 31;
+ 		} gate;
+ 		struct {
+ 			atomic_t value;
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 737690a0d33f..6b00d7588c73 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -896,9 +896,11 @@ static ssize_t state_show(struct device *dev,
+ 		if (fun != EVL_NO_HANDLE)
+ 			owner = evl_get_element_by_fundle(&evl_thread_factory,
+ 							fun, struct evl_thread);
+-		ret = snprintf(buf, PAGE_SIZE, "%d %u\n",
++		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
+ 			owner ? evl_get_inband_pid(owner) : -1,
+-			state->u.gate.ceiling);
++			state->u.gate.ceiling,
++			owner ? (state->u.gate.recursive ?
++				state->u.gate.nesting : 1) : 0);
+ 		if (owner)
+ 			evl_put_element(&owner->element);
+ 	}
+-- 
+2.16.4
+

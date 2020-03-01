@@ -1,4 +1,4 @@
-From cbcb5b094975ae76ff18c40994e67981c2086d28 Mon Sep 17 00:00:00 2001
+From 577d5f3585a2bf0218e836e2f9f3bb2d915b7fa4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 20 Dec 2018 15:28:26 +0100
 Subject: [PATCH] kasan: irq_pipeline: serialize reports from oob contexts
@@ -18,10 +18,10 @@ therefore cannot sleep with full preemption enabled.
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index ca9418fe923..f70bd86b08f 100644
+index 0e5f965f1882..b52609499fc8 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -74,7 +74,7 @@ static void print_error_description(struct kasan_access_info *info)
+@@ -75,7 +75,7 @@ static void print_error_description(struct kasan_access_info *info)
  		info->access_addr, current->comm, task_pid_nr(current));
  }
  
@@ -30,7 +30,7 @@ index ca9418fe923..f70bd86b08f 100644
  
  static void start_report(unsigned long *flags)
  {
-@@ -82,7 +82,7 @@ static void start_report(unsigned long *flags)
+@@ -83,7 +83,7 @@ static void start_report(unsigned long *flags)
  	 * Make sure we don't end up in loop.
  	 */
  	kasan_disable_current();
@@ -39,7 +39,7 @@ index ca9418fe923..f70bd86b08f 100644
  	pr_err("==================================================================\n");
  }
  
-@@ -90,7 +90,7 @@ static void end_report(unsigned long *flags)
+@@ -91,7 +91,7 @@ static void end_report(unsigned long *flags)
  {
  	pr_err("==================================================================\n");
  	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);

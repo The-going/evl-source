@@ -1,4 +1,4 @@
-From aa0c2c53755b850e689513979fcab6c2939c1cf5 Mon Sep 17 00:00:00 2001
+From 428ee788210ff029aa408e8ad7d0ce7bb2f913ce Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 6 May 2017 18:28:49 +0200
 Subject: [PATCH] timekeeping: irq_pipeline: add NMI-safe ktime_get_real_fast()
@@ -13,11 +13,12 @@ wallclock-to-monotonic offset from the monotonic time returned by
 ktime_get_mono_fast_ns() which is NMI-safe too.
 ---
  include/linux/timekeeping.h |  1 +
+ include/vdso/helpers.h      |  2 ++
  kernel/time/timekeeping.c   | 15 +++++++++++++++
- 2 files changed, 16 insertions(+)
+ 3 files changed, 18 insertions(+)
 
 diff --git a/include/linux/timekeeping.h b/include/linux/timekeeping.h
-index a8ab0f143ac4..98bdf01c70cc 100644
+index b27e2ffa96c1..31278a7c4833 100644
 --- a/include/linux/timekeeping.h
 +++ b/include/linux/timekeeping.h
 @@ -69,6 +69,7 @@ extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
@@ -28,8 +29,28 @@ index a8ab0f143ac4..98bdf01c70cc 100644
  extern u32 ktime_get_resolution_ns(void);
  
  /**
+diff --git a/include/vdso/helpers.h b/include/vdso/helpers.h
+index 01641dbb68ef..3f378e332f41 100644
+--- a/include/vdso/helpers.h
++++ b/include/vdso/helpers.h
+@@ -34,6 +34,7 @@ static __always_inline void vdso_write_begin(struct vdso_data *vd)
+ 	 * updates to vd[x].seq and it is possible that the value seen by the
+ 	 * reader it is inconsistent.
+ 	 */
++	hard_cond_local_irq_disable();
+ 	WRITE_ONCE(vd[CS_HRES_COARSE].seq, vd[CS_HRES_COARSE].seq + 1);
+ 	WRITE_ONCE(vd[CS_RAW].seq, vd[CS_RAW].seq + 1);
+ 	smp_wmb();
+@@ -49,6 +50,7 @@ static __always_inline void vdso_write_end(struct vdso_data *vd)
+ 	 */
+ 	WRITE_ONCE(vd[CS_HRES_COARSE].seq, vd[CS_HRES_COARSE].seq + 1);
+ 	WRITE_ONCE(vd[CS_RAW].seq, vd[CS_RAW].seq + 1);
++	hard_cond_local_irq_enable();
+ }
+ 
+ #endif /* !__ASSEMBLY__ */
 diff --git a/kernel/time/timekeeping.c b/kernel/time/timekeeping.c
-index 85f5912d8f70..e7a8cef9dfb4 100644
+index d911c8470149..6328ea6be628 100644
 --- a/kernel/time/timekeeping.c
 +++ b/kernel/time/timekeeping.c
 @@ -89,6 +89,8 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {

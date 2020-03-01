@@ -1,4 +1,4 @@
-From 89b923a1022d83139b56f648a4590bba57e41a3b Mon Sep 17 00:00:00 2001
+From caee6983f666729a0f7842a658e93a04bcf286b2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 5 Dec 2015 18:36:25 +0100
 Subject: [PATCH] printk: introduce raw console channel
@@ -57,10 +57,10 @@ index cefd374c47b1..b36738cd5ea3 100644
  asmlinkage __printf(5, 0)
  int vprintk_emit(int facility, int level,
 diff --git a/init/Kconfig b/init/Kconfig
-index 0e2344389501..781bf3ceb9e9 100644
+index bd7d650d4a99..b31c55b9ca3f 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1324,6 +1324,18 @@ config PRINTK_NMI
+@@ -1402,6 +1402,18 @@ config PRINTK_NMI
  	depends on PRINTK
  	depends on HAVE_NMI
  

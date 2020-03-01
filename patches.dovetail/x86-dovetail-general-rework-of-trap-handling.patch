@@ -1,4 +1,4 @@
-From ed267a171c71d20597c8b45547f32144b64ad6f3 Mon Sep 17 00:00:00 2001
+From 9fe2d1e856d57d9635b0efbe6fba14eb8bcbd69e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 17 May 2019 17:32:22 +0200
 Subject: [PATCH] x86: dovetail: general rework of trap handling
@@ -31,10 +31,10 @@ handlers (paranoid handlers already skip kernel preemption by design).
  4 files changed, 78 insertions(+), 52 deletions(-)
 
 diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index cffce17ef253..5b65448f0680 100644
+index 8854adc52acf..d3ff65c7c12d 100644
 --- a/arch/x86/entry/entry_64.S
 +++ b/arch/x86/entry/entry_64.S
-@@ -1378,12 +1378,15 @@ ENTRY(error_exit)
+@@ -1427,12 +1427,15 @@ ENTRY(error_exit)
  	DISABLE_INTERRUPTS(CLBR_ANY)
  	TRACE_IRQS_OFF
  #ifdef CONFIG_IRQ_PIPELINE
@@ -54,7 +54,7 @@ index cffce17ef253..5b65448f0680 100644
  	testb	$3, CS(%rsp)
  	jz	retint_kernel
 diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index 0dd9bf4be160..b11ed0a8e809 100644
+index edc4259629ff..6528c28224e5 100644
 --- a/arch/x86/kernel/asm-offsets.c
 +++ b/arch/x86/kernel/asm-offsets.c
 @@ -12,6 +12,7 @@
@@ -65,7 +65,7 @@ index 0dd9bf4be160..b11ed0a8e809 100644
  #include <asm/processor.h>
  #include <asm/thread_info.h>
  #include <asm/sigframe.h>
-@@ -44,7 +45,9 @@ static void __used common(void)
+@@ -43,7 +44,9 @@ static void __used common(void)
  
  #ifdef CONFIG_IRQ_PIPELINE
  	BLANK();
@@ -77,7 +77,7 @@ index 0dd9bf4be160..b11ed0a8e809 100644
  
  	BLANK();
 diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 06159eb5c35a..a108f180fec1 100644
+index 675d81858e8f..c6db1dcaf5f6 100644
 --- a/arch/x86/kernel/traps.c
 +++ b/arch/x86/kernel/traps.c
 @@ -81,6 +81,13 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
@@ -123,7 +123,7 @@ index 06159eb5c35a..a108f180fec1 100644
  }
  
  #define IP ((void __user *)uprobe_get_trap_addr(regs))
-@@ -484,14 +488,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+@@ -480,14 +484,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
  	const struct mpx_bndcsr *bndcsr;
  	unsigned long flags;
  
@@ -141,7 +141,7 @@ index 06159eb5c35a..a108f180fec1 100644
  	if (!user_mode(regs))
  		die("bounds", regs, error_code);
  
-@@ -580,23 +584,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -576,23 +580,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
  	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
  	cond_local_irq_enable(regs);
  
@@ -169,7 +169,7 @@ index 06159eb5c35a..a108f180fec1 100644
  
  		tsk->thread.error_code = error_code;
  		tsk->thread.trap_nr = X86_TRAP_GP;
-@@ -608,21 +610,23 @@ do_general_protection(struct pt_regs *regs, long error_code)
+@@ -604,21 +606,23 @@ do_general_protection(struct pt_regs *regs, long error_code)
  		 */
  		if (!preemptible() && kprobe_running() &&
  		    kprobe_fault_handler(regs, X86_TRAP_GP))
@@ -190,13 +190,13 @@ index 06159eb5c35a..a108f180fec1 100644
  
  	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
  
- 	force_sig(SIGSEGV, tsk);
+ 	force_sig(SIGSEGV);
 -out:
 +
  	pipelined_fault_exit(flags);
  }
  NOKPROBE_SYMBOL(do_general_protection);
-@@ -631,8 +635,6 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -627,8 +631,6 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  {
  	unsigned long flags;
  
@@ -205,7 +205,7 @@ index 06159eb5c35a..a108f180fec1 100644
  #ifdef CONFIG_DYNAMIC_FTRACE
  	/*
  	 * ftrace must be first, everything else may cause a recursive crash.
-@@ -640,10 +642,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -636,10 +638,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  	 */
  	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
  	    ftrace_int3_handler(regs))
@@ -218,7 +218,7 @@ index 06159eb5c35a..a108f180fec1 100644
  
  	/*
  	 * Use ist_enter despite the fact that we don't use an IST stack.
-@@ -670,13 +672,13 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+@@ -666,13 +668,13 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
  		goto exit;
  
  	cond_local_irq_enable(regs);
@@ -234,7 +234,7 @@ index 06159eb5c35a..a108f180fec1 100644
  }
  NOKPROBE_SYMBOL(do_int3);
  
-@@ -834,11 +836,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -830,11 +832,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		goto exit;
  #endif
  
@@ -247,7 +247,7 @@ index 06159eb5c35a..a108f180fec1 100644
  
  	/*
  	 * Let others (NMI) know that the debug stack is in use
-@@ -854,7 +854,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -850,7 +850,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  					X86_TRAP_DB);
  		cond_local_irq_disable(regs);
  		debug_stack_usage_dec();
@@ -256,14 +256,14 @@ index 06159eb5c35a..a108f180fec1 100644
  	}
  
  	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
-@@ -869,13 +869,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+@@ -865,13 +865,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
  		regs->flags &= ~X86_EFLAGS_TF;
  	}
  	si_code = get_si_code(tsk->thread.debugreg6);
 -	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
 +	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp) {
 +		flags = pipelined_fault_entry(X86_TRAP_DB, regs);
- 		send_sigtrap(tsk, regs, error_code, si_code);
+ 		send_sigtrap(regs, error_code, si_code);
 +		pipelined_fault_exit(flags);
 +	}
  	cond_local_irq_disable(regs);
@@ -274,7 +274,7 @@ index 06159eb5c35a..a108f180fec1 100644
  exit:
  	ist_exit(regs);
  }
-@@ -895,13 +896,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -891,13 +892,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
  						"simd exception";
  
@@ -289,7 +289,7 @@ index 06159eb5c35a..a108f180fec1 100644
  
  		task->thread.error_code = error_code;
  		task->thread.trap_nr = trapnr;
-@@ -909,7 +908,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -905,7 +904,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  		if (notify_die(DIE_TRAP, str, regs, error_code,
  					trapnr, SIGFPE) != NOTIFY_STOP)
  			die(str, regs, error_code);
@@ -298,7 +298,7 @@ index 06159eb5c35a..a108f180fec1 100644
  	}
  
  	/*
-@@ -923,11 +922,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+@@ -919,11 +918,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
  	si_code = fpu__exception_code(fpu, trapnr);
  	/* Retry when we get spurious exceptions: */
  	if (!si_code)
@@ -308,13 +308,13 @@ index 06159eb5c35a..a108f180fec1 100644
 +	flags = pipelined_fault_entry(trapnr, regs);
  
  	force_sig_fault(SIGFPE, si_code,
- 			(void __user *)uprobe_get_trap_addr(regs), task);
+ 			(void __user *)uprobe_get_trap_addr(regs));
 -out:
 +
  	pipelined_fault_exit(flags);
  }
  
-@@ -961,10 +962,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
+@@ -957,10 +958,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
  	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
  		struct math_emu_info info = { };
  
@@ -327,7 +327,7 @@ index 06159eb5c35a..a108f180fec1 100644
  		info.regs = regs;
  		math_emulate(&info);
  
-@@ -992,7 +993,6 @@ NOKPROBE_SYMBOL(do_device_not_available);
+@@ -988,7 +989,6 @@ NOKPROBE_SYMBOL(do_device_not_available);
  dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
  {
  	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
@@ -336,10 +336,10 @@ index 06159eb5c35a..a108f180fec1 100644
  
  	if (notify_die(DIE_TRAP, "iret exception", regs, error_code,
 diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 440b40000171..94eefa16a0d6 100644
+index 3bbc0a337042..38b8146bc1c9 100644
 --- a/arch/x86/mm/fault.c
 +++ b/arch/x86/mm/fault.c
-@@ -725,7 +725,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+@@ -709,7 +709,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
  	   unsigned long address, int signal, int si_code)
  {
  	struct task_struct *tsk = current;
@@ -348,7 +348,7 @@ index 440b40000171..94eefa16a0d6 100644
  	int sig;
  
  	if (user_mode(regs)) {
-@@ -744,7 +744,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+@@ -728,7 +728,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
  		 * the below recursive fault logic only apply to a faults from
  		 * task context.
  		 */
@@ -357,7 +357,7 @@ index 440b40000171..94eefa16a0d6 100644
  			return;
  
  		/*
-@@ -754,11 +754,20 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+@@ -738,10 +738,19 @@ no_context(struct pt_regs *regs, unsigned long error_code,
  		 * faulting through the emulate_vsyscall() logic.
  		 */
  		if (current->thread.sig_on_uaccess_err && signal) {
@@ -371,14 +371,13 @@ index 440b40000171..94eefa16a0d6 100644
  			set_signal_archinfo(address, error_code);
  
  			/* XXX: hwpoison faults will set the wrong code. */
- 			force_sig_fault(signal, si_code, (void __user *)address,
- 					tsk);
+ 			force_sig_fault(signal, si_code, (void __user *)address);
 +
 +			pipelined_fault_exit(entry_flags);
  		}
  
  		/*
-@@ -815,6 +824,14 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+@@ -798,6 +807,14 @@ no_context(struct pt_regs *regs, unsigned long error_code,
  	if (is_errata93(regs, address))
  		return;
  
@@ -393,7 +392,7 @@ index 440b40000171..94eefa16a0d6 100644
  	/*
  	 * Buggy firmware could access regions which might page fault, try to
  	 * recover from such faults.
-@@ -842,6 +859,9 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+@@ -825,6 +842,9 @@ no_context(struct pt_regs *regs, unsigned long error_code,
  	printk(KERN_DEFAULT "CR2: %016lx\n", address);
  
  	oops_end(flags, regs, sig);
@@ -403,7 +402,7 @@ index 440b40000171..94eefa16a0d6 100644
  }
  
  /*
-@@ -1512,6 +1532,8 @@ static noinline void
+@@ -1495,6 +1515,8 @@ static noinline void
  __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
  		unsigned long address)
  {
@@ -412,7 +411,7 @@ index 440b40000171..94eefa16a0d6 100644
  	prefetchw(&current->mm->mmap_sem);
  
  	if (unlikely(kmmio_fault(regs, address)))
-@@ -1520,8 +1542,11 @@ __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
+@@ -1503,8 +1525,11 @@ __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
  	/* Was the fault on kernel-controlled part of the address space? */
  	if (unlikely(fault_in_kernel_space(address)))
  		do_kern_addr_fault(regs, hw_error_code, address);
@@ -425,18 +424,16 @@ index 440b40000171..94eefa16a0d6 100644
  }
  NOKPROBE_SYMBOL(__do_page_fault);
  
-@@ -1547,9 +1572,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+@@ -1525,16 +1550,11 @@ dotraplinkage void
+ do_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address)
  {
- 	unsigned long address = read_cr2(); /* Get the faulting address */
  	enum ctx_state prev_state;
 -	unsigned long flags;
 -
 -	flags = pipelined_fault_entry(X86_TRAP_PF, regs);
  
  	prev_state = exception_enter();
- 	if (trace_pagefault_enabled())
-@@ -1557,8 +1579,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
- 
+ 	trace_page_fault_entries(regs, error_code, address);
  	__do_page_fault(regs, error_code, address);
  	exception_exit(prev_state);
 -

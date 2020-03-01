@@ -1,4 +1,4 @@
-From 566a68a98bf3114f60353db70fc05b822aee87f9 Mon Sep 17 00:00:00 2001
+From 22f3d53bb3ceeb014a94e4c00d35b472076b29f3 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 6 Apr 2017 17:52:17 +0200
 Subject: [PATCH] irq_pipeline: add proxy tick device
@@ -21,7 +21,7 @@ device too.
  create mode 100644 kernel/time/tick-proxy.c
 
 diff --git a/include/linux/clockchips.h b/include/linux/clockchips.h
-index 8ae9a95ebf5..7b9f434a15f 100644
+index 8ae9a95ebf5b..7b9f434a15fd 100644
 --- a/include/linux/clockchips.h
 +++ b/include/linux/clockchips.h
 @@ -15,6 +15,7 @@
@@ -120,7 +120,7 @@ index 8ae9a95ebf5..7b9f434a15f 100644
  
  static inline void clockevents_suspend(void) { }
 diff --git a/include/linux/tick.h b/include/linux/tick.h
-index 55388ab45fd..8408a4d5e27 100644
+index f92a10b5e112..0616356788cb 100644
 --- a/include/linux/tick.h
 +++ b/include/linux/tick.h
 @@ -20,6 +20,22 @@ extern void tick_suspend_local(void);
@@ -147,16 +147,16 @@ index 55388ab45fd..8408a4d5e27 100644
  static inline void tick_init(void) { }
  static inline void tick_suspend_local(void) { }
 diff --git a/kernel/time/Makefile b/kernel/time/Makefile
-index f1e46f338a9..e8bc8f6d8bd 100644
+index 1867044800bb..4e336980bd2d 100644
 --- a/kernel/time/Makefile
 +++ b/kernel/time/Makefile
-@@ -18,3 +18,4 @@ obj-$(CONFIG_GENERIC_SCHED_CLOCK)		+= sched_clock.o
- obj-$(CONFIG_TICK_ONESHOT)			+= tick-oneshot.o tick-sched.o
+@@ -19,3 +19,4 @@ obj-$(CONFIG_TICK_ONESHOT)			+= tick-oneshot.o tick-sched.o
+ obj-$(CONFIG_HAVE_GENERIC_VDSO)			+= vsyscall.o
  obj-$(CONFIG_DEBUG_FS)				+= timekeeping_debug.o
  obj-$(CONFIG_TEST_UDELAY)			+= test_udelay.o
 +obj-$(CONFIG_IRQ_PIPELINE)			+= tick-proxy.o
 diff --git a/kernel/time/tick-internal.h b/kernel/time/tick-internal.h
-index e277284c283..00a74a8fd8f 100644
+index 7b2496136729..299bec837004 100644
 --- a/kernel/time/tick-internal.h
 +++ b/kernel/time/tick-internal.h
 @@ -51,8 +51,6 @@ static inline void clockevent_set_state(struct clock_event_device *dev,
@@ -170,7 +170,7 @@ index e277284c283..00a74a8fd8f 100644
  extern void clockevents_handle_noop(struct clock_event_device *dev);
 diff --git a/kernel/time/tick-proxy.c b/kernel/time/tick-proxy.c
 new file mode 100644
-index 00000000000..50ddd635f2d
+index 000000000000..50ddd635f2d7
 --- /dev/null
 +++ b/kernel/time/tick-proxy.c
 @@ -0,0 +1,543 @@

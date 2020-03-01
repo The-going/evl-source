@@ -1,4 +1,4 @@
-From 27ad8019a95b582f6528309cdd2329d675292719 Mon Sep 17 00:00:00 2001
+From 8323a12db7434aedd67d9080649c3049ff6a21ea Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 7 May 2019 08:39:26 +0200
 Subject: [PATCH] x86/fpu: dovetail: enable sharing with oob stage
@@ -9,10 +9,10 @@ Subject: [PATCH] x86/fpu: dovetail: enable sharing with oob stage
  arch/x86/include/asm/fpu/internal.h |  31 +++++++++-
  arch/x86/include/asm/fpu/types.h    |  12 ++++
  arch/x86/include/asm/pgtable.h      |   5 +-
- arch/x86/kernel/fpu/core.c          | 118 ++++++++++++++++++++++++++++++++----
+ arch/x86/kernel/fpu/core.c          | 119 ++++++++++++++++++++++++++++++++----
  arch/x86/kernel/fpu/signal.c        |  25 ++++----
  arch/x86/kvm/x86.c                  |  12 ++--
- 8 files changed, 210 insertions(+), 38 deletions(-)
+ 8 files changed, 211 insertions(+), 38 deletions(-)
 
 diff --git a/arch/x86/include/asm/dovetail.h b/arch/x86/include/asm/dovetail.h
 index 0cd94cae9c19..e996daa3992c 100644
@@ -172,7 +172,7 @@ index f098f6cab94b..a95c861a38cc 100644
  	 * @avx512_timestamp:
  	 *
 diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 5e0509b41986..de4ebf52bfed 100644
+index 0bc530c4eb13..159c3b001c54 100644
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
 @@ -136,6 +136,7 @@ static inline u32 read_pkru(void)
@@ -198,7 +198,7 @@ index 5e0509b41986..de4ebf52bfed 100644
  
  static inline int pte_young(pte_t pte)
 diff --git a/arch/x86/kernel/fpu/core.c b/arch/x86/kernel/fpu/core.c
-index 649fbc3fcf9f..de6cfe957996 100644
+index 12c70840980e..51b7261dc32c 100644
 --- a/arch/x86/kernel/fpu/core.c
 +++ b/arch/x86/kernel/fpu/core.c
 @@ -15,6 +15,7 @@
@@ -209,7 +209,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  
  #define CREATE_TRACE_POINTS
  #include <asm/trace/fpu.h>
-@@ -88,18 +89,22 @@ static bool interrupted_user_mode(void)
+@@ -76,19 +77,24 @@ static bool interrupted_user_mode(void)
   */
  bool irq_fpu_usable(void)
  {
@@ -223,30 +223,32 @@ index 649fbc3fcf9f..de6cfe957996 100644
  }
  EXPORT_SYMBOL(irq_fpu_usable);
  
- static void __kernel_fpu_begin(void)
+ void kernel_fpu_begin(void)
  {
- 	struct fpu *fpu = &current->thread.fpu;
 +	unsigned long flags;
++
+ 	preempt_disable();
  
  	WARN_ON_FPU(!irq_fpu_usable());
+ 	WARN_ON_FPU(this_cpu_read(in_kernel_fpu));
  
 +	flags = hard_cond_local_irq_save();
 +
- 	kernel_fpu_disable();
+ 	this_cpu_write(in_kernel_fpu, true);
  
- 	if (!(current->flags & PF_KTHREAD)) {
-@@ -112,7 +117,10 @@ static void __kernel_fpu_begin(void)
- 			copy_fpregs_to_fpstate(fpu);
- 		}
+ 	if (!(current->flags & PF_KTHREAD) &&
+@@ -100,7 +106,10 @@ void kernel_fpu_begin(void)
+ 		 */
+ 		copy_fpregs_to_fpstate(&current->thread.fpu);
  	}
 +
  	__cpu_invalidate_fpregs_state();
 +
 +	hard_cond_local_irq_restore(flags);
  }
+ EXPORT_SYMBOL_GPL(kernel_fpu_begin);
  
- static void __kernel_fpu_end(void)
-@@ -141,9 +149,11 @@ EXPORT_SYMBOL_GPL(kernel_fpu_end);
+@@ -120,9 +129,11 @@ EXPORT_SYMBOL_GPL(kernel_fpu_end);
   */
  void fpu__save(struct fpu *fpu)
  {
@@ -259,16 +261,16 @@ index 649fbc3fcf9f..de6cfe957996 100644
  	trace_x86_fpu_before_save(fpu);
  
  	if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
-@@ -153,7 +163,7 @@ void fpu__save(struct fpu *fpu)
+@@ -132,7 +143,7 @@ void fpu__save(struct fpu *fpu)
  	}
  
  	trace_x86_fpu_after_save(fpu);
 -	fpregs_unlock();
 +	fpregs_unlock(flags);
  }
- EXPORT_SYMBOL_GPL(fpu__save);
  
-@@ -190,6 +200,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
+ /*
+@@ -168,6 +179,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
  {
  	struct fpu *dst_fpu = &dst->thread.fpu;
  	struct fpu *src_fpu = &src->thread.fpu;
@@ -276,7 +278,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  
  	dst_fpu->last_cpu = -1;
  
-@@ -212,14 +223,14 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
+@@ -190,14 +202,14 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
  	 * ( The function 'fails' in the FNSAVE case, which destroys
  	 *   register contents so we have to load them back. )
  	 */
@@ -293,7 +295,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  
  	set_tsk_thread_flag(dst, TIF_NEED_FPU_LOAD);
  
-@@ -297,7 +308,9 @@ void fpu__prepare_write(struct fpu *fpu)
+@@ -275,7 +287,9 @@ void fpu__prepare_write(struct fpu *fpu)
   */
  void fpu__drop(struct fpu *fpu)
  {
@@ -304,7 +306,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  
  	if (fpu == &current->thread.fpu) {
  		/* Ignore delayed exceptions from user space */
-@@ -309,7 +322,7 @@ void fpu__drop(struct fpu *fpu)
+@@ -287,7 +301,7 @@ void fpu__drop(struct fpu *fpu)
  
  	trace_x86_fpu_dropped(fpu);
  
@@ -313,7 +315,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  }
  
  /*
-@@ -318,7 +331,9 @@ void fpu__drop(struct fpu *fpu)
+@@ -296,7 +310,9 @@ void fpu__drop(struct fpu *fpu)
   */
  static inline void copy_init_fpstate_to_fpregs(void)
  {
@@ -324,7 +326,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  
  	if (use_xsave())
  		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
-@@ -331,7 +346,7 @@ static inline void copy_init_fpstate_to_fpregs(void)
+@@ -309,7 +325,7 @@ static inline void copy_init_fpstate_to_fpregs(void)
  		copy_init_pkru_to_fpregs();
  
  	fpregs_mark_activate();
@@ -333,7 +335,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  }
  
  /*
-@@ -342,16 +357,24 @@ static inline void copy_init_fpstate_to_fpregs(void)
+@@ -320,16 +336,24 @@ static inline void copy_init_fpstate_to_fpregs(void)
   */
  void fpu__clear(struct fpu *fpu)
  {
@@ -359,7 +361,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  }
  
  /*
-@@ -359,10 +382,14 @@ void fpu__clear(struct fpu *fpu)
+@@ -337,10 +361,14 @@ void fpu__clear(struct fpu *fpu)
   */
  void switch_fpu_return(void)
  {
@@ -374,7 +376,7 @@ index 649fbc3fcf9f..de6cfe957996 100644
  }
  EXPORT_SYMBOL_GPL(switch_fpu_return);
  
-@@ -462,3 +489,70 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
+@@ -440,3 +468,70 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
  	 */
  	return 0;
  }
@@ -551,10 +553,10 @@ index 0071b794ed19..528f88eee96f 100644
  err_out:
  	if (ret)
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 9857992d4e58..03e1ca65558a 100644
+index 93b0bd45ac73..742299d833fe 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -8217,7 +8217,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
+@@ -8272,7 +8272,9 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
  /* Swap (qemu) user FPU context for the guest FPU context. */
  static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  {
@@ -563,9 +565,9 @@ index 9857992d4e58..03e1ca65558a 100644
 +
 +	flags = fpregs_lock();
  
- 	copy_fpregs_to_fpstate(&current->thread.fpu);
+ 	copy_fpregs_to_fpstate(vcpu->arch.user_fpu);
  	/* PKRU is separately restored in kvm_x86_ops->run.  */
-@@ -8225,7 +8227,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8280,7 +8282,7 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  				~XFEATURE_MASK_PKRU);
  
  	fpregs_mark_activate();
@@ -574,7 +576,7 @@ index 9857992d4e58..03e1ca65558a 100644
  
  	trace_kvm_fpu(1);
  }
-@@ -8233,13 +8235,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+@@ -8288,13 +8290,15 @@ static void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
  /* When vcpu_run ends, restore user space FPU context. */
  static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
  {
@@ -584,7 +586,7 @@ index 9857992d4e58..03e1ca65558a 100644
 +	flags = fpregs_lock();
  
  	copy_fpregs_to_fpstate(vcpu->arch.guest_fpu);
- 	copy_kernel_to_fpregs(&current->thread.fpu.state);
+ 	copy_kernel_to_fpregs(&vcpu->arch.user_fpu->state);
  
  	fpregs_mark_activate();
 -	fpregs_unlock();

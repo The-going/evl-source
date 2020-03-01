@@ -1,4 +1,4 @@
-From 3bb71303ee2e18eda54d27a9038ebfa8171a09fe Mon Sep 17 00:00:00 2001
+From b845af7cd9b1fea2b61773ca15f0bd8c0271ca80 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 30 Jul 2019 15:44:39 +0200
 Subject: [PATCH] x86: irq_pipeline: skip irq_enter/exit from oob stage
@@ -8,10 +8,10 @@ Subject: [PATCH] x86: irq_pipeline: skip irq_enter/exit from oob stage
  1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/arch/x86/include/asm/apic.h b/arch/x86/include/asm/apic.h
-index dbefb651d6b..735c65f87a3 100644
+index 99fe6bcf3a03..35d51ffe1719 100644
 --- a/arch/x86/include/asm/apic.h
 +++ b/arch/x86/include/asm/apic.h
-@@ -515,12 +515,12 @@ bool apic_id_is_primary_thread(unsigned int id);
+@@ -516,12 +516,12 @@ bool apic_id_is_primary_thread(unsigned int id);
  static inline bool apic_id_is_primary_thread(unsigned int id) { return false; }
  #endif
  
@@ -27,7 +27,7 @@ index dbefb651d6b..735c65f87a3 100644
  	kvm_set_cpu_l1tf_flush_l1d();
  }
  
-@@ -532,20 +532,20 @@ static inline void entering_ack_irq(void)
+@@ -533,20 +533,20 @@ static inline void entering_ack_irq(void)
  
  static inline void ipi_entering_ack_irq(void)
  {

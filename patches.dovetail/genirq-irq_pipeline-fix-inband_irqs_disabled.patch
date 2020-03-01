@@ -1,0 +1,68 @@
+From 0eb0d7f75316bff4a48a86f2cbd1decc5c3d6cdc Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 22 Aug 2019 17:32:59 +0200
+Subject: [PATCH] genirq: irq_pipeline: fix inband_irqs_disabled()
+
+The documented assumption in the code about the resilience of
+__test_stage_bit() to CPU migration was plain wrong with any
+load-store architecture. Hard irqs must be off in SMP mode when
+testing the stall bit of the in-band stage from the current CPU like
+for any other operators, no matter what:
+
+CPU0: [in-band is unstalled]
+CPU0: &this_inband_staged()->status is computed
+CPU1: <migration to CPU1>
+CPU0: [in-band is stalled]
+CPU1: STALL_BIT from CPU0 is tested, seen as "stalled" => *BUG*
+---
+ kernel/irq/pipeline.c | 26 +++++++++-----------------
+ 1 file changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 684ebffbfe60..b17f20ff05f1 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -339,20 +339,14 @@ EXPORT_SYMBOL(inband_irq_disable);
+  */
+ notrace unsigned long inband_irqs_disabled(void)
+ {
+-	/*
+-	 * We don't have to guard against CPU migration here, because
+-	 * we are testing the inband stage stall from that
+-	 * stage. Since may only migrate if our current stage is
+-	 * unstalled, such state won't have changed once resuming on
+-	 * the destination CPU.
+-	 *
+-	 * CAUTION: the assumption above only holds when testing the
+-	 * inband stall bit from the inband stage. Particularly, it
+-	 * does NOT hold when testing the oob stall bit from the
+-	 * inband stage. In that latter situation, hard irqs must be
+-	 * off in SMP.
+-	 */
+-	return __test_stage_bit(STAGE_STALL_BIT, this_inband_staged());
++	unsigned long flags;
++	int ret;
++
++	flags = hard_smp_local_irq_save();
++	ret =  __test_stage_bit(STAGE_STALL_BIT, this_inband_staged());
++	hard_smp_local_irq_restore(flags);
++
++	return ret;
+ }
+ EXPORT_SYMBOL(inband_irqs_disabled);
+ 
+@@ -488,10 +482,8 @@ notrace bool stage_disabled(void)
+ 
+ 	if (!hard_irqs_disabled()) {
+ 		ret = false;
+-		/* See comment in inband_irqs_disabled(). */
+ 		if (running_inband())
+-			ret = __test_stage_bit(STAGE_STALL_BIT,
+-					       this_inband_staged());
++			ret = inband_irqs_disabled();
+ 	}
+ 
+ 	return ret;
+-- 
+2.16.4
+

@@ -1,4 +1,4 @@
-From cc291f9f5edfd9cd11ec530384b2e8a618b36e9f Mon Sep 17 00:00:00 2001
+From 561d079f33c61f1022d94b929009e08bdd591c72 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 09:57:59 +0200
 Subject: [PATCH] arm64: dovetail: enable context switching from the oob stage
@@ -6,16 +6,15 @@ Subject: [PATCH] arm64: dovetail: enable context switching from the oob stage
 ---
  arch/arm64/include/asm/efi.h         |  6 ++++++
  arch/arm64/include/asm/mmu_context.h | 22 ++++++++++++++++++++--
- arch/arm64/kernel/entry.S            | 22 ++++++++++++++++++++++
  arch/arm64/kernel/irq_pipeline.c     |  3 +++
  arch/arm64/mm/context.c              |  4 +++-
- 5 files changed, 54 insertions(+), 3 deletions(-)
+ 4 files changed, 32 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/efi.h b/arch/arm64/include/asm/efi.h
-index c9e9a6978e73..0bb9b2ad66f1 100644
+index 76a144702586..ffefe20b5d29 100644
 --- a/arch/arm64/include/asm/efi.h
 +++ b/arch/arm64/include/asm/efi.h
-@@ -131,6 +131,10 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
+@@ -135,6 +135,10 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
  
  static inline void efi_set_pgd(struct mm_struct *mm)
  {
@@ -26,7 +25,7 @@ index c9e9a6978e73..0bb9b2ad66f1 100644
  	__switch_mm(mm);
  
  	if (system_uses_ttbr0_pan()) {
-@@ -155,6 +159,8 @@ static inline void efi_set_pgd(struct mm_struct *mm)
+@@ -159,6 +163,8 @@ static inline void efi_set_pgd(struct mm_struct *mm)
  			update_saved_ttbr0(current, current->active_mm);
  		}
  	}
@@ -76,53 +75,6 @@ index 9cc5206acd2b..d27ce40f1e76 100644
  
  void verify_cpu_asid_bits(void);
  void post_ttbr_update_workaround(void);
-diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-index 9c84dd31a19c..8a7ea1acd611 100644
---- a/arch/arm64/kernel/entry.S
-+++ b/arch/arm64/kernel/entry.S
-@@ -383,6 +383,21 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
- 	.macro	irq_stack_entry
- 	mov	x19, sp			// preserve the original sp
- 
-+#ifdef CONFIG_DOVETAIL
-+	/*
-+	 * When the pipeline is enabled, context switches over the irq
-+	 * stack are allowed (for the co-kernel), and more interrupts
-+	 * can be taken over sibling stack contexts. So we need a not so
-+	 * subtle way of figuring out whether the irq stack was actually
-+	 * exited, which cannot depend on the current task pointer.
-+	 */
-+	adr_this_cpu x25, irq_nesting, x26
-+	ldr	w26, [x25]
-+	cmp	w26, #0
-+	add	w26, w26, #1
-+	str	w26, [x25]
-+	b.ne	9998f
-+#else
- 	/*
- 	 * Compare sp with the base of the task stack.
- 	 * If the top ~(THREAD_SIZE - 1) bits match, we are on a task stack,
-@@ -392,6 +407,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
- 	eor	x25, x25, x19
- 	and	x25, x25, #~(THREAD_SIZE - 1)
- 	cbnz	x25, 9998f
-+#endif
- 
- 	ldr_this_cpu x25, irq_stack_ptr, x26
- 	mov	x26, #IRQ_STACK_SIZE
-@@ -409,6 +425,12 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
- 	 */
- 	.macro	irq_stack_exit
- 	mov	sp, x19
-+#ifdef CONFIG_DOVETAIL
-+	adr_this_cpu x1, irq_nesting, x2
-+	ldr	w2, [x1]
-+	add	w2, w2, #-1
-+	str	w2, [x1]
-+#endif
- 	.endm
- 
- /* GPRs used by entry code */
 diff --git a/arch/arm64/kernel/irq_pipeline.c b/arch/arm64/kernel/irq_pipeline.c
 index b41b5ff52ac4..5afe8cca0432 100644
 --- a/arch/arm64/kernel/irq_pipeline.c

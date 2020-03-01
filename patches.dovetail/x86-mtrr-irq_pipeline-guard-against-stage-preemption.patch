@@ -1,4 +1,4 @@
-From 7f5300f233de6e789e7438149f61ea2120c79331 Mon Sep 17 00:00:00 2001
+From 01389b8c62d2833eac26cf97cd46cf7269193fa9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 28 Apr 2019 16:33:32 +0200
 Subject: [PATCH] x86/mtrr: irq_pipeline: guard against stage preemption
@@ -8,7 +8,7 @@ Subject: [PATCH] x86/mtrr: irq_pipeline: guard against stage preemption
  1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/arch/x86/kernel/cpu/mtrr/generic.c b/arch/x86/kernel/cpu/mtrr/generic.c
-index 9356c1c9024d..09105b25c5fb 100644
+index aa5c064a6a22..7f656c9e98ec 100644
 --- a/arch/x86/kernel/cpu/mtrr/generic.c
 +++ b/arch/x86/kernel/cpu/mtrr/generic.c
 @@ -450,13 +450,13 @@ void __init mtrr_bp_pat_init(void)
@@ -27,7 +27,7 @@ index 9356c1c9024d..09105b25c5fb 100644
  }
  
  /* Grab all of the MTRR state for this CPU into *state */
-@@ -786,7 +786,7 @@ static void generic_set_all(void)
+@@ -797,7 +797,7 @@ static void generic_set_all(void)
  	unsigned long mask, count;
  	unsigned long flags;
  
@@ -36,7 +36,7 @@ index 9356c1c9024d..09105b25c5fb 100644
  	prepare_set();
  
  	/* Actually set the state */
-@@ -796,7 +796,7 @@ static void generic_set_all(void)
+@@ -807,7 +807,7 @@ static void generic_set_all(void)
  	pat_init();
  
  	post_set();
@@ -45,7 +45,7 @@ index 9356c1c9024d..09105b25c5fb 100644
  
  	/* Use the atomic bitops to update the global mask */
  	for (count = 0; count < sizeof(mask) * 8; ++count) {
-@@ -825,7 +825,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
+@@ -836,7 +836,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
  
  	vr = &mtrr_state.var_ranges[reg];
  
@@ -54,7 +54,7 @@ index 9356c1c9024d..09105b25c5fb 100644
  	prepare_set();
  
  	if (size == 0) {
-@@ -846,7 +846,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
+@@ -857,7 +857,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
  	}
  
  	post_set();

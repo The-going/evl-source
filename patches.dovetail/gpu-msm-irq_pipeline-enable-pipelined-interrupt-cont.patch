@@ -1,4 +1,4 @@
-From 6dcf7eee7918768292da4fe568a9e7484a26dcb9 Mon Sep 17 00:00:00 2001
+From a2af42b3ab672e65c50a2372ed11c64004188044 Mon Sep 17 00:00:00 2001
 From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
 Date: Fri, 22 Mar 2019 06:34:00 +0100
 Subject: [PATCH] gpu: msm: irq_pipeline: enable pipelined interrupt control
@@ -9,10 +9,10 @@ Subject: [PATCH] gpu: msm: irq_pipeline: enable pipelined interrupt control
  2 files changed, 2 insertions(+)
 
 diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c b/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
-index 7316b4ab1b85..37908a935ec7 100644
+index 986915bbbc02..4713e29a9d53 100644
 --- a/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
 +++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
-@@ -84,6 +84,7 @@ static struct irq_chip dpu_mdss_irq_chip = {
+@@ -120,6 +120,7 @@ static struct irq_chip dpu_mdss_irq_chip = {
  	.name = "dpu_mdss",
  	.irq_mask = dpu_mdss_irq_mask,
  	.irq_unmask = dpu_mdss_irq_unmask,

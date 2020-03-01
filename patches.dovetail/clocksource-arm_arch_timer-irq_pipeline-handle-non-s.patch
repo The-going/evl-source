@@ -1,4 +1,4 @@
-From 6b2d8f4d4fdc140264fb1850ccfb67818897c06b Mon Sep 17 00:00:00 2001
+From b5696edc7289a4d42edb3cd07804af0bace82621 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 3 Jun 2019 11:29:20 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: handle non-secure
@@ -23,10 +23,10 @@ tracked for switching it to out-of-band mode at some point.
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index a282cbd21f1b..56cd2247ac51 100644
+index fa9db9cdcabe..756fbd2c4294 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
-@@ -884,6 +884,7 @@ static int arch_timer_starting_cpu(unsigned int cpu)
+@@ -877,6 +877,7 @@ static int arch_timer_starting_cpu(unsigned int cpu)
  	enable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi], flags);
  
  	if (arch_timer_has_nonsecure_ppi()) {

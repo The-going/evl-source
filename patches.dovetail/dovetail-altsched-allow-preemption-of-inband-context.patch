@@ -1,4 +1,4 @@
-From b73488dd465bf747f2f56f85a4210e9ba1dc4d4e Mon Sep 17 00:00:00 2001
+From e33fdb136e415f9e6e25f1c00fd9996828509f02 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 14 Jul 2019 22:21:34 +0200
 Subject: [PATCH] dovetail: altsched: allow preemption of inband context switch
@@ -21,7 +21,7 @@ location.
  2 files changed, 18 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/dovetail.c b/kernel/dovetail.c
-index 12784a3b0d7..ebc6519f4fd 100644
+index 12784a3b0d78..ebc6519f4fd3 100644
 --- a/kernel/dovetail.c
 +++ b/kernel/dovetail.c
 @@ -271,7 +271,6 @@ static void finalize_oob_transition(void) /* hard IRQs off */
@@ -64,10 +64,10 @@ index 12784a3b0d7..ebc6519f4fd 100644
  }
  
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 4ed1a616ddd..0eb98c3d43e 100644
+index 261207330aa5..98b75f7a6480 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2811,8 +2811,21 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -3247,8 +3247,21 @@ context_switch(struct rq *rq, struct task_struct *prev,
  		next->active_mm = oldmm;
  		mmgrab(oldmm);
  		enter_lazy_tlb(oldmm, next);
