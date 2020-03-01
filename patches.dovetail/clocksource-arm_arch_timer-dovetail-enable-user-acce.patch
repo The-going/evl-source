@@ -1,4 +1,4 @@
-From f6dab7e283b5e7ad76456db7f35ed787088ef980 Mon Sep 17 00:00:00 2001
+From 43f21195c2e2daf058ce912b2056e797ce05492b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 Feb 2017 12:05:04 +0100
 Subject: [PATCH] clocksource/arm_arch_timer: dovetail: enable user access to
@@ -11,7 +11,7 @@ clock source directly from user-space for performance reasons.
  1 file changed, 8 insertions(+)
 
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index c6c61662c5b2..c776087ef27c 100644
+index 08b3a0c39cf6..81d312e7f26a 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
 @@ -24,6 +24,7 @@
@@ -22,7 +22,7 @@ index c6c61662c5b2..c776087ef27c 100644
  #include <linux/sched/clock.h>
  #include <linux/sched_clock.h>
  #include <linux/acpi.h>
-@@ -875,6 +876,9 @@ static void arch_counter_set_user_access(void)
+@@ -872,6 +873,9 @@ static void arch_counter_set_user_access(void)
  	else
  		cntkctl |= ARCH_TIMER_USR_VCT_ACCESS_EN;
  
@@ -32,7 +32,7 @@ index c6c61662c5b2..c776087ef27c 100644
  	arch_timer_set_cntkctl(cntkctl);
  }
  
-@@ -1005,6 +1009,10 @@ static void __init arch_counter_register(unsigned type)
+@@ -1002,6 +1006,10 @@ static void __init arch_counter_register(unsigned type)
  			arch_timer_read_counter = arch_counter_get_cntpct;
  
  		clocksource_counter.archdata.vdso_direct = vdso_default;

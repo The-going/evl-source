@@ -1,0 +1,27 @@
+From 5c08aa1d5994ddd72fa6141560ddbd6f6950f8f5 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 25 Apr 2019 11:30:48 +0200
+Subject: [PATCH] locking: irq_pipeline: use lockdep alternatives in predicates
+
+---
+ include/linux/lockdep.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+index 2e5b6322aa1c..dcb9b8a8510d 100644
+--- a/include/linux/lockdep.h
++++ b/include/linux/lockdep.h
+@@ -352,8 +352,8 @@ static inline int lock_is_held(const struct lockdep_map *lock)
+ 	return lock_is_held_type(lock, -1);
+ }
+ 
+-#define lockdep_is_held(lock)		lock_is_held(&(lock)->dep_map)
+-#define lockdep_is_held_type(lock, r)	lock_is_held_type(&(lock)->dep_map, (r))
++#define lockdep_is_held(lock)		lock_is_held(LOCKDEP_ALTERNATIVES(lock))
++#define lockdep_is_held_type(lock, r)	lock_is_held_type(LOCKDEP_ALTERNATIVES(lock), (r))
+ 
+ extern void lock_set_class(struct lockdep_map *lock, const char *name,
+ 			   struct lock_class_key *key, unsigned int subclass,
+-- 
+2.16.4
+

@@ -1,4 +1,4 @@
-From a6c9507ca7646aca8b17e3e0ed347238e31851e7 Mon Sep 17 00:00:00 2001
+From e02910ca463eb3999da27270b522f6bf6aaeeb8b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 5 Apr 2017 20:48:20 +0200
 Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: enable pipelined
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: enable pipelined
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
-index aa4ec53281ce..c6c61662c5b2 100644
+index ea373cfbcecb..08b3a0c39cf6 100644
 --- a/drivers/clocksource/arm_arch_timer.c
 +++ b/drivers/clocksource/arm_arch_timer.c
-@@ -655,7 +655,7 @@ static __always_inline irqreturn_t timer_handler(const int access,
+@@ -652,7 +652,7 @@ static __always_inline irqreturn_t timer_handler(const int access,
  	if (ctrl & ARCH_TIMER_CTRL_IT_STAT) {
  		ctrl |= ARCH_TIMER_CTRL_IT_MASK;
  		arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, evt);
@@ -21,7 +21,7 @@ index aa4ec53281ce..c6c61662c5b2 100644
  		return IRQ_HANDLED;
  	}
  
-@@ -774,7 +774,7 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
+@@ -771,7 +771,7 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
  static void __arch_timer_setup(unsigned type,
  			       struct clock_event_device *clk)
  {

@@ -1,4 +1,4 @@
-From 8d7bf9085ced73f1e43a36c9820444463fa9c788 Mon Sep 17 00:00:00 2001
+From 900306c126672096a34958e63e602263f0940e45 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:36:53 +0200
 Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
@@ -17,10 +17,10 @@ Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
  10 files changed, 51 insertions(+), 29 deletions(-)
 
 diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
-index 26c8ca9bd06b..9a09c2aa580e 100644
+index b920358dd8f7..099507d02bfe 100644
 --- a/kernel/trace/ftrace.c
 +++ b/kernel/trace/ftrace.c
-@@ -5604,10 +5604,10 @@ static int ftrace_process_locs(struct module *mod,
+@@ -5605,10 +5605,10 @@ static int ftrace_process_locs(struct module *mod,
  	 * reason to cause large interrupt latencies while we do it.
  	 */
  	if (!mod)
@@ -33,7 +33,7 @@ index 26c8ca9bd06b..9a09c2aa580e 100644
  	ret = 0;
   out:
  	mutex_unlock(&ftrace_lock);
-@@ -6149,9 +6149,9 @@ void __init ftrace_init(void)
+@@ -6150,9 +6150,9 @@ void __init ftrace_init(void)
  	unsigned long count, flags;
  	int ret;
  
@@ -45,7 +45,7 @@ index 26c8ca9bd06b..9a09c2aa580e 100644
  	if (ret)
  		goto failed;
  
-@@ -6283,7 +6283,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+@@ -6284,7 +6284,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
  		}
  	} while_for_each_ftrace_op(op);
  out:

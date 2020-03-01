@@ -1,0 +1,25 @@
+From 2d3513bfebb2ed9c2c68055270c8f2755b5bf43a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 26 Apr 2019 18:04:02 +0200
+Subject: [PATCH] ARM: irq_pipeline: reword comment
+
+---
+ arch/arm/kernel/entry-header.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/kernel/entry-header.S b/arch/arm/kernel/entry-header.S
+index 8f0178e542e5..9d9d06a158cb 100644
+--- a/arch/arm/kernel/entry-header.S
++++ b/arch/arm/kernel/entry-header.S
+@@ -406,7 +406,7 @@
+ 
+ /*
+  * Branch to the exception epilogue, skipping the in-band work
+- * if running over the head interrupt stage.
++ * if running over the out-of-band interrupt stage.
+  */
+ 	.macro ret_to_user_pipelined, tmp
+ #ifdef CONFIG_IRQ_PIPELINE
+-- 
+2.16.4
+

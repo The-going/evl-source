@@ -111,3 +111,20 @@
 	patches.dovetail/soc-qcom-enable-pipelined-interrupt-control.patch
 	patches.dovetail/clocksource-arm_arch_timer-dovetail-fix-call-to-arch.patch
 	patches.dovetail/genirq-irq_pipeline-drop-redundant-sanity-check.patch
+	patches.dovetail/genirq-irq_pipeline-move-stage-predicates-to-the-def.patch
+	patches.dovetail/rcu-irq_pipeline-remove-cyclic-header-dependency.patch
+	patches.dovetail/locking-irq_pipeline-use-lockdep-alternatives-in-pre.patch
+	patches.dovetail/PCI-dwc-irq_pipeline-enable-pipelined-interrupt-cont.patch
+	patches.dovetail/genirq-irq_pipeline-sanitize-static-initializer-of-p.patch
+	patches.dovetail/locking-irq_pipeline-fix-is_locked-predicate-for-mut.patch
+	patches.dovetail/locking-irq_pipeline-add-license-info.patch
+	patches.dovetail/lockdep-irq_pipeline-reword-configuration-warning.patch
+	patches.dovetail/genirq-irq_pipeline-remove-side-effect-in-irqs_split.patch
+	patches.dovetail/ARM-irq_pipeline-reword-comment.patch
+	patches.dovetail/ARM-irq_pipeline-do-not-assume-irqs-off-in-arch_loca.patch
+	patches.dovetail/arm64-irq_pipeline-do-not-assume-irqs-off-in-arch_lo.patch
+	patches.dovetail/mm-dovetail-advertise-new-mappings.patch
+	patches.dovetail/locking-irq_pipeline-make-debug-optional-for-hard-sp.patch
+	patches.dovetail/locking-irq_pipeline-make-debug-optional-for-mutable.patch
+	patches.dovetail/serial-8250-add-raw-console-channel.patch
+	patches.dovetail/time-proxy-rework-registration-unregistration-interf.patch

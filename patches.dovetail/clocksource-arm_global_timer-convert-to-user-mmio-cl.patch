@@ -1,4 +1,4 @@
-From f1b8351e27d5ebb91da60e6c320ac8fd961fcad1 Mon Sep 17 00:00:00 2001
+From 5889d13c0a0dea3f0a533ab036be3c8d4c2b947e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 10 Jul 2018 18:44:45 +0200
 Subject: [PATCH] clocksource/arm_global_timer: convert to user mmio
@@ -10,10 +10,10 @@ Subject: [PATCH] clocksource/arm_global_timer: convert to user mmio
  2 files changed, 19 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 597de9848119..38f477d33a55 100644
+index 196e1fe41799..1891deb31fa2 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -379,6 +379,7 @@ config SUN50I_ERRATUM_UNKNOWN1
+@@ -380,6 +380,7 @@ config SUN50I_ERRATUM_UNKNOWN1
  config ARM_GLOBAL_TIMER
  	bool "Support for the ARM global timer" if COMPILE_TEST
  	select TIMER_OF if OF

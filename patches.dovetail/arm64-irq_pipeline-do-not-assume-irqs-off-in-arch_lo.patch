@@ -1,0 +1,27 @@
+From 45342917b1f0435ec073925474daac2fc4433984 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 27 Apr 2019 19:23:07 +0200
+Subject: [PATCH] arm64: irq_pipeline: do not assume irqs off in
+ arch_local_irq_restore()
+
+---
+ arch/arm64/include/asm/irq_pipeline.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/arch/arm64/include/asm/irq_pipeline.h b/arch/arm64/include/asm/irq_pipeline.h
+index d77556f8f558..86b7f9521ad8 100644
+--- a/arch/arm64/include/asm/irq_pipeline.h
++++ b/arch/arm64/include/asm/irq_pipeline.h
+@@ -64,8 +64,7 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
+ 
+ static inline notrace void arch_local_irq_restore(unsigned long flags)
+ {
+-	if (!arch_irqs_disabled_flags(flags))
+-		__inband_irq_enable();
++	inband_irq_restore(arch_irqs_disabled_flags(flags));
+ 	barrier();
+ }
+ 
+-- 
+2.16.4
+

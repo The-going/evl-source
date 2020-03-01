@@ -1,0 +1,25 @@
+From 8a301576450dd7b3ec431bd96c4f78a4121988be Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 26 Apr 2019 10:14:36 +0200
+Subject: [PATCH] locking: irq_pipeline: add license info
+
+---
+ include/linux/spinlock_pipeline.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/include/linux/spinlock_pipeline.h b/include/linux/spinlock_pipeline.h
+index 79dabdb7a87a..8fb975c22389 100644
+--- a/include/linux/spinlock_pipeline.h
++++ b/include/linux/spinlock_pipeline.h
+@@ -1,3 +1,8 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2016 Philippe Gerum  <rpm@xenomai.org>.
++ */
+ #ifndef __LINUX_SPINLOCK_PIPELINE_H
+ #define __LINUX_SPINLOCK_PIPELINE_H
+ 
+-- 
+2.16.4
+

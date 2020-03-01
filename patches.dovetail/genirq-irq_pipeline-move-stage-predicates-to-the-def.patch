@@ -1,0 +1,89 @@
+From dc796132260e369e4a3e5ca6797b3e9d3e4868ad Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 24 Apr 2019 17:22:16 +0200
+Subject: [PATCH] genirq: irq_pipeline: move stage predicates to the definition
+ file
+
+---
+ include/linux/irqstage.h | 20 --------------------
+ include/linux/preempt.h  | 23 +++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
+index 88125c1e24ca..bd308e7dc2f4 100644
+--- a/include/linux/irqstage.h
++++ b/include/linux/irqstage.h
+@@ -186,16 +186,6 @@ static inline struct irq_stage *__current_stage(void)
+ 
+ #define current_stage	__current_stage()
+ 
+-static inline bool running_inband(void)
+-{
+-	return stage_level() == 0;
+-}
+-
+-static inline bool running_oob(void)
+-{
+-	return !running_inband();
+-}
+-
+ static inline bool oob_stage_present(void)
+ {
+ 	return oob_stage.index != 0;
+@@ -374,16 +364,6 @@ void disable_oob_stage(void);
+ 
+ #else /* !CONFIG_IRQ_PIPELINE */
+ 
+-static inline bool running_inband(void)
+-{
+-	return true;
+-}
+-
+-static inline bool running_oob(void)
+-{
+-	return false;
+-}
+-
+ static inline bool oob_stage_present(void)
+ {
+ 	return false;
+diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+index 33337499b844..aba040d2739b 100644
+--- a/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -339,9 +339,32 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,
+ #endif
+ 
+ #ifdef CONFIG_IRQ_PIPELINE
++
++static inline bool running_inband(void)
++{
++	return stage_level() == 0;
++}
++
++static inline bool running_oob(void)
++{
++	return !running_inband();
++}
++
+ unsigned long hard_preempt_disable(void);
+ void hard_preempt_enable(unsigned long flags);
++
+ #else
++
++static inline bool running_inband(void)
++{
++	return true;
++}
++
++static inline bool running_oob(void)
++{
++	return false;
++}
++
+ #define hard_preempt_disable()		\
+ ({					\
+ 	preempt_disable();		\
+-- 
+2.16.4
+

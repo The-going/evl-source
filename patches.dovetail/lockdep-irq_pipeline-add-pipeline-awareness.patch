@@ -1,4 +1,4 @@
-From 04ce8ccd73fcf6f5a659e2e2a02fa05e58ab538a Mon Sep 17 00:00:00 2001
+From 963636b77cf803cdaaf7ec095e329bd34f0a3525 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:38:38 +0200
 Subject: [PATCH] lockdep: irq_pipeline: add pipeline awareness
@@ -25,7 +25,7 @@ index 5ce7339d5de0..857dd9318169 100644
 +
  #endif /* __ASM_GENERIC_IRQ_PIPELINE_H */
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e16766ff184b..7a38d1b4f900 100644
+index e221be724fe8..c0641bff6c00 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
 @@ -41,6 +41,7 @@
@@ -277,7 +277,7 @@ index e16766ff184b..7a38d1b4f900 100644
  }
  EXPORT_SYMBOL_GPL(lock_acquired);
  #endif
-@@ -5006,7 +5064,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5007,7 +5065,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  	if (unlikely(!debug_locks))
  		return;
  
@@ -286,7 +286,7 @@ index e16766ff184b..7a38d1b4f900 100644
  	for (i = 0; i < curr->lockdep_depth; i++) {
  		hlock = curr->held_locks + i;
  
-@@ -5017,7 +5075,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+@@ -5018,7 +5076,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
  		print_freed_lock_bug(curr, mem_from, mem_from + mem_len, hlock);
  		break;
  	}
@@ -315,7 +315,7 @@ index d4c197425f68..b34defc52fae 100644
  }
  
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 82d3253dd0d5..1eb52f3f66fe 100644
+index 6af404e7204f..b482c5021751 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -1201,6 +1201,12 @@ config DEBUG_LOCK_ALLOC

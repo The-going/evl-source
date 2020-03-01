@@ -1,0 +1,26 @@
+From 571d3e92b251bc4168fa9eee7a0b66963d385d08 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 26 Apr 2019 10:14:01 +0200
+Subject: [PATCH] locking: irq_pipeline: fix is_locked predicate for mutable
+ lock
+
+---
+ include/linux/spinlock_types.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/spinlock_types.h b/include/linux/spinlock_types.h
+index 1efe90aa4c16..52b0f426bddb 100644
+--- a/include/linux/spinlock_types.h
++++ b/include/linux/spinlock_types.h
+@@ -112,7 +112,7 @@ void __bad_spinlock_type(void);
+ 			__ret = hard_ ## __base_op(__RAWLOCK(__lock), ##__args); \
+ 		else if (__builtin_types_compatible_p(typeof(__lock),	\
+ 						 mutable_spinlock_t *))	\
+-			mutable_ ## __base_op(__RAWLOCK(__lock), ##__args); \
++			__ret = mutable_ ## __base_op(__RAWLOCK(__lock), ##__args); \
+ 		else							\
+ 			__bad_spinlock_type();				\
+ 		__ret;							\
+-- 
+2.16.4
+

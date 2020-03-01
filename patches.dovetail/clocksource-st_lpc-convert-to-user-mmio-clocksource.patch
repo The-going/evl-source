@@ -1,4 +1,4 @@
-From e519801d063ad871ee126aa12ecbd8311871506c Mon Sep 17 00:00:00 2001
+From ad7db39df909b43ae98601174648b0461b051f64 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 11 Jul 2018 09:27:33 +0200
 Subject: [PATCH] clocksource/st_lpc: convert to user mmio clocksource
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource/st_lpc: convert to user mmio clocksource
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 38f477d33a55..aacd470e4e4e 100644
+index 1891deb31fa2..3627267868bf 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -608,7 +608,7 @@ config CLKSRC_ST_LPC
+@@ -609,7 +609,7 @@ config CLKSRC_ST_LPC
  	bool "Low power clocksource found in the LPC" if COMPILE_TEST
  	select TIMER_OF if OF
  	depends on HAS_IOMEM
