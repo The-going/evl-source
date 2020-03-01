@@ -1,0 +1,183 @@
+From a6ebcceff7af738ac82afe45855eba293c1d9f0e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Mar 2019 16:40:34 +0100
+Subject: [PATCH] evl/ksem: switch to evl_sem
+
+Now that we don't have the evl_sem element in kernel space anymore,
+convert evl_ksem from the kernel API to evl_sem.
+---
+ include/evenless/ksem.h           | 32 --------------------------------
+ include/evenless/sem.h            | 32 ++++++++++++++++++++++++++++++++
+ kernel/evenless/Makefile          |  2 +-
+ kernel/evenless/{ksem.c => sem.c} | 16 ++++++++--------
+ 4 files changed, 41 insertions(+), 41 deletions(-)
+ delete mode 100644 include/evenless/ksem.h
+ create mode 100644 include/evenless/sem.h
+ rename kernel/evenless/{ksem.c => sem.c} (77%)
+
+diff --git a/include/evenless/ksem.h b/include/evenless/ksem.h
+deleted file mode 100644
+index 2da8f588a9c..00000000000
+--- a/include/evenless/ksem.h
++++ /dev/null
+@@ -1,32 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0
+- *
+- * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+- */
+-
+-#ifndef _EVENLESS_KSEM_H
+-#define _EVENLESS_KSEM_H
+-
+-#include <linux/ktime.h>
+-#include <evenless/wait.h>
+-
+-struct evl_ksem {
+-	unsigned int value;
+-	struct evl_wait_queue wait_queue;
+-};
+-
+-void evl_init_sem(struct evl_ksem *sem,
+-		unsigned int value);
+-
+-void evl_destroy_sem(struct evl_ksem *sem);
+-
+-int evl_down_timeout(struct evl_ksem *sem,
+-		ktime_t timeout);
+-
+-int evl_down(struct evl_ksem *sem);
+-
+-int evl_trydown(struct evl_ksem *sem);
+-
+-void evl_up(struct evl_ksem *sem);
+-
+-#endif /* !_EVENLESS_KSEM_H */
+diff --git a/include/evenless/sem.h b/include/evenless/sem.h
+new file mode 100644
+index 00000000000..6abdefaf5f3
+--- /dev/null
++++ b/include/evenless/sem.h
+@@ -0,0 +1,32 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVENLESS_SEM_H
++#define _EVENLESS_SEM_H
++
++#include <linux/ktime.h>
++#include <evenless/wait.h>
++
++struct evl_sem {
++	unsigned int value;
++	struct evl_wait_queue wait_queue;
++};
++
++void evl_init_sem(struct evl_sem *sem,
++		unsigned int value);
++
++void evl_destroy_sem(struct evl_sem *sem);
++
++int evl_down_timeout(struct evl_sem *sem,
++		ktime_t timeout);
++
++int evl_down(struct evl_sem *sem);
++
++int evl_trydown(struct evl_sem *sem);
++
++void evl_up(struct evl_sem *sem);
++
++#endif /* !_EVENLESS_SEM_H */
+diff --git a/kernel/evenless/Makefile b/kernel/evenless/Makefile
+index 968c4848f33..7c276dc08a6 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evenless/Makefile
+@@ -9,13 +9,13 @@ evenless-y :=		\
+ 	file.o		\
+ 	init.o		\
+ 	irq.o		\
+-	ksem.o		\
+ 	lock.o		\
+ 	memory.o	\
+ 	monitor.o	\
+ 	mutex.o		\
+ 	poll.o		\
+ 	proxy.o		\
++	sem.o		\
+ 	syscall.o	\
+ 	thread.o	\
+ 	tick.o		\
+diff --git a/kernel/evenless/ksem.c b/kernel/evenless/sem.c
+similarity index 77%
+rename from kernel/evenless/ksem.c
+rename to kernel/evenless/sem.c
+index 3597aab44b1..375b496aa21 100644
+--- a/kernel/evenless/ksem.c
++++ b/kernel/evenless/sem.c
+@@ -8,22 +8,22 @@
+ #include <evenless/wait.h>
+ #include <evenless/clock.h>
+ #include <evenless/sched.h>
+-#include <evenless/ksem.h>
++#include <evenless/sem.h>
+ 
+-void evl_init_sem(struct evl_ksem *sem, unsigned int value)
++void evl_init_sem(struct evl_sem *sem, unsigned int value)
+ {
+ 	sem->value = value;
+ 	evl_init_wait(&sem->wait_queue, &evl_mono_clock, EVL_WAIT_PRIO);
+ }
+ EXPORT_SYMBOL_GPL(evl_init_sem);
+ 
+-void evl_destroy_sem(struct evl_ksem *sem)
++void evl_destroy_sem(struct evl_sem *sem)
+ {
+ 	evl_destroy_wait(&sem->wait_queue);
+ }
+ EXPORT_SYMBOL_GPL(evl_destroy_sem);
+ 
+-static bool down_sem(struct evl_ksem *sem)
++static bool down_sem(struct evl_sem *sem)
+ {
+ 	if (sem->value > 0) {
+ 		--sem->value;
+@@ -33,21 +33,21 @@ static bool down_sem(struct evl_ksem *sem)
+ 	return false;
+ }
+ 
+-int evl_down_timeout(struct evl_ksem *sem, ktime_t timeout)
++int evl_down_timeout(struct evl_sem *sem, ktime_t timeout)
+ {
+ 	return evl_wait_event_timeout(&sem->wait_queue, timeout,
+ 				EVL_ABS, down_sem(sem));
+ }
+ EXPORT_SYMBOL_GPL(evl_down_timeout);
+ 
+-int evl_down(struct evl_ksem *sem)
++int evl_down(struct evl_sem *sem)
+ {
+ 	return evl_wait_event_timeout(&sem->wait_queue, EVL_INFINITE,
+ 				EVL_REL, down_sem(sem));
+ }
+ EXPORT_SYMBOL_GPL(evl_down);
+ 
+-int evl_trydown(struct evl_ksem *sem)
++int evl_trydown(struct evl_sem *sem)
+ {
+ 	unsigned long flags;
+ 	bool ret;
+@@ -60,7 +60,7 @@ int evl_trydown(struct evl_ksem *sem)
+ }
+ EXPORT_SYMBOL_GPL(evl_trydown);
+ 
+-void evl_up(struct evl_ksem *sem)
++void evl_up(struct evl_sem *sem)
+ {
+ 	unsigned long flags;
+ 
+-- 
+2.16.4
+

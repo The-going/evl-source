@@ -1,0 +1,38 @@
+From bac6d38d1b98326ef80496f5127812db12ab7e29 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 23 Feb 2019 11:06:43 +0100
+Subject: [PATCH] evl/trace: fix tautology in request name
+
+---
+ include/uapi/evenless/trace.h | 2 +-
+ kernel/evenless/trace.c       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/uapi/evenless/trace.h b/include/uapi/evenless/trace.h
+index 24fd0a1d3d2..2be3998f333 100644
+--- a/include/uapi/evenless/trace.h
++++ b/include/uapi/evenless/trace.h
+@@ -9,6 +9,6 @@
+ 
+ #define EVL_TRACE_IOCBASE	'O'
+ 
+-#define EVL_TRCIOC_TRACE_SNAPSHOT	_IO(EVL_TRACE_IOCBASE, 0)
++#define EVL_TRCIOC_SNAPSHOT	_IO(EVL_TRACE_IOCBASE, 0)
+ 
+ #endif /* !_EVENLESS_UAPI_TRACE_H */
+diff --git a/kernel/evenless/trace.c b/kernel/evenless/trace.c
+index c0142aee2a8..d81156fd097 100644
+--- a/kernel/evenless/trace.c
++++ b/kernel/evenless/trace.c
+@@ -17,7 +17,7 @@ static long trace_common_ioctl(struct file *filp, unsigned int cmd,
+ 	long ret = 0;
+ 
+ 	switch (cmd) {
+-	case EVL_TRCIOC_TRACE_SNAPSHOT:
++	case EVL_TRCIOC_SNAPSHOT:
+ #ifdef CONFIG_TRACER_SNAPSHOT
+ 		tracing_snapshot();
+ #endif
+-- 
+2.16.4
+

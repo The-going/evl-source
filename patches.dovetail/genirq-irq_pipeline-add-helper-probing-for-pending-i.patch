@@ -1,0 +1,46 @@
+From ce2a3f74c1816581614f97422fd2eacae96cd555 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 18 Mar 2019 12:45:16 +0100
+Subject: [PATCH] genirq: irq_pipeline: add helper probing for pending inband
+ IRQs
+
+inband_irq_pending() returns true if some deferred inband IRQs are
+pending for the current CPU. The syncer is not called if any, this is
+just a probe. Must be called with hard irqs disabled.
+---
+ include/linux/irq_pipeline.h | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index cdd7656c96e..020dbb0c3f8 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -61,6 +61,13 @@ static inline bool inband_unsafe(void)
+ 		(hard_irqs_disabled() && irq_pipeline_active);
+ }
+ 
++static inline bool inband_irq_pending(void)
++{
++	check_hard_irqs_disabled();
++
++	return stage_irqs_pending(this_inband_staged());
++}
++
+ extern struct irq_domain *synthetic_irq_domain;
+ 
+ #else /* !CONFIG_IRQ_PIPELINE */
+@@ -101,6 +108,11 @@ static inline bool inband_unsafe(void)
+ 	return false;
+ }
+ 
++static inline bool inband_irq_pending(void)
++{
++	return false;
++}
++
+ #endif /* !CONFIG_IRQ_PIPELINE */
+ 
+ #endif /* _LINUX_IRQ_PIPELINE_H */
+-- 
+2.16.4
+

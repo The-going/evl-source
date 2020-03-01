@@ -1,0 +1,2806 @@
+From 475debab9b52c6852b72677ea73d44bb087e0676 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Mar 2019 16:29:48 +0100
+Subject: [PATCH] evl: rename evenless/ paths to evl/
+
+---
+ arch/arm/Makefile                                  |  2 +-
+ arch/arm/include/asm/{evenless => evl}/fptest.h    |  8 ++--
+ arch/arm/include/asm/{evenless => evl}/syscall.h   |  6 +--
+ arch/arm/include/asm/{evenless => evl}/thread.h    |  6 +--
+ arch/arm/include/dovetail/thread_info.h            |  8 ++--
+ .../include/uapi/asm/{evenless => evl}/fptest.h    |  6 +--
+ arch/arm64/Makefile                                |  2 +-
+ arch/arm64/include/asm/{evenless => evl}/fptest.h  |  8 ++--
+ arch/arm64/include/asm/{evenless => evl}/syscall.h | 12 ++---
+ arch/arm64/include/asm/{evenless => evl}/thread.h  |  6 +--
+ arch/arm64/include/dovetail/thread_info.h          |  8 ++--
+ arch/arm64/include/uapi/asm/evenless/syscall.h     |  7 ---
+ .../include/uapi/asm/{evenless => evl}/fptest.h    |  6 +--
+ arch/arm64/include/uapi/asm/evl/syscall.h          |  7 +++
+ drivers/Kconfig                                    |  2 +-
+ drivers/Makefile                                   |  2 +-
+ drivers/{evenless => evl}/Kconfig                  |  0
+ drivers/{evenless => evl}/Makefile                 |  0
+ drivers/{evenless => evl}/hectic.c                 | 10 ++--
+ drivers/{evenless => evl}/latmus.c                 | 14 +++---
+ .../asm-generic/{evenless => evl}/thread_info.h    |  6 +--
+ include/{evenless => evl}/assert.h                 |  6 +--
+ include/{evenless => evl}/clock.h                  | 12 ++---
+ include/{evenless => evl}/control.h                |  8 ++--
+ include/{evenless => evl}/factory.h                | 10 ++--
+ include/{evenless => evl}/file.h                   |  6 +--
+ include/{evenless => evl}/flag.h                   | 10 ++--
+ include/{evenless => evl}/init.h                   |  6 +--
+ include/{evenless => evl}/list.h                   |  6 +--
+ include/{evenless => evl}/lock.h                   |  6 +--
+ include/{evenless => evl}/memory.h                 | 12 ++---
+ include/{evenless => evl}/monitor.h                | 12 ++---
+ include/{evenless => evl}/mutex.h                  | 16 +++----
+ include/{evenless => evl}/poll.h                   | 14 +++---
+ include/{evenless => evl}/sched.h                  | 26 +++++------
+ include/{evenless => evl}/sched/idle.h             | 10 ++--
+ include/{evenless => evl}/sched/param.h            |  6 +--
+ include/{evenless => evl}/sched/queue.h            |  8 ++--
+ include/{evenless => evl}/sched/quota.h            |  4 +-
+ include/{evenless => evl}/sched/rt.h               | 10 ++--
+ include/{evenless => evl}/sched/weak.h             | 10 ++--
+ include/{evenless => evl}/sem.h                    |  8 ++--
+ include/{evenless => evl}/stat.h                   |  8 ++--
+ include/{evenless => evl}/thread.h                 | 24 +++++-----
+ include/{evenless => evl}/tick.h                   | 10 ++--
+ include/{evenless => evl}/timer.h                  | 14 +++---
+ include/{evenless => evl}/wait.h                   | 16 +++----
+ include/{evenless => evl}/xbuf.h                   |  6 +--
+ include/trace/events/{evenless.h => evl.h}         | 32 ++++++-------
+ include/uapi/evenless/syscall.h                    | 16 -------
+ include/uapi/{evenless => evl}/clock.h             |  6 +--
+ include/uapi/{evenless => evl}/control.h           |  8 ++--
+ include/uapi/{evenless => evl}/devices/hectic.h    |  6 +--
+ include/uapi/{evenless => evl}/devices/latmus.h    |  6 +--
+ include/uapi/{evenless => evl}/factory.h           |  6 +--
+ include/uapi/{evenless => evl}/monitor.h           | 10 ++--
+ include/uapi/{evenless => evl}/mutex.h             |  8 ++--
+ include/uapi/{evenless => evl}/poll.h              |  6 +--
+ include/uapi/{evenless => evl}/proxy.h             |  6 +--
+ include/uapi/{evenless => evl}/sched.h             |  6 +--
+ include/uapi/{evenless => evl}/signal.h            |  6 +--
+ include/uapi/evl/syscall.h                         | 16 +++++++
+ include/uapi/{evenless => evl}/thread.h            |  8 ++--
+ include/uapi/{evenless => evl}/trace.h             |  6 +--
+ include/uapi/{evenless => evl}/types.h             |  6 +--
+ include/uapi/{evenless => evl}/xbuf.h              |  6 +--
+ kernel/{Kconfig.evenless => Kconfig.evl}           |  2 +-
+ kernel/Makefile                                    |  2 +-
+ kernel/evenless/sched/Makefile                     | 11 -----
+ kernel/{evenless => evl}/.gitignore                |  0
+ kernel/{evenless => evl}/Kconfig                   |  0
+ kernel/{evenless => evl}/Makefile                  |  6 +--
+ kernel/{evenless => evl}/clock.c                   | 26 +++++------
+ kernel/{evenless => evl}/control.c                 | 18 ++++----
+ kernel/{evenless => evl}/factory.c                 | 20 ++++----
+ kernel/{evenless => evl}/file.c                    | 10 ++--
+ kernel/{evenless => evl}/init.c                    | 20 ++++----
+ kernel/{evenless => evl}/irq.c                     |  2 +-
+ kernel/{evenless => evl}/lock.c                    |  4 +-
+ kernel/{evenless => evl}/memory.c                  | 12 ++---
+ kernel/{evenless => evl}/monitor.c                 | 28 ++++++------
+ kernel/{evenless => evl}/mutex.c                   | 16 +++----
+ kernel/{evenless => evl}/poll.c                    | 16 +++----
+ kernel/{evenless => evl}/proxy.c                   |  4 +-
+ kernel/evl/sched/Makefile                          | 11 +++++
+ kernel/{evenless => evl}/sched/core.c              | 18 ++++----
+ kernel/{evenless => evl}/sched/idle.c              |  2 +-
+ kernel/{evenless => evl}/sched/quota.c             |  6 +--
+ kernel/{evenless => evl}/sched/rt.c                |  2 +-
+ kernel/{evenless => evl}/sched/weak.c              |  4 +-
+ kernel/{evenless => evl}/sem.c                     | 10 ++--
+ kernel/{evenless => evl}/syscall.c                 | 53 +++++++++++-----------
+ kernel/{evenless => evl}/thread.c                  | 34 +++++++-------
+ kernel/{evenless => evl}/tick.c                    | 12 ++---
+ kernel/{evenless => evl}/timer.c                   | 12 ++---
+ kernel/{evenless => evl}/trace.c                   |  6 +--
+ kernel/{evenless => evl}/wait.c                    | 12 ++---
+ kernel/{evenless => evl}/xbuf.c                    | 22 ++++-----
+ 98 files changed, 487 insertions(+), 488 deletions(-)
+ rename arch/arm/include/asm/{evenless => evl}/fptest.h (68%)
+ rename arch/arm/include/asm/{evenless => evl}/syscall.h (90%)
+ rename arch/arm/include/asm/{evenless => evl}/thread.h (77%)
+ rename arch/arm/include/uapi/asm/{evenless => evl}/fptest.h (90%)
+ rename arch/arm64/include/asm/{evenless => evl}/fptest.h (71%)
+ rename arch/arm64/include/asm/{evenless => evl}/syscall.h (74%)
+ rename arch/arm64/include/asm/{evenless => evl}/thread.h (74%)
+ delete mode 100644 arch/arm64/include/uapi/asm/evenless/syscall.h
+ rename arch/arm64/include/uapi/asm/{evenless => evl}/fptest.h (95%)
+ create mode 100644 arch/arm64/include/uapi/asm/evl/syscall.h
+ rename drivers/{evenless => evl}/Kconfig (100%)
+ rename drivers/{evenless => evl}/Makefile (100%)
+ rename drivers/{evenless => evl}/hectic.c (98%)
+ rename drivers/{evenless => evl}/latmus.c (99%)
+ rename include/asm-generic/{evenless => evl}/thread_info.h (64%)
+ rename include/{evenless => evl}/assert.h (93%)
+ rename include/{evenless => evl}/clock.h (95%)
+ rename include/{evenless => evl}/control.h (89%)
+ rename include/{evenless => evl}/factory.h (96%)
+ rename include/{evenless => evl}/file.h (94%)
+ rename include/{evenless => evl}/flag.h (93%)
+ rename include/{evenless => evl}/init.h (88%)
+ rename include/{evenless => evl}/list.h (93%)
+ rename include/{evenless => evl}/lock.h (98%)
+ rename include/{evenless => evl}/memory.h (94%)
+ rename include/{evenless => evl}/monitor.h (69%)
+ rename include/{evenless => evl}/mutex.h (93%)
+ rename include/{evenless => evl}/poll.h (88%)
+ rename include/{evenless => evl}/sched.h (97%)
+ rename include/{evenless => evl}/sched/idle.h (85%)
+ rename include/{evenless => evl}/sched/param.h (83%)
+ rename include/{evenless => evl}/sched/queue.h (91%)
+ rename include/{evenless => evl}/sched/quota.h (94%)
+ rename include/{evenless => evl}/sched/rt.h (93%)
+ rename include/{evenless => evl}/sched/weak.h (78%)
+ rename include/{evenless => evl}/sem.h (82%)
+ rename include/{evenless => evl}/stat.h (96%)
+ rename include/{evenless => evl}/thread.h (96%)
+ rename include/{evenless => evl}/tick.h (86%)
+ rename include/{evenless => evl}/timer.h (98%)
+ rename include/{evenless => evl}/wait.h (94%)
+ rename include/{evenless => evl}/xbuf.h (85%)
+ rename include/trace/events/{evenless.h => evl.h} (97%)
+ delete mode 100644 include/uapi/evenless/syscall.h
+ rename include/uapi/{evenless => evl}/clock.h (92%)
+ rename include/uapi/{evenless => evl}/control.h (75%)
+ rename include/uapi/{evenless => evl}/devices/hectic.h (90%)
+ rename include/uapi/{evenless => evl}/devices/latmus.h (90%)
+ rename include/uapi/{evenless => evl}/factory.h (79%)
+ rename include/uapi/{evenless => evl}/monitor.h (90%)
+ rename include/uapi/{evenless => evl}/mutex.h (86%)
+ rename include/uapi/{evenless => evl}/poll.h (86%)
+ rename include/uapi/{evenless => evl}/proxy.h (64%)
+ rename include/uapi/{evenless => evl}/sched.h (92%)
+ rename include/uapi/{evenless => evl}/signal.h (91%)
+ create mode 100644 include/uapi/evl/syscall.h
+ rename include/uapi/{evenless => evl}/thread.h (96%)
+ rename include/uapi/{evenless => evl}/trace.h (68%)
+ rename include/uapi/{evenless => evl}/types.h (87%)
+ rename include/uapi/{evenless => evl}/xbuf.h (69%)
+ rename kernel/{Kconfig.evenless => Kconfig.evl} (94%)
+ delete mode 100644 kernel/evenless/sched/Makefile
+ rename kernel/{evenless => evl}/.gitignore (100%)
+ rename kernel/{evenless => evl}/Kconfig (100%)
+ rename kernel/{evenless => evl}/Makefile (72%)
+ rename kernel/{evenless => evl}/clock.c (98%)
+ rename kernel/{evenless => evl}/control.c (95%)
+ rename kernel/{evenless => evl}/factory.c (97%)
+ rename kernel/{evenless => evl}/file.c (97%)
+ rename kernel/{evenless => evl}/init.c (92%)
+ rename kernel/{evenless => evl}/irq.c (95%)
+ rename kernel/{evenless => evl}/lock.c (93%)
+ rename kernel/{evenless => evl}/memory.c (98%)
+ rename kernel/{evenless => evl}/monitor.c (97%)
+ rename kernel/{evenless => evl}/mutex.c (98%)
+ rename kernel/{evenless => evl}/poll.c (98%)
+ rename kernel/{evenless => evl}/proxy.c (98%)
+ create mode 100644 kernel/evl/sched/Makefile
+ rename kernel/{evenless => evl}/sched/core.c (98%)
+ rename kernel/{evenless => evl}/sched/idle.c (97%)
+ rename kernel/{evenless => evl}/sched/quota.c (99%)
+ rename kernel/{evenless => evl}/sched/rt.c (99%)
+ rename kernel/{evenless => evl}/sched/weak.c (97%)
+ rename kernel/{evenless => evl}/sem.c (90%)
+ rename kernel/{evenless => evl}/syscall.c (86%)
+ rename kernel/{evenless => evl}/thread.c (99%)
+ rename kernel/{evenless => evl}/tick.c (98%)
+ rename kernel/{evenless => evl}/timer.c (98%)
+ rename kernel/{evenless => evl}/trace.c (94%)
+ rename kernel/{evenless => evl}/wait.c (94%)
+ rename kernel/{evenless => evl}/xbuf.c (98%)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 25c853d6d77..b618509b7fe 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -270,7 +270,7 @@ endif
+ endif
+ 
+ ifeq ($(CONFIG_EVL),y)
+-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
++KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
+ endif
+ 
+ export	TEXT_OFFSET GZFLAGS MMUEXT
+diff --git a/arch/arm/include/asm/evenless/fptest.h b/arch/arm/include/asm/evl/fptest.h
+similarity index 68%
+rename from arch/arm/include/asm/evenless/fptest.h
+rename to arch/arm/include/asm/evl/fptest.h
+index b1fb66f0719..e581304727e 100644
+--- a/arch/arm/include/asm/evenless/fptest.h
++++ b/arch/arm/include/asm/evl/fptest.h
+@@ -1,9 +1,9 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_ARM_ASM_FPTEST_H
+-#define _EVENLESS_ARM_ASM_FPTEST_H
++#ifndef _EVL_ARM_ASM_FPTEST_H
++#define _EVL_ARM_ASM_FPTEST_H
+ 
+ #include <linux/cpufeature.h>
+-#include <uapi/asm/evenless/fptest.h>
++#include <uapi/asm/evl/fptest.h>
+ 
+ static inline bool evl_begin_fpu(void)
+ {
+@@ -22,4 +22,4 @@ static inline u32 evl_detect_fpu(void)
+ 	return features;
+ }
+ 
+-#endif /* _EVENLESS_ARM_ASM_FPTEST_H */
++#endif /* _EVL_ARM_ASM_FPTEST_H */
+diff --git a/arch/arm/include/asm/evenless/syscall.h b/arch/arm/include/asm/evl/syscall.h
+similarity index 90%
+rename from arch/arm/include/asm/evenless/syscall.h
+rename to arch/arm/include/asm/evl/syscall.h
+index 62d9ae76ab2..0c0727dfe87 100644
+--- a/arch/arm/include/asm/evenless/syscall.h
++++ b/arch/arm/include/asm/evl/syscall.h
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+-#ifndef _EVENLESS_ARM_ASM_SYSCALL_H
+-#define _EVENLESS_ARM_ASM_SYSCALL_H
++#ifndef _EVL_ARM_ASM_SYSCALL_H
++#define _EVL_ARM_ASM_SYSCALL_H
+ 
+ #include <linux/uaccess.h>
+ #include <asm/unistd.h>
+@@ -43,4 +43,4 @@ void set_oob_retval(struct pt_regs *regs, long ret)
+ 	oob_retval(regs) = ret;
+ }
+ 
+-#endif /* !_EVENLESS_ARM_ASM_SYSCALL_H */
++#endif /* !_EVL_ARM_ASM_SYSCALL_H */
+diff --git a/arch/arm/include/asm/evenless/thread.h b/arch/arm/include/asm/evl/thread.h
+similarity index 77%
+rename from arch/arm/include/asm/evenless/thread.h
+rename to arch/arm/include/asm/evl/thread.h
+index 235cc80b4e1..423ef75176e 100644
+--- a/arch/arm/include/asm/evenless/thread.h
++++ b/arch/arm/include/asm/evl/thread.h
+@@ -2,8 +2,8 @@
+  * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005 Stelian Pop
+  */
+-#ifndef _EVENLESS_ARM_ASM_THREAD_H
+-#define _EVENLESS_ARM_ASM_THREAD_H
++#ifndef _EVL_ARM_ASM_THREAD_H
++#define _EVL_ARM_ASM_THREAD_H
+ 
+ #define xnarch_fault_pf_p(__trapnr)	((__trapnr) == ARM_TRAP_ACCESS)
+ #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+@@ -12,4 +12,4 @@
+ 
+ #define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
+ 
+-#endif /* !_EVENLESS_ARM_ASM_THREAD_H */
++#endif /* !_EVL_ARM_ASM_THREAD_H */
+diff --git a/arch/arm/include/dovetail/thread_info.h b/arch/arm/include/dovetail/thread_info.h
+index 253e15ec959..4253b13fe47 100644
+--- a/arch/arm/include/dovetail/thread_info.h
++++ b/arch/arm/include/dovetail/thread_info.h
+@@ -1,7 +1,7 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_DOVETAIL_THREAD_INFO_H
+-#define _EVENLESS_DOVETAIL_THREAD_INFO_H
++#ifndef _EVL_DOVETAIL_THREAD_INFO_H
++#define _EVL_DOVETAIL_THREAD_INFO_H
+ 
+-#include <asm-generic/evenless/thread_info.h>
++#include <asm-generic/evl/thread_info.h>
+ 
+-#endif /* !_EVENLESS_DOVETAIL_THREAD_INFO_H */
++#endif /* !_EVL_DOVETAIL_THREAD_INFO_H */
+diff --git a/arch/arm/include/uapi/asm/evenless/fptest.h b/arch/arm/include/uapi/asm/evl/fptest.h
+similarity index 90%
+rename from arch/arm/include/uapi/asm/evenless/fptest.h
+rename to arch/arm/include/uapi/asm/evl/fptest.h
+index df9f454d7b7..d9771dda64f 100644
+--- a/arch/arm/include/uapi/asm/evenless/fptest.h
++++ b/arch/arm/include/uapi/asm/evl/fptest.h
+@@ -4,8 +4,8 @@
+  * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+-#ifndef _EVENLESS_ARM_ASM_UAPI_FPTEST_H
+-#define _EVENLESS_ARM_ASM_UAPI_FPTEST_H
++#ifndef _EVL_ARM_ASM_UAPI_FPTEST_H
++#define _EVL_ARM_ASM_UAPI_FPTEST_H
+ 
+ #define evl_arm_vfp  0x1
+ 
+@@ -44,4 +44,4 @@
+ 		__result;						\
+ 	})
+ 
+-#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
++#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
+diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
+index 27d8fe4b401..2fbbae462bf 100644
+--- a/arch/arm64/Makefile
++++ b/arch/arm64/Makefile
+@@ -86,7 +86,7 @@ endif
+ CHECKFLAGS	+= -D__aarch64__
+ 
+ ifeq ($(CONFIG_EVL),y)
+-KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
++KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
+ endif
+ 
+ ifeq ($(CONFIG_ARM64_MODULE_PLTS),y)
+diff --git a/arch/arm64/include/asm/evenless/fptest.h b/arch/arm64/include/asm/evl/fptest.h
+similarity index 71%
+rename from arch/arm64/include/asm/evenless/fptest.h
+rename to arch/arm64/include/asm/evl/fptest.h
+index dc4c6501334..a853b1206d2 100644
+--- a/arch/arm64/include/asm/evenless/fptest.h
++++ b/arch/arm64/include/asm/evl/fptest.h
+@@ -1,9 +1,9 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_ARM64_ASM_FPTEST_H
+-#define _EVENLESS_ARM64_ASM_FPTEST_H
++#ifndef _EVL_ARM64_ASM_FPTEST_H
++#define _EVL_ARM64_ASM_FPTEST_H
+ 
+ #include <linux/cpufeature.h>
+-#include <uapi/asm/evenless/fptest.h>
++#include <uapi/asm/evl/fptest.h>
+ 
+ static inline bool evl_begin_fpu(void)
+ {
+@@ -25,4 +25,4 @@ static inline u32 evl_detect_fpu(void)
+ 	return features;
+ }
+ 
+-#endif /* _EVENLESS_ARM64_ASM_FPTEST_H */
++#endif /* _EVL_ARM64_ASM_FPTEST_H */
+diff --git a/arch/arm64/include/asm/evenless/syscall.h b/arch/arm64/include/asm/evl/syscall.h
+similarity index 74%
+rename from arch/arm64/include/asm/evenless/syscall.h
+rename to arch/arm64/include/asm/evl/syscall.h
+index 29cea6da6ea..52579d00095 100644
+--- a/arch/arm64/include/asm/evenless/syscall.h
++++ b/arch/arm64/include/asm/evl/syscall.h
+@@ -1,17 +1,17 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_ARM64_ASM_SYSCALL_H
+-#define _EVENLESS_ARM64_ASM_SYSCALL_H
++#ifndef _EVL_ARM64_ASM_SYSCALL_H
++#define _EVL_ARM64_ASM_SYSCALL_H
+ 
+ #include <linux/uaccess.h>
+ #include <asm/unistd.h>
+ #include <asm/ptrace.h>
+-#include <uapi/asm/evenless/syscall.h>
++#include <uapi/asm/evl/syscall.h>
+ 
+ #define raw_put_user(src, dst)  __put_user(src, dst)
+ #define raw_get_user(dst, src)  __get_user(dst, src)
+ 
+-#define is_oob_syscall(__regs)	((__regs)->syscallno & __EVENLESS_SYSCALL_BIT)
+-#define oob_syscall_nr(__regs)	((__regs)->syscallno & ~__EVENLESS_SYSCALL_BIT)
++#define is_oob_syscall(__regs)	((__regs)->syscallno & __EVL_SYSCALL_BIT)
++#define oob_syscall_nr(__regs)	((__regs)->syscallno & ~__EVL_SYSCALL_BIT)
+ 
+ #define oob_retval(__regs)	((__regs)->regs[0])
+ #define oob_arg1(__regs)	((__regs)->regs[0])
+@@ -42,4 +42,4 @@ void set_oob_retval(struct pt_regs *regs, long ret)
+ 	oob_retval(regs) = ret;
+ }
+ 
+-#endif /* !_EVENLESS_ARM64_ASM_SYSCALL_H */
++#endif /* !_EVL_ARM64_ASM_SYSCALL_H */
+diff --git a/arch/arm64/include/asm/evenless/thread.h b/arch/arm64/include/asm/evl/thread.h
+similarity index 74%
+rename from arch/arm64/include/asm/evenless/thread.h
+rename to arch/arm64/include/asm/evl/thread.h
+index 07157c43d58..4e1938364a8 100644
+--- a/arch/arm64/include/asm/evenless/thread.h
++++ b/arch/arm64/include/asm/evl/thread.h
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_ARM64_ASM_THREAD_H
+-#define _EVENLESS_ARM64_ASM_THREAD_H
++#ifndef _EVL_ARM64_ASM_THREAD_H
++#define _EVL_ARM64_ASM_THREAD_H
+ 
+ #define xnarch_fault_pf_p(__trapnr)	((__trapnr) == ARM64_TRAP_ACCESS)
+ #define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
+@@ -9,4 +9,4 @@
+ 
+ #define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
+ 
+-#endif /* !_EVENLESS_ARM64_ASM_THREAD_H */
++#endif /* !_EVL_ARM64_ASM_THREAD_H */
+diff --git a/arch/arm64/include/dovetail/thread_info.h b/arch/arm64/include/dovetail/thread_info.h
+index 253e15ec959..4253b13fe47 100644
+--- a/arch/arm64/include/dovetail/thread_info.h
++++ b/arch/arm64/include/dovetail/thread_info.h
+@@ -1,7 +1,7 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _EVENLESS_DOVETAIL_THREAD_INFO_H
+-#define _EVENLESS_DOVETAIL_THREAD_INFO_H
++#ifndef _EVL_DOVETAIL_THREAD_INFO_H
++#define _EVL_DOVETAIL_THREAD_INFO_H
+ 
+-#include <asm-generic/evenless/thread_info.h>
++#include <asm-generic/evl/thread_info.h>
+ 
+-#endif /* !_EVENLESS_DOVETAIL_THREAD_INFO_H */
++#endif /* !_EVL_DOVETAIL_THREAD_INFO_H */
+diff --git a/arch/arm64/include/uapi/asm/evenless/syscall.h b/arch/arm64/include/uapi/asm/evenless/syscall.h
+deleted file mode 100644
+index bc79392559e..00000000000
+--- a/arch/arm64/include/uapi/asm/evenless/syscall.h
++++ /dev/null
+@@ -1,7 +0,0 @@
+-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+-#ifndef _EVENLESS_ARM64_ASM_UAPI_SYSCALL_H
+-#define _EVENLESS_ARM64_ASM_UAPI_SYSCALL_H
+-
+-#define __EVENLESS_SYSCALL_BIT	0x10000000
+-
+-#endif /* !_EVENLESS_ARM64_ASM_UAPI_SYSCALL_H */
+diff --git a/arch/arm64/include/uapi/asm/evenless/fptest.h b/arch/arm64/include/uapi/asm/evl/fptest.h
+similarity index 95%
+rename from arch/arm64/include/uapi/asm/evenless/fptest.h
+rename to arch/arm64/include/uapi/asm/evl/fptest.h
+index d8df4641dd0..8bf98331516 100644
+--- a/arch/arm64/include/uapi/asm/evenless/fptest.h
++++ b/arch/arm64/include/uapi/asm/evl/fptest.h
+@@ -4,8 +4,8 @@
+  * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+-#ifndef _EVENLESS_ARM64_ASM_UAPI_FPTEST_H
+-#define _EVENLESS_ARM64_ASM_UAPI_FPTEST_H
++#ifndef _EVL_ARM64_ASM_UAPI_FPTEST_H
++#define _EVL_ARM64_ASM_UAPI_FPTEST_H
+ 
+ #define evl_arm64_fpsimd  0x1
+ #define evl_arm64_sve     0x2
+@@ -89,4 +89,4 @@
+ 		__result;						\
+ 	})
+ 
+-#endif /* !_EVENLESS_ARM64_ASM_UAPI_FPTEST_H */
++#endif /* !_EVL_ARM64_ASM_UAPI_FPTEST_H */
+diff --git a/arch/arm64/include/uapi/asm/evl/syscall.h b/arch/arm64/include/uapi/asm/evl/syscall.h
+new file mode 100644
+index 00000000000..212ff2528aa
+--- /dev/null
++++ b/arch/arm64/include/uapi/asm/evl/syscall.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef _EVL_ARM64_ASM_UAPI_SYSCALL_H
++#define _EVL_ARM64_ASM_UAPI_SYSCALL_H
++
++#define __EVL_SYSCALL_BIT	0x10000000
++
++#endif /* !_EVL_ARM64_ASM_UAPI_SYSCALL_H */
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index b408ae51c18..176171a3b00 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -30,7 +30,7 @@ source "drivers/block/Kconfig"
+ 
+ source "drivers/nvme/Kconfig"
+ 
+-source "drivers/evenless/Kconfig"
++source "drivers/evl/Kconfig"
+ 
+ # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
+ 
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 8a9c321e3f4..841cb968ff2 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
+ obj-$(CONFIG_RPMSG)		+= rpmsg/
+ obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
+ 
+-obj-$(CONFIG_EVL)		+= evenless/
++obj-$(CONFIG_EVL)		+= evl/
+ 
+ # Virtualization drivers
+ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
+diff --git a/drivers/evenless/Kconfig b/drivers/evl/Kconfig
+similarity index 100%
+rename from drivers/evenless/Kconfig
+rename to drivers/evl/Kconfig
+diff --git a/drivers/evenless/Makefile b/drivers/evl/Makefile
+similarity index 100%
+rename from drivers/evenless/Makefile
+rename to drivers/evl/Makefile
+diff --git a/drivers/evenless/hectic.c b/drivers/evl/hectic.c
+similarity index 98%
+rename from drivers/evenless/hectic.c
+rename to drivers/evl/hectic.c
+index fe7b4a621fb..5a72e73fba3 100644
+--- a/drivers/evenless/hectic.c
++++ b/drivers/evl/hectic.c
+@@ -13,11 +13,11 @@
+ #include <linux/uaccess.h>
+ #include <linux/semaphore.h>
+ #include <linux/irq_work.h>
+-#include <evenless/thread.h>
+-#include <evenless/flag.h>
+-#include <evenless/file.h>
+-#include <asm/evenless/fptest.h>
+-#include <uapi/evenless/devices/hectic.h>
++#include <evl/thread.h>
++#include <evl/flag.h>
++#include <evl/file.h>
++#include <asm/evl/fptest.h>
++#include <uapi/evl/devices/hectic.h>
+ 
+ #define RTSWITCH_RT      0x10000
+ #define RTSWITCH_NRT     0
+diff --git a/drivers/evenless/latmus.c b/drivers/evl/latmus.c
+similarity index 99%
+rename from drivers/evenless/latmus.c
+rename to drivers/evl/latmus.c
+index 15ff9607b65..2c27bb767da 100644
+--- a/drivers/evenless/latmus.c
++++ b/drivers/evl/latmus.c
+@@ -14,13 +14,13 @@
+ #include <linux/fs.h>
+ #include <linux/fcntl.h>
+ #include <linux/uaccess.h>
+-#include <evenless/file.h>
+-#include <evenless/flag.h>
+-#include <evenless/clock.h>
+-#include <evenless/thread.h>
+-#include <evenless/xbuf.h>
+-#include <uapi/evenless/devices/latmus.h>
+-#include <trace/events/evenless.h>
++#include <evl/file.h>
++#include <evl/flag.h>
++#include <evl/clock.h>
++#include <evl/thread.h>
++#include <evl/xbuf.h>
++#include <uapi/evl/devices/latmus.h>
++#include <trace/events/evl.h>
+ 
+ #define TUNER_SAMPLING_TIME	500000000UL
+ #define TUNER_WARMUP_STEPS	10
+diff --git a/include/asm-generic/evenless/thread_info.h b/include/asm-generic/evl/thread_info.h
+similarity index 64%
+rename from include/asm-generic/evenless/thread_info.h
+rename to include/asm-generic/evl/thread_info.h
+index 441e721fef6..bc1c7ada97a 100644
+--- a/include/asm-generic/evenless/thread_info.h
++++ b/include/asm-generic/evl/thread_info.h
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-#ifndef _ASM_GENERIC_EVENLESS_THREAD_INFO_H
+-#define _ASM_GENERIC_EVENLESS_THREAD_INFO_H
++#ifndef _ASM_GENERIC_EVL_THREAD_INFO_H
++#define _ASM_GENERIC_EVL_THREAD_INFO_H
+ 
+ struct evl_thread;
+ 
+@@ -16,4 +16,4 @@ void evl_init_thread_state(struct oob_thread_state *p)
+ 	p->preempt_count = 0;
+ }
+ 
+-#endif /* !_ASM_GENERIC_EVENLESS_THREAD_INFO_H */
++#endif /* !_ASM_GENERIC_EVL_THREAD_INFO_H */
+diff --git a/include/evenless/assert.h b/include/evl/assert.h
+similarity index 93%
+rename from include/evenless/assert.h
+rename to include/evl/assert.h
+index 044678c05f0..1eecf6ca898 100644
+--- a/include/evenless/assert.h
++++ b/include/evl/assert.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2006, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_ASSERT_H
+-#define _EVENLESS_ASSERT_H
++#ifndef _EVL_ASSERT_H
++#define _EVL_ASSERT_H
+ 
+ #include <linux/kconfig.h>
+ 
+@@ -39,4 +39,4 @@
+ #define requires_ugly_lock()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+ #define no_ugly_lock()		WARN_ON_ONCE(xnlock_is_owner(&nklock))
+ 
+-#endif /* !_EVENLESS_ASSERT_H */
++#endif /* !_EVL_ASSERT_H */
+diff --git a/include/evenless/clock.h b/include/evl/clock.h
+similarity index 95%
+rename from include/evenless/clock.h
+rename to include/evl/clock.h
+index ae96c1a2b1e..8ca6bf9e624 100644
+--- a/include/evenless/clock.h
++++ b/include/evl/clock.h
+@@ -5,16 +5,16 @@
+  * Copyright (C) 2006, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_CLOCK_H
+-#define _EVENLESS_CLOCK_H
++#ifndef _EVL_CLOCK_H
++#define _EVL_CLOCK_H
+ 
+ #include <linux/types.h>
+ #include <linux/time.h>
+ #include <linux/ktime.h>
+ #include <linux/cpumask.h>
+-#include <evenless/list.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/clock.h>
++#include <evl/list.h>
++#include <evl/factory.h>
++#include <uapi/evl/clock.h>
+ 
+ #define ONE_BILLION  1000000000
+ 
+@@ -169,4 +169,4 @@ static inline void evl_put_clock(struct evl_clock *clock)
+ 	evl_put_element(&clock->element);
+ }
+ 
+-#endif /* !_EVENLESS_CLOCK_H */
++#endif /* !_EVL_CLOCK_H */
+diff --git a/include/evenless/control.h b/include/evl/control.h
+similarity index 89%
+rename from include/evenless/control.h
+rename to include/evl/control.h
+index 83cbdc0a4e7..14f22fb1778 100644
+--- a/include/evenless/control.h
++++ b/include/evl/control.h
+@@ -4,12 +4,12 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_CONTROL_H
+-#define _EVENLESS_CONTROL_H
++#ifndef _EVL_CONTROL_H
++#define _EVL_CONTROL_H
+ 
+ #include <linux/atomic.h>
+ #include <linux/notifier.h>
+-#include <evenless/factory.h>
++#include <evl/factory.h>
+ 
+ #define EVL_ABI_LEVEL  0
+ 
+@@ -57,4 +57,4 @@ void evl_add_state_chain(struct notifier_block *nb);
+ 
+ void evl_remove_state_chain(struct notifier_block *nb);
+ 
+-#endif /* !_EVENLESS_CONTROL_H */
++#endif /* !_EVL_CONTROL_H */
+diff --git a/include/evenless/factory.h b/include/evl/factory.h
+similarity index 96%
+rename from include/evenless/factory.h
+rename to include/evl/factory.h
+index d1b660a46a7..a60559d6cac 100644
+--- a/include/evenless/factory.h
++++ b/include/evl/factory.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_FACTORY_H
+-#define _EVENLESS_FACTORY_H
++#ifndef _EVL_FACTORY_H
++#define _EVL_FACTORY_H
+ 
+ #include <linux/device.h>
+ #include <linux/cdev.h>
+@@ -19,8 +19,8 @@
+ #include <linux/irq_work.h>
+ #include <linux/mutex.h>
+ #include <linux/hashtable.h>
+-#include <evenless/file.h>
+-#include <uapi/evenless/types.h>
++#include <evl/file.h>
++#include <uapi/evl/types.h>
+ 
+ #define element_of(__filp, __type)					\
+ 	({								\
+@@ -156,4 +156,4 @@ extern struct evl_factory evl_trace_factory;
+ extern struct evl_factory evl_xbuf_factory;
+ extern struct evl_factory evl_proxy_factory;
+ 
+-#endif /* !_EVENLESS_FACTORY_H */
++#endif /* !_EVL_FACTORY_H */
+diff --git a/include/evenless/file.h b/include/evl/file.h
+similarity index 94%
+rename from include/evenless/file.h
+rename to include/evl/file.h
+index 1d7c424c6d6..15f6cd5184c 100644
+--- a/include/evenless/file.h
++++ b/include/evl/file.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_FILE_H
+-#define _EVENLESS_FILE_H
++#ifndef _EVL_FILE_H
++#define _EVL_FILE_H
+ 
+ #include <linux/spinlock.h>
+ #include <linux/atomic.h>
+@@ -70,4 +70,4 @@ int evl_init_files(void);
+ 
+ void evl_cleanup_files(void);
+ 
+-#endif /* !_EVENLESS_FILE_H */
++#endif /* !_EVL_FILE_H */
+diff --git a/include/evenless/flag.h b/include/evl/flag.h
+similarity index 93%
+rename from include/evenless/flag.h
+rename to include/evl/flag.h
+index 4510708e8fd..91d8d2eecde 100644
+--- a/include/evenless/flag.h
++++ b/include/evl/flag.h
+@@ -4,11 +4,11 @@
+  * Copyright (C) 2017 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_FLAG_H
+-#define _EVENLESS_FLAG_H
++#ifndef _EVL_FLAG_H
++#define _EVL_FLAG_H
+ 
+-#include <evenless/wait.h>
+-#include <evenless/sched.h>
++#include <evl/wait.h>
++#include <evl/sched.h>
+ 
+ struct evl_flag {
+ 	struct evl_wait_queue wait;
+@@ -99,4 +99,4 @@ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
+ 	evl_schedule();
+ }
+ 
+-#endif /* _EVENLESS_FLAG_H */
++#endif /* _EVL_FLAG_H */
+diff --git a/include/evenless/init.h b/include/evl/init.h
+similarity index 88%
+rename from include/evenless/init.h
+rename to include/evl/init.h
+index baf519998ef..f668d709a40 100644
+--- a/include/evenless/init.h
++++ b/include/evl/init.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_INIT_H
+-#define _EVENLESS_INIT_H
++#ifndef _EVL_INIT_H
++#define _EVL_INIT_H
+ 
+ #include <linux/dovetail.h>
+ 
+@@ -33,4 +33,4 @@ static inline void evl_warn_init(const char *fn, int level, int status)
+ 		__ret;						\
+ 	})
+ 
+-#endif /* !_EVENLESS_INIT_H_ */
++#endif /* !_EVL_INIT_H_ */
+diff --git a/include/evenless/list.h b/include/evl/list.h
+similarity index 93%
+rename from include/evenless/list.h
+rename to include/evl/list.h
+index 6b545e4285d..742ce664b08 100644
+--- a/include/evenless/list.h
++++ b/include/evl/list.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_LIST_H
+-#define _EVENLESS_LIST_H
++#ifndef _EVL_LIST_H
++#define _EVL_LIST_H
+ 
+ #include <linux/list.h>
+ 
+@@ -43,4 +43,4 @@ do {										\
+ 	list_entry((__item)->__member.next, typeof(*(__item)), __member)
+ #endif
+ 
+-#endif /* !_EVENLESS_LIST_H_ */
++#endif /* !_EVL_LIST_H_ */
+diff --git a/include/evenless/lock.h b/include/evl/lock.h
+similarity index 98%
+rename from include/evenless/lock.h
+rename to include/evl/lock.h
+index af49835310a..d25668874ab 100644
+--- a/include/evenless/lock.h
++++ b/include/evl/lock.h
+@@ -10,8 +10,8 @@
+  * away from the inefficient single-lock model. Do NOT add more
+  * instances of such lock.
+  */
+-#ifndef _EVENLESS_LOCK_H
+-#define _EVENLESS_LOCK_H
++#ifndef _EVL_LOCK_H
++#define _EVL_LOCK_H
+ 
+ #include <linux/irq_pipeline.h>
+ 
+@@ -194,4 +194,4 @@ typedef struct evl_spinlock {
+ 		evl_enable_preempt();			\
+ 	} while (0)
+ 
+-#endif /* !_EVENLESS_LOCK_H */
++#endif /* !_EVL_LOCK_H */
+diff --git a/include/evenless/memory.h b/include/evl/memory.h
+similarity index 94%
+rename from include/evenless/memory.h
+rename to include/evl/memory.h
+index e340d1b128a..3219ee4bdf8 100644
+--- a/include/evenless/memory.h
++++ b/include/evl/memory.h
+@@ -5,16 +5,16 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_MEMORY_H
+-#define _EVENLESS_MEMORY_H
++#ifndef _EVL_MEMORY_H
++#define _EVL_MEMORY_H
+ 
+ #include <linux/types.h>
+ #include <linux/atomic.h>
+ #include <linux/spinlock.h>
+ #include <linux/rbtree.h>
+-#include <evenless/list.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/types.h>
++#include <evl/list.h>
++#include <evl/factory.h>
++#include <uapi/evl/types.h>
+ 
+ #define EVL_HEAP_PAGE_SHIFT	9 /* 2^9 => 512 bytes */
+ #define EVL_HEAP_PAGE_SIZE	(1UL << EVL_HEAP_PAGE_SHIFT)
+@@ -138,4 +138,4 @@ void evl_cleanup_memory(void);
+ 
+ extern size_t evl_shm_size;
+ 
+-#endif /* !_EVENLESS_MEMORY_H */
++#endif /* !_EVL_MEMORY_H */
+diff --git a/include/evenless/monitor.h b/include/evl/monitor.h
+similarity index 69%
+rename from include/evenless/monitor.h
+rename to include/evl/monitor.h
+index da5b9e6d35c..441decab3aa 100644
+--- a/include/evenless/monitor.h
++++ b/include/evl/monitor.h
+@@ -4,12 +4,12 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_MONITOR_H
+-#define _EVENLESS_MONITOR_H
++#ifndef _EVL_MONITOR_H
++#define _EVL_MONITOR_H
+ 
+-#include <evenless/factory.h>
+-#include <evenless/thread.h>
+-#include <evenless/sched.h>
++#include <evl/factory.h>
++#include <evl/thread.h>
++#include <evl/sched.h>
+ 
+ int evl_signal_monitor_targeted(struct evl_thread *target,
+ 				int monfd);
+@@ -24,4 +24,4 @@ static inline void evl_commit_monitor_ceiling(void)
+ 		__evl_commit_monitor_ceiling();
+ }
+ 
+-#endif /* !_EVENLESS_MONITOR_H */
++#endif /* !_EVL_MONITOR_H */
+diff --git a/include/evenless/mutex.h b/include/evl/mutex.h
+similarity index 93%
+rename from include/evenless/mutex.h
+rename to include/evl/mutex.h
+index daeb2ee13fa..26423fbd26f 100644
+--- a/include/evenless/mutex.h
++++ b/include/evl/mutex.h
+@@ -4,17 +4,17 @@
+  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_MUTEX_H
+-#define _EVENLESS_MUTEX_H
++#ifndef _EVL_MUTEX_H
++#define _EVL_MUTEX_H
+ 
+ #include <linux/types.h>
+ #include <linux/ktime.h>
+ #include <linux/atomic.h>
+-#include <evenless/list.h>
+-#include <evenless/assert.h>
+-#include <evenless/timer.h>
+-#include <evenless/thread.h>
+-#include <uapi/evenless/mutex.h>
++#include <evl/list.h>
++#include <evl/assert.h>
++#include <evl/timer.h>
++#include <evl/thread.h>
++#include <uapi/evl/mutex.h>
+ 
+ struct evl_clock;
+ struct evl_thread;
+@@ -137,4 +137,4 @@ void evl_unlock_kmutex(struct evl_kmutex *kmutex)
+ 	return evl_unlock_mutex(&kmutex->mutex);
+ }
+ 
+-#endif /* !_EVENLESS_MUTEX_H */
++#endif /* !_EVL_MUTEX_H */
+diff --git a/include/evenless/poll.h b/include/evl/poll.h
+similarity index 88%
+rename from include/evenless/poll.h
+rename to include/evl/poll.h
+index 391577752cc..70f1c40f989 100644
+--- a/include/evenless/poll.h
++++ b/include/evl/poll.h
+@@ -4,18 +4,18 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_POLL_H
+-#define _EVENLESS_POLL_H
++#ifndef _EVL_POLL_H
++#define _EVL_POLL_H
+ 
+ #include <linux/types.h>
+ #include <linux/list.h>
+ #include <linux/rbtree.h>
+ #include <linux/spinlock.h>
+ #include <linux/poll.h>
+-#include <evenless/lock.h>
+-#include <evenless/wait.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/poll.h>
++#include <evl/lock.h>
++#include <evl/wait.h>
++#include <evl/factory.h>
++#include <uapi/evl/poll.h>
+ 
+ #define EVL_POLLHEAD_INITIALIZER(__name) {				\
+ 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
+@@ -71,4 +71,4 @@ void evl_drop_poll_table(struct evl_thread *thread);
+ 
+ void evl_drop_watchpoints(struct list_head *drop_list);
+ 
+-#endif /* !_EVENLESS_POLL_H */
++#endif /* !_EVL_POLL_H */
+diff --git a/include/evenless/sched.h b/include/evl/sched.h
+similarity index 97%
+rename from include/evenless/sched.h
+rename to include/evl/sched.h
+index 65a6c01ef77..948e1c1aad9 100644
+--- a/include/evenless/sched.h
++++ b/include/evl/sched.h
+@@ -5,19 +5,19 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_H
+-#define _EVENLESS_SCHED_H
++#ifndef _EVL_SCHED_H
++#define _EVL_SCHED_H
+ 
+ #include <linux/percpu.h>
+ #include <linux/list.h>
+-#include <evenless/lock.h>
+-#include <evenless/thread.h>
+-#include <evenless/wait.h>
+-#include <evenless/sched/queue.h>
+-#include <evenless/sched/weak.h>
+-#include <evenless/sched/quota.h>
+-#include <evenless/assert.h>
+-#include <evenless/init.h>
++#include <evl/lock.h>
++#include <evl/thread.h>
++#include <evl/wait.h>
++#include <evl/sched/queue.h>
++#include <evl/sched/weak.h>
++#include <evl/sched/quota.h>
++#include <evl/assert.h>
++#include <evl/init.h>
+ 
+ /** Shared scheduler status bits **/
+ 
+@@ -347,8 +347,8 @@ static inline bool evl_cannot_block(void)
+ bool evl_set_effective_thread_priority(struct evl_thread *thread,
+ 				       int prio);
+ 
+-#include <evenless/sched/idle.h>
+-#include <evenless/sched/rt.h>
++#include <evl/sched/idle.h>
++#include <evl/sched/rt.h>
+ 
+ struct evl_thread *evl_pick_thread(struct evl_rq *rq);
+ 
+@@ -535,4 +535,4 @@ int __init evl_init_sched(void);
+ 
+ void __init evl_cleanup_sched(void);
+ 
+-#endif /* !_EVENLESS_SCHED_H */
++#endif /* !_EVL_SCHED_H */
+diff --git a/include/evenless/sched/idle.h b/include/evl/sched/idle.h
+similarity index 85%
+rename from include/evenless/sched/idle.h
+rename to include/evl/sched/idle.h
+index cb3072a89ac..3f8aae3bfd3 100644
+--- a/include/evenless/sched/idle.h
++++ b/include/evl/sched/idle.h
+@@ -5,11 +5,11 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_IDLE_H
+-#define _EVENLESS_SCHED_IDLE_H
++#ifndef _EVL_SCHED_IDLE_H
++#define _EVL_SCHED_IDLE_H
+ 
+-#ifndef _EVENLESS_SCHED_H
+-#error "please don't include evenless/sched/idle.h directly"
++#ifndef _EVL_SCHED_H
++#error "please don't include evl/sched/idle.h directly"
+ #endif
+ 
+ /* Idle priority level - actually never used for indexing. */
+@@ -50,4 +50,4 @@ static inline int evl_init_idle_thread(struct evl_thread *thread)
+ 	return 0;
+ }
+ 
+-#endif /* !_EVENLESS_SCHED_IDLE_H */
++#endif /* !_EVL_SCHED_IDLE_H */
+diff --git a/include/evenless/sched/param.h b/include/evl/sched/param.h
+similarity index 83%
+rename from include/evenless/sched/param.h
+rename to include/evl/sched/param.h
+index d64510abe06..9c9056ffa49 100644
+--- a/include/evenless/sched/param.h
++++ b/include/evl/sched/param.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_PARAM_H
+-#define _EVENLESS_SCHED_PARAM_H
++#ifndef _EVL_SCHED_PARAM_H
++#define _EVL_SCHED_PARAM_H
+ 
+ struct evl_idle_param {
+ 	int prio;
+@@ -34,4 +34,4 @@ union evl_sched_param {
+ #endif
+ };
+ 
+-#endif /* !_EVENLESS_SCHED_PARAM_H */
++#endif /* !_EVL_SCHED_PARAM_H */
+diff --git a/include/evenless/sched/queue.h b/include/evl/sched/queue.h
+similarity index 91%
+rename from include/evenless/sched/queue.h
+rename to include/evl/sched/queue.h
+index ff9cfc1a0a7..42fd21fd3bc 100644
+--- a/include/evenless/sched/queue.h
++++ b/include/evl/sched/queue.h
+@@ -5,11 +5,11 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_QUEUE_H
+-#define _EVENLESS_SCHED_QUEUE_H
++#ifndef _EVL_SCHED_QUEUE_H
++#define _EVL_SCHED_QUEUE_H
+ 
+ #include <linux/bitmap.h>
+-#include <evenless/list.h>
++#include <evl/list.h>
+ 
+ #define EVL_CLASS_WEIGHT_FACTOR	1024
+ 
+@@ -56,4 +56,4 @@ typedef struct evl_multilevel_queue evl_schedqueue_t;
+ 
+ struct evl_thread *evl_lookup_schedq(evl_schedqueue_t *q, int prio);
+ 
+-#endif /* !_EVENLESS_SCHED_QUEUE_H */
++#endif /* !_EVL_SCHED_QUEUE_H */
+diff --git a/include/evenless/sched/quota.h b/include/evl/sched/quota.h
+similarity index 94%
+rename from include/evenless/sched/quota.h
+rename to include/evl/sched/quota.h
+index 1b8476d196c..c10b0fadb4a 100644
+--- a/include/evenless/sched/quota.h
++++ b/include/evl/sched/quota.h
+@@ -8,8 +8,8 @@
+ #ifndef _EVL_SCHED_QUOTA_H
+ #define _EVL_SCHED_QUOTA_H
+ 
+-#ifndef _EVENLESS_SCHED_H
+-#error "please don't include evenless/sched/quota.h directly"
++#ifndef _EVL_SCHED_H
++#error "please don't include evl/sched/quota.h directly"
+ #endif
+ 
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+diff --git a/include/evenless/sched/rt.h b/include/evl/sched/rt.h
+similarity index 93%
+rename from include/evenless/sched/rt.h
+rename to include/evl/sched/rt.h
+index 77ae8489c8f..c823535f0b4 100644
+--- a/include/evenless/sched/rt.h
++++ b/include/evl/sched/rt.h
+@@ -5,11 +5,11 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_RT_H
+-#define _EVENLESS_SCHED_RT_H
++#ifndef _EVL_SCHED_RT_H
++#define _EVL_SCHED_RT_H
+ 
+-#ifndef _EVENLESS_SCHED_H
+-#error "please don't include evenless/sched/rt.h directly"
++#ifndef _EVL_SCHED_H
++#error "please don't include evl/sched/rt.h directly"
+ #endif
+ 
+ /*
+@@ -114,4 +114,4 @@ int evl_init_rt_thread(struct evl_thread *thread)
+ 
+ struct evl_thread *evl_rt_pick(struct evl_rq *rq);
+ 
+-#endif /* !_EVENLESS_SCHED_RT_H */
++#endif /* !_EVL_SCHED_RT_H */
+diff --git a/include/evenless/sched/weak.h b/include/evl/sched/weak.h
+similarity index 78%
+rename from include/evenless/sched/weak.h
+rename to include/evl/sched/weak.h
+index 145e13d8dbb..04339894524 100644
+--- a/include/evenless/sched/weak.h
++++ b/include/evl/sched/weak.h
+@@ -5,11 +5,11 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_WEAK_H
+-#define _EVENLESS_SCHED_WEAK_H
++#ifndef _EVL_SCHED_WEAK_H
++#define _EVL_SCHED_WEAK_H
+ 
+-#ifndef _EVENLESS_SCHED_H
+-#error "please don't include evenless/sched/weak.h directly"
++#ifndef _EVL_SCHED_H
++#error "please don't include evl/sched/weak.h directly"
+ #endif
+ 
+ #define EVL_WEAK_MIN_PRIO  0
+@@ -32,4 +32,4 @@ static inline int evl_weak_init_thread(struct evl_thread *thread)
+ 	return 0;
+ }
+ 
+-#endif /* !_EVENLESS_SCHED_WEAK_H */
++#endif /* !_EVL_SCHED_WEAK_H */
+diff --git a/include/evenless/sem.h b/include/evl/sem.h
+similarity index 82%
+rename from include/evenless/sem.h
+rename to include/evl/sem.h
+index 6abdefaf5f3..a7c5ea11965 100644
+--- a/include/evenless/sem.h
++++ b/include/evl/sem.h
+@@ -4,11 +4,11 @@
+  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SEM_H
+-#define _EVENLESS_SEM_H
++#ifndef _EVL_SEM_H
++#define _EVL_SEM_H
+ 
+ #include <linux/ktime.h>
+-#include <evenless/wait.h>
++#include <evl/wait.h>
+ 
+ struct evl_sem {
+ 	unsigned int value;
+@@ -29,4 +29,4 @@ int evl_trydown(struct evl_sem *sem);
+ 
+ void evl_up(struct evl_sem *sem);
+ 
+-#endif /* !_EVENLESS_SEM_H */
++#endif /* !_EVL_SEM_H */
+diff --git a/include/evenless/stat.h b/include/evl/stat.h
+similarity index 96%
+rename from include/evenless/stat.h
+rename to include/evl/stat.h
+index 3f083a0adbc..f669f2ba9fc 100644
+--- a/include/evenless/stat.h
++++ b/include/evl/stat.h
+@@ -7,10 +7,10 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_STAT_H
+-#define _EVENLESS_STAT_H
++#ifndef _EVL_STAT_H
++#define _EVL_STAT_H
+ 
+-#include <evenless/clock.h>
++#include <evl/clock.h>
+ 
+ struct evl_rq;
+ 
+@@ -137,4 +137,4 @@ struct evl_counter {
+ 		evl_set_current_account(__rq, __new_account);	\
+ 	})
+ 
+-#endif /* !_EVENLESS_STAT_H */
++#endif /* !_EVL_STAT_H */
+diff --git a/include/evenless/thread.h b/include/evl/thread.h
+similarity index 96%
+rename from include/evenless/thread.h
+rename to include/evl/thread.h
+index 81e1eb760c9..2e4f33f7fe8 100644
+--- a/include/evenless/thread.h
++++ b/include/evl/thread.h
+@@ -6,8 +6,8 @@
+  * Copyright Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+ 
+-#ifndef _EVENLESS_THREAD_H
+-#define _EVENLESS_THREAD_H
++#ifndef _EVL_THREAD_H
++#define _EVL_THREAD_H
+ 
+ #include <linux/types.h>
+ #include <linux/dovetail.h>
+@@ -15,15 +15,15 @@
+ #include <linux/irq_work.h>
+ #include <linux/atomic.h>
+ #include <linux/spinlock.h>
+-#include <evenless/list.h>
+-#include <evenless/stat.h>
+-#include <evenless/timer.h>
+-#include <evenless/sched/param.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/thread.h>
+-#include <uapi/evenless/signal.h>
+-#include <uapi/evenless/sched.h>
+-#include <asm/evenless/thread.h>
++#include <evl/list.h>
++#include <evl/stat.h>
++#include <evl/timer.h>
++#include <evl/sched/param.h>
++#include <evl/factory.h>
++#include <uapi/evl/thread.h>
++#include <uapi/evl/signal.h>
++#include <uapi/evl/sched.h>
++#include <asm/evl/thread.h>
+ 
+ #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT)
+ #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED)
+@@ -346,4 +346,4 @@ void evl_set_kthread_priority(struct evl_kthread *thread,
+ 
+ pid_t evl_get_inband_pid(struct evl_thread *thread);
+ 
+-#endif /* !_EVENLESS_THREAD_H */
++#endif /* !_EVL_THREAD_H */
+diff --git a/include/evenless/tick.h b/include/evl/tick.h
+similarity index 86%
+rename from include/evenless/tick.h
+rename to include/evl/tick.h
+index 296592f97eb..d6183106f62 100644
+--- a/include/evenless/tick.h
++++ b/include/evl/tick.h
+@@ -5,13 +5,13 @@
+  * Copyright (C) 2016 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_TICK_H
+-#define _EVENLESS_TICK_H
++#ifndef _EVL_TICK_H
++#define _EVL_TICK_H
+ 
+ #include <linux/types.h>
+ #include <linux/ktime.h>
+-#include <evenless/clock.h>
+-#include <uapi/evenless/types.h>
++#include <evl/clock.h>
++#include <uapi/evl/types.h>
+ 
+ struct evl_rq;
+ 
+@@ -45,4 +45,4 @@ void evl_program_proxy_tick(struct evl_clock *clock);
+ void evl_send_timer_ipi(struct evl_clock *clock,
+ 			struct evl_rq *rq);
+ 
+-#endif /* !_EVENLESS_TICK_H */
++#endif /* !_EVL_TICK_H */
+diff --git a/include/evenless/timer.h b/include/evl/timer.h
+similarity index 98%
+rename from include/evenless/timer.h
+rename to include/evl/timer.h
+index ffb334b0ddb..83910b6688c 100644
+--- a/include/evenless/timer.h
++++ b/include/evl/timer.h
+@@ -5,17 +5,17 @@
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_TIMER_H
+-#define _EVENLESS_TIMER_H
++#ifndef _EVL_TIMER_H
++#define _EVL_TIMER_H
+ 
+ #include <linux/types.h>
+ #include <linux/time.h>
+ #include <linux/list.h>
+ #include <linux/rbtree.h>
+-#include <evenless/clock.h>
+-#include <evenless/stat.h>
+-#include <evenless/list.h>
+-#include <evenless/assert.h>
++#include <evl/clock.h>
++#include <evl/stat.h>
++#include <evl/list.h>
++#include <evl/assert.h>
+ 
+ /*
+  * Basic assumption throughout the code: ktime_t is a 64bit signed
+@@ -453,4 +453,4 @@ static inline bool evl_timer_on_rq(struct evl_timer *timer,
+ 
+ #endif /* CONFIG_SMP */
+ 
+-#endif /* !_EVENLESS_TIMER_H */
++#endif /* !_EVL_TIMER_H */
+diff --git a/include/evenless/wait.h b/include/evl/wait.h
+similarity index 94%
+rename from include/evenless/wait.h
+rename to include/evl/wait.h
+index 0bbfe00f83a..009dd5fdb5e 100644
+--- a/include/evenless/wait.h
++++ b/include/evl/wait.h
+@@ -5,17 +5,17 @@
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_WAIT_H
+-#define _EVENLESS_WAIT_H
++#ifndef _EVL_WAIT_H
++#define _EVL_WAIT_H
+ 
+ #include <linux/types.h>
+ #include <linux/errno.h>
+ #include <linux/spinlock.h>
+-#include <evenless/list.h>
+-#include <evenless/timer.h>
+-#include <evenless/clock.h>
+-#include <evenless/thread.h>
+-#include <uapi/evenless/thread.h>
++#include <evl/list.h>
++#include <evl/timer.h>
++#include <evl/clock.h>
++#include <evl/thread.h>
++#include <uapi/evl/thread.h>
+ 
+ #define EVL_WAIT_FIFO    0
+ #define EVL_WAIT_PRIO    BIT(0)
+@@ -143,4 +143,4 @@ void evl_abort_wait(struct evl_thread *thread,
+ 
+ void evl_reorder_wait(struct evl_thread *thread);
+ 
+-#endif /* !_EVENLESS_WAIT_H_ */
++#endif /* !_EVL_WAIT_H_ */
+diff --git a/include/evenless/xbuf.h b/include/evl/xbuf.h
+similarity index 85%
+rename from include/evenless/xbuf.h
+rename to include/evl/xbuf.h
+index 6006addc081..ff70136758c 100644
+--- a/include/evenless/xbuf.h
++++ b/include/evl/xbuf.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_XBUF_H
+-#define _EVENLESS_XBUF_H
++#ifndef _EVL_XBUF_H
++#define _EVL_XBUF_H
+ 
+ #include <linux/types.h>
+ 
+@@ -25,4 +25,4 @@ ssize_t evl_write_xbuf(struct evl_xbuf *xbuf,
+ 		const void *buf, size_t count,
+ 		int f_flags);
+ 
+-#endif /* !_EVENLESS_XBUF_H */
++#endif /* !_EVL_XBUF_H */
+diff --git a/include/trace/events/evenless.h b/include/trace/events/evl.h
+similarity index 97%
+rename from include/trace/events/evenless.h
+rename to include/trace/events/evl.h
+index aad524d86e4..deaca0a6565 100644
+--- a/include/trace/events/evenless.h
++++ b/include/trace/events/evl.h
+@@ -6,18 +6,18 @@
+  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#if !defined(_TRACE_EVENLESS_H) || defined(TRACE_HEADER_MULTI_READ)
+-#define _TRACE_EVENLESS_H
++#if !defined(_TRACE_EVL_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_EVL_H
+ 
+ #undef TRACE_SYSTEM
+-#define TRACE_SYSTEM evenless
++#define TRACE_SYSTEM evl
+ 
+ #include <linux/mman.h>
+ #include <linux/sched.h>
+ #include <linux/math64.h>
+ #include <linux/tracepoint.h>
+ #include <linux/trace_seq.h>
+-#include <evenless/timer.h>
++#include <evl/timer.h>
+ 
+ struct evl_rq;
+ struct evl_thread;
+@@ -148,13 +148,13 @@ DECLARE_EVENT_CLASS(syscall_exit,
+ 	TP_printk("result=%ld", __entry->result)
+ );
+ 
+-#define evl_print_sched_policy(__policy)			\
+-	__print_symbolic(__policy,				\
+-			 {SCHED_NORMAL, "normal"},		\
+-			 {SCHED_FIFO, "fifo"},			\
+-			 {SCHED_RR, "rr"},			\
+-			 {SCHED_QUOTA, "quota"},		\
+-			 {SCHED_EVL, "evenless"},		\
++#define evl_print_sched_policy(__policy)		\
++	__print_symbolic(__policy,			\
++			 {SCHED_NORMAL, "normal"},	\
++			 {SCHED_FIFO, "fifo"},		\
++			 {SCHED_RR, "rr"},		\
++			 {SCHED_QUOTA, "quota"},	\
++			 {SCHED_EVL, "evl"},		\
+ 			 {SCHED_WEAK, "weak"})
+ 
+ const char *evl_trace_sched_attrs(struct trace_seq *seq,
+@@ -604,10 +604,10 @@ DEFINE_EVENT(timer_event, evl_timer_expire,
+ 	TP_ARGS(timer)
+ );
+ 
+-#define evl_print_timer_mode(mode)			\
+-	__print_symbolic(mode,				\
+-			 { EVENLESS_REL, "rel" },	\
+-			 { EVENLESS_ABS, "abs" })
++#define evl_print_timer_mode(mode)		\
++	__print_symbolic(mode,			\
++			 { EVL_REL, "rel" },	\
++			 { EVL_ABS, "abs" })
+ 
+ TRACE_EVENT(evl_timer_start,
+ 	TP_PROTO(struct evl_timer *timer, ktime_t value, ktime_t interval),
+@@ -876,7 +876,7 @@ TRACE_EVENT(evl_trigger,
+ 	TP_printk("%s", __get_str(issuer))
+ );
+ 
+-#endif /* _TRACE_EVENLESS_H */
++#endif /* _TRACE_EVL_H */
+ 
+ /* This part must be outside protection */
+ #include <trace/define_trace.h>
+diff --git a/include/uapi/evenless/syscall.h b/include/uapi/evenless/syscall.h
+deleted file mode 100644
+index 5bfc4e2a383..00000000000
+--- a/include/uapi/evenless/syscall.h
++++ /dev/null
+@@ -1,16 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+- *
+- * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
+- */
+-
+-#ifndef _EVENLESS_UAPI_SYSCALL_H
+-#define _EVENLESS_UAPI_SYSCALL_H
+-
+-#define __NR_EVENLESS_SYSCALLS	3
+-
+-#define sys_evenless_read	0	/* oob_read() */
+-#define sys_evenless_write	1	/* oob_write() */
+-#define sys_evenless_ioctl	2	/* oob_ioctl() */
+-
+-#endif /* !_EVENLESS_UAPI_SYSCALL_H */
+diff --git a/include/uapi/evenless/clock.h b/include/uapi/evl/clock.h
+similarity index 92%
+rename from include/uapi/evenless/clock.h
+rename to include/uapi/evl/clock.h
+index 61396ca411c..cd24ac98239 100644
+--- a/include/uapi/evenless/clock.h
++++ b/include/uapi/evl/clock.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_CLOCK_H
+-#define _EVENLESS_UAPI_CLOCK_H
++#ifndef _EVL_UAPI_CLOCK_H
++#define _EVL_UAPI_CLOCK_H
+ 
+ #define EVL_CLOCK_MONOTONIC  (-CLOCK_MONOTONIC)
+ #define EVL_CLOCK_REALTIME   (-CLOCK_REALTIME)
+@@ -41,4 +41,4 @@ struct evl_timerfd_getreq {
+ #define EVL_TFDIOC_SET	_IOWR(EVL_TIMERFD_IOCBASE, 0, struct evl_timerfd_setreq)
+ #define EVL_TFDIOC_GET	_IOR(EVL_TIMERFD_IOCBASE, 1, struct evl_timerfd_getreq)
+ 
+-#endif /* !_EVENLESS_UAPI_CLOCK_H */
++#endif /* !_EVL_UAPI_CLOCK_H */
+diff --git a/include/uapi/evenless/control.h b/include/uapi/evl/control.h
+similarity index 75%
+rename from include/uapi/evenless/control.h
+rename to include/uapi/evl/control.h
+index 7a1535e8cc5..12729507d21 100644
+--- a/include/uapi/evenless/control.h
++++ b/include/uapi/evl/control.h
+@@ -4,10 +4,10 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_CONTROL_H
+-#define _EVENLESS_UAPI_CONTROL_H
++#ifndef _EVL_UAPI_CONTROL_H
++#define _EVL_UAPI_CONTROL_H
+ 
+-#include <uapi/evenless/sched.h>
++#include <uapi/evl/sched.h>
+ 
+ struct evl_core_info {
+ 	__u32 abi_level;
+@@ -20,4 +20,4 @@ struct evl_core_info {
+ #define EVL_CTLIOC_GET_COREINFO		_IOR(EVL_CONTROL_IOCBASE, 0, struct evl_core_info)
+ #define EVL_CTLIOC_SCHEDCTL		_IOWR(EVL_CONTROL_IOCBASE, 1, struct evl_sched_ctlreq)
+ 
+-#endif /* !_EVENLESS_UAPI_CONTROL_H */
++#endif /* !_EVL_UAPI_CONTROL_H */
+diff --git a/include/uapi/evenless/devices/hectic.h b/include/uapi/evl/devices/hectic.h
+similarity index 90%
+rename from include/uapi/evenless/devices/hectic.h
+rename to include/uapi/evl/devices/hectic.h
+index 28009ac8375..7832aff42e2 100644
+--- a/include/uapi/evenless/devices/hectic.h
++++ b/include/uapi/evl/devices/hectic.h
+@@ -6,8 +6,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_DEVICES_HECTIC_H
+-#define _EVENLESS_UAPI_DEVICES_HECTIC_H
++#ifndef _EVL_UAPI_DEVICES_HECTIC_H
++#define _EVL_UAPI_DEVICES_HECTIC_H
+ 
+ struct hectic_task_index {
+ 	unsigned int index;
+@@ -36,4 +36,4 @@ struct hectic_error {
+ #define EVL_HECIOC_GET_LAST_ERROR 	_IOR(EVL_HECTIC_IOCBASE, 7, struct hectic_error)
+ #define EVL_HECIOC_SET_PAUSE 		_IOW(EVL_HECTIC_IOCBASE, 8, __u32)
+ 
+-#endif /* !_EVENLESS_UAPI_DEVICES_HECTIC_H */
++#endif /* !_EVL_UAPI_DEVICES_HECTIC_H */
+diff --git a/include/uapi/evenless/devices/latmus.h b/include/uapi/evl/devices/latmus.h
+similarity index 90%
+rename from include/uapi/evenless/devices/latmus.h
+rename to include/uapi/evl/devices/latmus.h
+index d0fcca5b011..de47ffd0429 100644
+--- a/include/uapi/evenless/devices/latmus.h
++++ b/include/uapi/evl/devices/latmus.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_DEVICES_LATMUS_H
+-#define _EVENLESS_UAPI_DEVICES_LATMUS_H
++#ifndef _EVL_UAPI_DEVICES_LATMUS_H
++#define _EVL_UAPI_DEVICES_LATMUS_H
+ 
+ /* Latmus context types. */
+ #define EVL_LAT_IRQ   0
+@@ -54,4 +54,4 @@ struct latmus_measurement {
+ #define EVL_LATIOC_PULSE	_IOW(EVL_LATMUS_IOCBASE, 3, __u64)
+ #define EVL_LATIOC_RESET	_IO(EVL_LATMUS_IOCBASE, 4)
+ 
+-#endif /* !_EVENLESS_UAPI_DEVICES_LATMUS_H */
++#endif /* !_EVL_UAPI_DEVICES_LATMUS_H */
+diff --git a/include/uapi/evenless/factory.h b/include/uapi/evl/factory.h
+similarity index 79%
+rename from include/uapi/evenless/factory.h
+rename to include/uapi/evl/factory.h
+index d7839aadf71..45c14891ed5 100644
+--- a/include/uapi/evenless/factory.h
++++ b/include/uapi/evl/factory.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_FACTORY_H
+-#define _EVENLESS_UAPI_FACTORY_H
++#ifndef _EVL_UAPI_FACTORY_H
++#define _EVL_UAPI_FACTORY_H
+ 
+ #define EVL_FACTORY_IOCBASE	'f'
+ 
+@@ -23,4 +23,4 @@ struct evl_clone_req {
+ 
+ #define EVL_IOC_CLONE	_IOWR(EVL_FACTORY_IOCBASE, 0, struct evl_clone_req)
+ 
+-#endif /* !_EVENLESS_UAPI_FACTORY_H */
++#endif /* !_EVL_UAPI_FACTORY_H */
+diff --git a/include/uapi/evenless/monitor.h b/include/uapi/evl/monitor.h
+similarity index 90%
+rename from include/uapi/evenless/monitor.h
+rename to include/uapi/evl/monitor.h
+index 450dac31d74..ba592b4e8c5 100644
+--- a/include/uapi/evenless/monitor.h
++++ b/include/uapi/evl/monitor.h
+@@ -4,11 +4,11 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_MONITOR_H
+-#define _EVENLESS_UAPI_MONITOR_H
++#ifndef _EVL_UAPI_MONITOR_H
++#define _EVL_UAPI_MONITOR_H
+ 
+-#include <uapi/evenless/types.h>
+-#include <uapi/evenless/factory.h>
++#include <uapi/evl/types.h>
++#include <uapi/evl/factory.h>
+ 
+ #define EVL_MONITOR_EV  0	/* Event monitor. */
+ #define EVL_MONITOR_PI  1	/* Gate with priority inheritance. */
+@@ -70,4 +70,4 @@ struct evl_monitor_binding {
+ #define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
+ #define EVL_MONIOC_SIGNAL	_IO(EVL_MONITOR_IOCBASE, 6)
+ 
+-#endif /* !_EVENLESS_UAPI_MONITOR_H */
++#endif /* !_EVL_UAPI_MONITOR_H */
+diff --git a/include/uapi/evenless/mutex.h b/include/uapi/evl/mutex.h
+similarity index 86%
+rename from include/uapi/evenless/mutex.h
+rename to include/uapi/evl/mutex.h
+index 02e652ac1dc..68df16399ae 100644
+--- a/include/uapi/evenless/mutex.h
++++ b/include/uapi/evl/mutex.h
+@@ -6,10 +6,10 @@
+  * Copyright (C) 2008, 2009 Jan Kiszka <jan.kiszka@siemens.com>.
+  */
+ 
+-#ifndef _EVENLESS_UAPI_MUTEX_H
+-#define _EVENLESS_UAPI_MUTEX_H
++#ifndef _EVL_UAPI_MUTEX_H
++#define _EVL_UAPI_MUTEX_H
+ 
+-#include <uapi/evenless/types.h>
++#include <uapi/evl/types.h>
+ 
+ static inline int
+ evl_is_mutex_owner(atomic_t *fastlock, fundle_t ownerh)
+@@ -40,4 +40,4 @@ int evl_fast_unlock_mutex(atomic_t *fastlock, fundle_t cur_ownerh)
+ 		== cur_ownerh;
+ }
+ 
+-#endif /* !_EVENLESS_UAPI_MUTEX_H */
++#endif /* !_EVL_UAPI_MUTEX_H */
+diff --git a/include/uapi/evenless/poll.h b/include/uapi/evl/poll.h
+similarity index 86%
+rename from include/uapi/evenless/poll.h
+rename to include/uapi/evl/poll.h
+index 485e7cadcdd..64e154cc1c7 100644
+--- a/include/uapi/evenless/poll.h
++++ b/include/uapi/evl/poll.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_POLL_H
+-#define _EVENLESS_UAPI_POLL_H
++#ifndef _EVL_UAPI_POLL_H
++#define _EVL_UAPI_POLL_H
+ 
+ #define EVL_POLL_IOCBASE  'p'
+ 
+@@ -33,4 +33,4 @@ struct evl_poll_waitreq {
+ #define EVL_POLIOC_CTL		_IOW(EVL_POLL_IOCBASE, 0, struct evl_poll_ctlreq)
+ #define EVL_POLIOC_WAIT		_IOWR(EVL_POLL_IOCBASE, 1, struct evl_poll_waitreq)
+ 
+-#endif /* !_EVENLESS_UAPI_POLL_H */
++#endif /* !_EVL_UAPI_POLL_H */
+diff --git a/include/uapi/evenless/proxy.h b/include/uapi/evl/proxy.h
+similarity index 64%
+rename from include/uapi/evenless/proxy.h
+rename to include/uapi/evl/proxy.h
+index 740d66b663c..9ffdf00bbc1 100644
+--- a/include/uapi/evenless/proxy.h
++++ b/include/uapi/evl/proxy.h
+@@ -4,12 +4,12 @@
+  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_PROXY_H
+-#define _EVENLESS_UAPI_PROXY_H
++#ifndef _EVL_UAPI_PROXY_H
++#define _EVL_UAPI_PROXY_H
+ 
+ struct evl_proxy_attrs {
+ 	__u32 fd;
+ 	__u32 bufsz;
+ };
+ 
+-#endif /* !_EVENLESS_UAPI_PROXY_H */
++#endif /* !_EVL_UAPI_PROXY_H */
+diff --git a/include/uapi/evenless/sched.h b/include/uapi/evl/sched.h
+similarity index 92%
+rename from include/uapi/evenless/sched.h
+rename to include/uapi/evl/sched.h
+index 96fdcf6f0a1..a27ac09e1f6 100644
+--- a/include/uapi/evenless/sched.h
++++ b/include/uapi/evl/sched.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_SCHED_H
+-#define _EVENLESS_UAPI_SCHED_H
++#ifndef _EVL_UAPI_SCHED_H
++#define _EVL_UAPI_SCHED_H
+ 
+ #define SCHED_EVL	42
+ #define SCHED_WEAK	43
+@@ -78,4 +78,4 @@ struct evl_sched_ctlreq {
+ 	union evl_sched_ctlinfo *info;
+ };
+ 
+-#endif /* !_EVENLESS_UAPI_SCHED_H */
++#endif /* !_EVL_UAPI_SCHED_H */
+diff --git a/include/uapi/evenless/signal.h b/include/uapi/evl/signal.h
+similarity index 91%
+rename from include/uapi/evenless/signal.h
+rename to include/uapi/evl/signal.h
+index 563839a7e7b..74e53bc106a 100644
+--- a/include/uapi/evenless/signal.h
++++ b/include/uapi/evl/signal.h
+@@ -6,8 +6,8 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_SIGNAL_H
+-#define _EVENLESS_UAPI_SIGNAL_H
++#ifndef _EVL_UAPI_SIGNAL_H
++#define _EVL_UAPI_SIGNAL_H
+ 
+ #define SIGEVL				SIGWINCH
+ #define sigshadow_action(code)		((code) & 0xff)
+@@ -34,4 +34,4 @@
+ #define SIGDEBUG_MUTEX_IMBALANCE	6
+ #define SIGDEBUG_MUTEX_SLEEP		7
+ 
+-#endif /* !_EVENLESS_UAPI_SIGNAL_H */
++#endif /* !_EVL_UAPI_SIGNAL_H */
+diff --git a/include/uapi/evl/syscall.h b/include/uapi/evl/syscall.h
+new file mode 100644
+index 00000000000..70807eb5455
+--- /dev/null
++++ b/include/uapi/evl/syscall.h
+@@ -0,0 +1,16 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
++ *
++ * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
++ */
++
++#ifndef _EVL_UAPI_SYSCALL_H
++#define _EVL_UAPI_SYSCALL_H
++
++#define __NR_EVL_SYSCALLS	3
++
++#define sys_evl_read	0	/* oob_read() */
++#define sys_evl_write	1	/* oob_write() */
++#define sys_evl_ioctl	2	/* oob_ioctl() */
++
++#endif /* !_EVL_UAPI_SYSCALL_H */
+diff --git a/include/uapi/evenless/thread.h b/include/uapi/evl/thread.h
+similarity index 96%
+rename from include/uapi/evenless/thread.h
+rename to include/uapi/evl/thread.h
+index fe6639f8316..12898149c76 100644
+--- a/include/uapi/evenless/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -5,10 +5,10 @@
+  * Copyright (C) 2005, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_THREAD_H
+-#define _EVENLESS_UAPI_THREAD_H
++#ifndef _EVL_UAPI_THREAD_H
++#define _EVL_UAPI_THREAD_H
+ 
+-#include <uapi/evenless/sched.h>
++#include <uapi/evl/sched.h>
+ 
+ /* State flags (shared) */
+ 
+@@ -92,4 +92,4 @@ struct evl_thread_state {
+ #define EVL_THRIOC_SET_MODE		_IOW(EVL_THREAD_IOCBASE, 8, __u32)
+ #define EVL_THRIOC_CLEAR_MODE		_IOW(EVL_THREAD_IOCBASE, 9, __u32)
+ 
+-#endif /* !_EVENLESS_UAPI_THREAD_H */
++#endif /* !_EVL_UAPI_THREAD_H */
+diff --git a/include/uapi/evenless/trace.h b/include/uapi/evl/trace.h
+similarity index 68%
+rename from include/uapi/evenless/trace.h
+rename to include/uapi/evl/trace.h
+index 2be3998f333..b0e4e8c2648 100644
+--- a/include/uapi/evenless/trace.h
++++ b/include/uapi/evl/trace.h
+@@ -4,11 +4,11 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_TRACE_H
+-#define _EVENLESS_UAPI_TRACE_H
++#ifndef _EVL_UAPI_TRACE_H
++#define _EVL_UAPI_TRACE_H
+ 
+ #define EVL_TRACE_IOCBASE	'O'
+ 
+ #define EVL_TRCIOC_SNAPSHOT	_IO(EVL_TRACE_IOCBASE, 0)
+ 
+-#endif /* !_EVENLESS_UAPI_TRACE_H */
++#endif /* !_EVL_UAPI_TRACE_H */
+diff --git a/include/uapi/evenless/types.h b/include/uapi/evl/types.h
+similarity index 87%
+rename from include/uapi/evenless/types.h
+rename to include/uapi/evl/types.h
+index 3cb3bebfd25..7aa2951c0e0 100644
+--- a/include/uapi/evenless/types.h
++++ b/include/uapi/evl/types.h
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_TYPES_H
+-#define _EVENLESS_UAPI_TYPES_H
++#ifndef _EVL_UAPI_TYPES_H
++#define _EVL_UAPI_TYPES_H
+ 
+ typedef __u32 fundle_t;
+ 
+@@ -26,4 +26,4 @@ static inline fundle_t evl_get_index(fundle_t handle)
+ 	return handle & ~EVL_HANDLE_INDEX_MASK;
+ }
+ 
+-#endif /* !_EVENLESS_UAPI_TYPES_H */
++#endif /* !_EVL_UAPI_TYPES_H */
+diff --git a/include/uapi/evenless/xbuf.h b/include/uapi/evl/xbuf.h
+similarity index 69%
+rename from include/uapi/evenless/xbuf.h
+rename to include/uapi/evl/xbuf.h
+index 697463e99cb..636bad90745 100644
+--- a/include/uapi/evenless/xbuf.h
++++ b/include/uapi/evl/xbuf.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_UAPI_XBUF_H
+-#define _EVENLESS_UAPI_XBUF_H
++#ifndef _EVL_UAPI_XBUF_H
++#define _EVL_UAPI_XBUF_H
+ 
+ struct evl_xbuf_attrs {
+ 	__u32 i_bufsz;
+@@ -14,4 +14,4 @@ struct evl_xbuf_attrs {
+ 
+ #define EVL_XBUF_IOCBASE	'x'
+ 
+-#endif /* !_EVENLESS_UAPI_XBUF_H */
++#endif /* !_EVL_UAPI_XBUF_H */
+diff --git a/kernel/Kconfig.evenless b/kernel/Kconfig.evl
+similarity index 94%
+rename from kernel/Kconfig.evenless
+rename to kernel/Kconfig.evl
+index 6730247e8da..9d825662983 100644
+--- a/kernel/Kconfig.evenless
++++ b/kernel/Kconfig.evl
+@@ -15,7 +15,7 @@ menuconfig EVL
+ 
+ if EVL
+ 
+-source "kernel/evenless/Kconfig"
++source "kernel/evl/Kconfig"
+ 
+ if WARN_CPUFREQ_GOVERNOR
+ comment "WARNING! CPU_FREQ governors other than 'performance'"
+diff --git a/kernel/Makefile b/kernel/Makefile
+index a9ad771b297..15192fd45f7 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -99,7 +99,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+ obj-$(CONFIG_DOVETAIL) += dovetail.o
+ obj-$(CONFIG_CPU_PM) += cpu_pm.o
+ obj-$(CONFIG_BPF) += bpf/
+-obj-$(CONFIG_EVL) += evenless/
++obj-$(CONFIG_EVL) += evl/
+ 
+ obj-$(CONFIG_PERF_EVENTS) += events/
+ 
+diff --git a/kernel/evenless/sched/Makefile b/kernel/evenless/sched/Makefile
+deleted file mode 100644
+index 351b9fcca9e..00000000000
+--- a/kernel/evenless/sched/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-obj-$(CONFIG_EVL) += evenless.o
+-
+-ccflags-y += -Ikernel
+-
+-evenless-y :=	\
+-	core.o	\
+-	rt.o	\
+-	idle.o	\
+-	weak.o
+-
+-evenless-$(CONFIG_EVL_SCHED_QUOTA) += quota.o
+diff --git a/kernel/evenless/.gitignore b/kernel/evl/.gitignore
+similarity index 100%
+rename from kernel/evenless/.gitignore
+rename to kernel/evl/.gitignore
+diff --git a/kernel/evenless/Kconfig b/kernel/evl/Kconfig
+similarity index 100%
+rename from kernel/evenless/Kconfig
+rename to kernel/evl/Kconfig
+diff --git a/kernel/evenless/Makefile b/kernel/evl/Makefile
+similarity index 72%
+rename from kernel/evenless/Makefile
+rename to kernel/evl/Makefile
+index 91b79f28cb1..d7248a6e613 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evl/Makefile
+@@ -1,8 +1,8 @@
+-obj-$(CONFIG_EVL) += evenless.o sched/
++obj-$(CONFIG_EVL) += evl.o sched/
+ 
+ ccflags-y += -Ikernel
+ 
+-evenless-y :=		\
++evl-y :=		\
+ 	clock.o		\
+ 	control.o	\
+ 	factory.o	\
+@@ -23,4 +23,4 @@ evenless-y :=		\
+ 	wait.o		\
+ 	xbuf.o
+ 
+-evenless-$(CONFIG_FTRACE) +=	trace.o
++evl-$(CONFIG_FTRACE) +=	trace.o
+diff --git a/kernel/evenless/clock.c b/kernel/evl/clock.c
+similarity index 98%
+rename from kernel/evenless/clock.c
+rename to kernel/evl/clock.c
+index 86ac5c12ff7..43967d470d8 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evl/clock.c
+@@ -20,19 +20,19 @@
+ #include <linux/slab.h>
+ #include <linux/anon_inodes.h>
+ #include <linux/file.h>
+-#include <evenless/sched.h>
+-#include <evenless/timer.h>
+-#include <evenless/clock.h>
+-#include <evenless/timer.h>
+-#include <evenless/tick.h>
+-#include <evenless/poll.h>
+-#include <evenless/thread.h>
+-#include <evenless/factory.h>
+-#include <evenless/control.h>
+-#include <evenless/file.h>
+-#include <asm/evenless/syscall.h>
+-#include <uapi/evenless/clock.h>
+-#include <trace/events/evenless.h>
++#include <evl/sched.h>
++#include <evl/timer.h>
++#include <evl/clock.h>
++#include <evl/timer.h>
++#include <evl/tick.h>
++#include <evl/poll.h>
++#include <evl/thread.h>
++#include <evl/factory.h>
++#include <evl/control.h>
++#include <evl/file.h>
++#include <asm/evl/syscall.h>
++#include <uapi/evl/clock.h>
++#include <trace/events/evl.h>
+ 
+ static const struct file_operations clock_fops;
+ 
+diff --git a/kernel/evenless/control.c b/kernel/evl/control.c
+similarity index 95%
+rename from kernel/evenless/control.c
+rename to kernel/evl/control.c
+index 52503c2e7aa..6aa9aa3880c 100644
+--- a/kernel/evenless/control.c
++++ b/kernel/evl/control.c
+@@ -6,15 +6,15 @@
+ 
+ #include <linux/types.h>
+ #include <linux/mm.h>
+-#include <evenless/memory.h>
+-#include <evenless/thread.h>
+-#include <evenless/factory.h>
+-#include <evenless/tick.h>
+-#include <evenless/sched.h>
+-#include <evenless/control.h>
+-#include <asm/evenless/syscall.h>
+-#include <asm/evenless/fptest.h>
+-#include <uapi/evenless/control.h>
++#include <evl/memory.h>
++#include <evl/thread.h>
++#include <evl/factory.h>
++#include <evl/tick.h>
++#include <evl/sched.h>
++#include <evl/control.h>
++#include <asm/evl/syscall.h>
++#include <asm/evl/fptest.h>
++#include <uapi/evl/control.h>
+ 
+ static BLOCKING_NOTIFIER_HEAD(state_notifier_list);
+ 
+diff --git a/kernel/evenless/factory.c b/kernel/evl/factory.c
+similarity index 97%
+rename from kernel/evenless/factory.c
+rename to kernel/evl/factory.c
+index 641551f43a9..a0ef3630aa2 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evl/factory.c
+@@ -18,12 +18,12 @@
+ #include <linux/uaccess.h>
+ #include <linux/hashtable.h>
+ #include <linux/stringhash.h>
+-#include <evenless/assert.h>
+-#include <evenless/file.h>
+-#include <evenless/control.h>
+-#include <evenless/syscall.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/factory.h>
++#include <evl/assert.h>
++#include <evl/file.h>
++#include <evl/control.h>
++#include <evl/syscall.h>
++#include <evl/factory.h>
++#include <uapi/evl/factory.h>
+ 
+ static struct class *evl_class;
+ 
+@@ -526,7 +526,7 @@ __evl_get_element_by_fundle(struct evl_factory *fac, fundle_t fundle)
+ 
+ static char *factory_devnode(struct device *dev, umode_t *mode)
+ {
+-	return kasprintf(GFP_KERNEL, "evenless/%s/%s",
++	return kasprintf(GFP_KERNEL, "evl/%s/%s",
+ 			dev->class->name, dev_name(dev));
+ }
+ 
+@@ -639,7 +639,7 @@ static void delete_factory(struct evl_factory *fac)
+ 
+ static char *evl_devnode(struct device *dev, umode_t *mode)
+ {
+-	return kasprintf(GFP_KERNEL, "evenless/%s", dev_name(dev));
++	return kasprintf(GFP_KERNEL, "evl/%s", dev_name(dev));
+ }
+ 
+ static int __init
+@@ -675,14 +675,14 @@ int __init evl_early_init_factories(void)
+ {
+ 	int ret;
+ 
+-	evl_class = class_create(THIS_MODULE, "evenless");
++	evl_class = class_create(THIS_MODULE, "evl");
+ 	if (IS_ERR(evl_class))
+ 		return PTR_ERR(evl_class);
+ 
+ 	evl_class->devnode = evl_devnode;
+ 
+ 	ret = alloc_chrdev_region(&factory_rdev, 0, NR_FACTORIES,
+-				"evenless_factory");
++				"evl_factory");
+ 	if (ret) {
+ 		class_destroy(evl_class);
+ 		return ret;
+diff --git a/kernel/evenless/file.c b/kernel/evl/file.c
+similarity index 97%
+rename from kernel/evenless/file.c
+rename to kernel/evl/file.c
+index 78755321cff..5e2cde8ea18 100644
+--- a/kernel/evenless/file.c
++++ b/kernel/evl/file.c
+@@ -13,11 +13,11 @@
+ #include <linux/completion.h>
+ #include <linux/irq_work.h>
+ #include <linux/spinlock.h>
+-#include <evenless/file.h>
+-#include <evenless/memory.h>
+-#include <evenless/assert.h>
+-#include <evenless/sched.h>
+-#include <evenless/poll.h>
++#include <evl/file.h>
++#include <evl/memory.h>
++#include <evl/assert.h>
++#include <evl/sched.h>
++#include <evl/poll.h>
+ 
+ static struct rb_root fd_tree = RB_ROOT;
+ 
+diff --git a/kernel/evenless/init.c b/kernel/evl/init.c
+similarity index 92%
+rename from kernel/evenless/init.c
+rename to kernel/evl/init.c
+index 8a423623d90..9c0583a7426 100644
+--- a/kernel/evenless/init.c
++++ b/kernel/evl/init.c
+@@ -6,17 +6,17 @@
+ 
+ #include <linux/init.h>
+ #include <linux/module.h>
+-#include <evenless/init.h>
+-#include <evenless/sched.h>
+-#include <evenless/clock.h>
+-#include <evenless/timer.h>
+-#include <evenless/tick.h>
+-#include <evenless/memory.h>
+-#include <evenless/file.h>
+-#include <evenless/factory.h>
+-#include <evenless/control.h>
++#include <evl/init.h>
++#include <evl/sched.h>
++#include <evl/clock.h>
++#include <evl/timer.h>
++#include <evl/tick.h>
++#include <evl/memory.h>
++#include <evl/file.h>
++#include <evl/factory.h>
++#include <evl/control.h>
+ #define CREATE_TRACE_POINTS
+-#include <trace/events/evenless.h>
++#include <trace/events/evl.h>
+ 
+ static char *oobcpus_arg;
+ module_param_named(oobcpus, oobcpus_arg, charp, 0444);
+diff --git a/kernel/evenless/irq.c b/kernel/evl/irq.c
+similarity index 95%
+rename from kernel/evenless/irq.c
+rename to kernel/evl/irq.c
+index becf7c9395c..46cf6cf0e0c 100644
+--- a/kernel/evenless/irq.c
++++ b/kernel/evl/irq.c
+@@ -6,7 +6,7 @@
+ 
+ #include <linux/interrupt.h>
+ #include <linux/irq.h>
+-#include <evenless/sched.h>
++#include <evl/sched.h>
+ 
+ /* hard IRQs off. */
+ void enter_oob_irq(void)
+diff --git a/kernel/evenless/lock.c b/kernel/evl/lock.c
+similarity index 93%
+rename from kernel/evenless/lock.c
+rename to kernel/evl/lock.c
+index 35a995b3291..3ddd24a153b 100644
+--- a/kernel/evenless/lock.c
++++ b/kernel/evl/lock.c
+@@ -12,8 +12,8 @@
+ 
+ #include <linux/module.h>
+ #include <linux/sched/debug.h>
+-#include <evenless/lock.h>
+-#include <evenless/clock.h>
++#include <evl/lock.h>
++#include <evl/clock.h>
+ 
+ DEFINE_XNLOCK(nklock);
+ #if defined(CONFIG_SMP)
+diff --git a/kernel/evenless/memory.c b/kernel/evl/memory.c
+similarity index 98%
+rename from kernel/evenless/memory.c
+rename to kernel/evl/memory.c
+index d8ab63b4ac7..7d60bc7ae06 100644
+--- a/kernel/evenless/memory.c
++++ b/kernel/evl/memory.c
+@@ -17,12 +17,12 @@
+ #include <linux/bitops.h>
+ #include <linux/vmalloc.h>
+ #include <linux/uaccess.h>
+-#include <evenless/memory.h>
+-#include <evenless/factory.h>
+-#include <evenless/assert.h>
+-#include <evenless/init.h>
+-#include <uapi/evenless/thread.h>
+-#include <uapi/evenless/monitor.h>
++#include <evl/memory.h>
++#include <evl/factory.h>
++#include <evl/assert.h>
++#include <evl/init.h>
++#include <uapi/evl/thread.h>
++#include <uapi/evl/monitor.h>
+ 
+ static unsigned long sysheap_size_arg;
+ module_param_named(sysheap_size, sysheap_size_arg, ulong, 0444);
+diff --git a/kernel/evenless/monitor.c b/kernel/evl/monitor.c
+similarity index 97%
+rename from kernel/evenless/monitor.c
+rename to kernel/evl/monitor.c
+index 4e4d7fa0a1e..74e0b6ee25a 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -7,20 +7,20 @@
+ #include <linux/types.h>
+ #include <linux/list.h>
+ #include <linux/slab.h>
+-#include <evenless/thread.h>
+-#include <evenless/wait.h>
+-#include <evenless/mutex.h>
+-#include <evenless/clock.h>
+-#include <evenless/monitor.h>
+-#include <evenless/thread.h>
+-#include <evenless/memory.h>
+-#include <evenless/lock.h>
+-#include <evenless/sched.h>
+-#include <evenless/factory.h>
+-#include <evenless/syscall.h>
+-#include <asm/evenless/syscall.h>
+-#include <uapi/evenless/monitor.h>
+-#include <trace/events/evenless.h>
++#include <evl/thread.h>
++#include <evl/wait.h>
++#include <evl/mutex.h>
++#include <evl/clock.h>
++#include <evl/monitor.h>
++#include <evl/thread.h>
++#include <evl/memory.h>
++#include <evl/lock.h>
++#include <evl/sched.h>
++#include <evl/factory.h>
++#include <evl/syscall.h>
++#include <asm/evl/syscall.h>
++#include <uapi/evl/monitor.h>
++#include <trace/events/evl.h>
+ 
+ struct evl_monitor {
+ 	struct evl_element element;
+diff --git a/kernel/evenless/mutex.c b/kernel/evl/mutex.c
+similarity index 98%
+rename from kernel/evenless/mutex.c
+rename to kernel/evl/mutex.c
+index 76d6f3d43d4..8233bd68287 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evl/mutex.c
+@@ -6,14 +6,14 @@
+  */
+ 
+ #include <linux/kernel.h>
+-#include <evenless/timer.h>
+-#include <evenless/clock.h>
+-#include <evenless/sched.h>
+-#include <evenless/thread.h>
+-#include <evenless/mutex.h>
+-#include <evenless/monitor.h>
+-#include <uapi/evenless/signal.h>
+-#include <trace/events/evenless.h>
++#include <evl/timer.h>
++#include <evl/clock.h>
++#include <evl/sched.h>
++#include <evl/thread.h>
++#include <evl/mutex.h>
++#include <evl/monitor.h>
++#include <uapi/evl/signal.h>
++#include <trace/events/evl.h>
+ 
+ static inline int get_ceiling_value(struct evl_mutex *mutex)
+ {
+diff --git a/kernel/evenless/poll.c b/kernel/evl/poll.c
+similarity index 98%
+rename from kernel/evenless/poll.c
+rename to kernel/evl/poll.c
+index 98305c29257..389deb6e6ab 100644
+--- a/kernel/evenless/poll.c
++++ b/kernel/evl/poll.c
+@@ -11,14 +11,14 @@
+ #include <linux/poll.h>
+ #include <linux/module.h>
+ #include <linux/spinlock.h>
+-#include <evenless/file.h>
+-#include <evenless/thread.h>
+-#include <evenless/memory.h>
+-#include <evenless/poll.h>
+-#include <evenless/sched.h>
+-#include <evenless/flag.h>
+-#include <evenless/mutex.h>
+-#include <asm/evenless/syscall.h>
++#include <evl/file.h>
++#include <evl/thread.h>
++#include <evl/memory.h>
++#include <evl/poll.h>
++#include <evl/sched.h>
++#include <evl/flag.h>
++#include <evl/mutex.h>
++#include <asm/evl/syscall.h>
+ 
+ struct poll_group {
+ 	struct rb_root item_index;  /* struct poll_item */
+diff --git a/kernel/evenless/proxy.c b/kernel/evl/proxy.c
+similarity index 98%
+rename from kernel/evenless/proxy.c
+rename to kernel/evl/proxy.c
+index ad83b89d2d9..9c2764efa8f 100644
+--- a/kernel/evenless/proxy.c
++++ b/kernel/evl/proxy.c
+@@ -15,8 +15,8 @@
+ #include <linux/workqueue.h>
+ #include <linux/circ_buf.h>
+ #include <linux/atomic.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/proxy.h>
++#include <evl/factory.h>
++#include <uapi/evl/proxy.h>
+ 
+ struct evl_proxy {
+ 	struct file *filp;
+diff --git a/kernel/evl/sched/Makefile b/kernel/evl/sched/Makefile
+new file mode 100644
+index 00000000000..43dba365533
+--- /dev/null
++++ b/kernel/evl/sched/Makefile
+@@ -0,0 +1,11 @@
++obj-$(CONFIG_EVL) += evl.o
++
++ccflags-y += -Ikernel
++
++evl-y :=	\
++	core.o	\
++	rt.o	\
++	idle.o	\
++	weak.o
++
++evl-$(CONFIG_EVL_SCHED_QUOTA) += quota.o
+diff --git a/kernel/evenless/sched/core.c b/kernel/evl/sched/core.c
+similarity index 98%
+rename from kernel/evenless/sched/core.c
+rename to kernel/evl/sched/core.c
+index 52503ae2d91..cef5b231700 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -15,15 +15,15 @@
+ #include <linux/mmu_context.h>
+ #include <asm/div64.h>
+ #include <asm/switch_to.h>
+-#include <evenless/sched.h>
+-#include <evenless/thread.h>
+-#include <evenless/timer.h>
+-#include <evenless/memory.h>
+-#include <evenless/clock.h>
+-#include <evenless/tick.h>
+-#include <evenless/monitor.h>
+-#include <uapi/evenless/signal.h>
+-#include <trace/events/evenless.h>
++#include <evl/sched.h>
++#include <evl/thread.h>
++#include <evl/timer.h>
++#include <evl/memory.h>
++#include <evl/clock.h>
++#include <evl/tick.h>
++#include <evl/monitor.h>
++#include <uapi/evl/signal.h>
++#include <trace/events/evl.h>
+ 
+ DEFINE_PER_CPU(struct evl_rq, evl_runqueues);
+ EXPORT_PER_CPU_SYMBOL_GPL(evl_runqueues);
+diff --git a/kernel/evenless/sched/idle.c b/kernel/evl/sched/idle.c
+similarity index 97%
+rename from kernel/evenless/sched/idle.c
+rename to kernel/evl/sched/idle.c
+index 5b872fed467..90e5f71bd06 100644
+--- a/kernel/evenless/sched/idle.c
++++ b/kernel/evl/sched/idle.c
+@@ -5,7 +5,7 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <evenless/sched.h>
++#include <evl/sched.h>
+ 
+ static struct evl_thread *evl_idle_pick(struct evl_rq *rq)
+ {
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evl/sched/quota.c
+similarity index 99%
+rename from kernel/evenless/sched/quota.c
+rename to kernel/evl/sched/quota.c
+index 94c1d4cf4cd..9c6fbc69dbb 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evl/sched/quota.c
+@@ -7,9 +7,9 @@
+ 
+ #include <linux/bitmap.h>
+ #include <asm/div64.h>
+-#include <evenless/sched.h>
+-#include <evenless/memory.h>
+-#include <uapi/evenless/sched.h>
++#include <evl/sched.h>
++#include <evl/memory.h>
++#include <uapi/evl/sched.h>
+ 
+ /*
+  * With this policy, each per-CPU runqueue maintains a list of active
+diff --git a/kernel/evenless/sched/rt.c b/kernel/evl/sched/rt.c
+similarity index 99%
+rename from kernel/evenless/sched/rt.c
+rename to kernel/evl/sched/rt.c
+index 3ee18dfc9ca..bcac2792369 100644
+--- a/kernel/evenless/sched/rt.c
++++ b/kernel/evl/sched/rt.c
+@@ -5,7 +5,7 @@
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <evenless/sched.h>
++#include <evl/sched.h>
+ 
+ static void evl_rt_init(struct evl_rq *rq)
+ {
+diff --git a/kernel/evenless/sched/weak.c b/kernel/evl/sched/weak.c
+similarity index 97%
+rename from kernel/evenless/sched/weak.c
+rename to kernel/evl/sched/weak.c
+index a8ec88bb945..c94d7215a05 100644
+--- a/kernel/evenless/sched/weak.c
++++ b/kernel/evl/sched/weak.c
+@@ -5,8 +5,8 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <evenless/sched.h>
+-#include <uapi/evenless/sched.h>
++#include <evl/sched.h>
++#include <uapi/evl/sched.h>
+ 
+ static void weak_init(struct evl_rq *rq)
+ {
+diff --git a/kernel/evenless/sem.c b/kernel/evl/sem.c
+similarity index 90%
+rename from kernel/evenless/sem.c
+rename to kernel/evl/sem.c
+index 375b496aa21..7f15ea4e38e 100644
+--- a/kernel/evenless/sem.c
++++ b/kernel/evl/sem.c
+@@ -4,11 +4,11 @@
+  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <evenless/timer.h>
+-#include <evenless/wait.h>
+-#include <evenless/clock.h>
+-#include <evenless/sched.h>
+-#include <evenless/sem.h>
++#include <evl/timer.h>
++#include <evl/wait.h>
++#include <evl/clock.h>
++#include <evl/sched.h>
++#include <evl/sem.h>
+ 
+ void evl_init_sem(struct evl_sem *sem, unsigned int value)
+ {
+diff --git a/kernel/evenless/syscall.c b/kernel/evl/syscall.c
+similarity index 86%
+rename from kernel/evenless/syscall.c
+rename to kernel/evl/syscall.c
+index ec127d2c6e1..59da6c6cd75 100644
+--- a/kernel/evenless/syscall.c
++++ b/kernel/evl/syscall.c
+@@ -15,21 +15,21 @@
+ #include <linux/atomic.h>
+ #include <linux/sched/task_stack.h>
+ #include <linux/sched/signal.h>
+-#include <evenless/control.h>
+-#include <evenless/thread.h>
+-#include <evenless/timer.h>
+-#include <evenless/monitor.h>
+-#include <evenless/clock.h>
+-#include <evenless/sched.h>
+-#include <evenless/file.h>
+-#include <trace/events/evenless.h>
+-#include <uapi/evenless/syscall.h>
+-#include <asm/evenless/syscall.h>
++#include <evl/control.h>
++#include <evl/thread.h>
++#include <evl/timer.h>
++#include <evl/monitor.h>
++#include <evl/clock.h>
++#include <evl/sched.h>
++#include <evl/file.h>
++#include <trace/events/evl.h>
++#include <uapi/evl/syscall.h>
++#include <asm/evl/syscall.h>
+ #ifdef CONFIG_FTRACE
+ #include <trace/trace.h>
+ #endif
+ 
+-#define EVENLESS_SYSCALL(__name, __args)	\
++#define EVL_SYSCALL(__name, __args)	\
+ 	long EVL_ ## __name __args
+ 
+ #define SYSCALL_PROPAGATE   0
+@@ -39,7 +39,7 @@ typedef long (*evl_syshand)(unsigned long arg1, unsigned long arg2,
+ 			unsigned long arg3, unsigned long arg4,
+ 			unsigned long arg5);
+ 
+-static const evl_syshand evl_syscalls[__NR_EVENLESS_SYSCALLS];
++static const evl_syshand evl_syscalls[__NR_EVL_SYSCALLS];
+ 
+ static inline void do_oob_request(int nr, struct pt_regs *regs)
+ {
+@@ -239,7 +239,7 @@ int handle_oob_syscall(struct pt_regs *regs)
+ 	return ret;
+ }
+ 
+-static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
++static EVL_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
+ {
+ 	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+@@ -266,7 +266,7 @@ static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
+ 	return ret;
+ }
+ 
+-static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
++static EVL_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+ {
+ 	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+@@ -293,8 +293,7 @@ static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+ 	return ret;
+ }
+ 
+-static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
+-				unsigned long arg))
++static EVL_SYSCALL(ioctl, (int fd, unsigned int request, unsigned long arg))
+ {
+ 	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+@@ -323,20 +322,20 @@ static int EVL_ni(void)
+ 
+ #define __syshand__(__name)	((evl_syshand)(EVL_ ## __name))
+ 
+-#define __EVENLESS_CALL_ENTRIES			\
+-	__EVENLESS_CALL_ENTRY(read)		\
+-		__EVENLESS_CALL_ENTRY(write)	\
+-		__EVENLESS_CALL_ENTRY(ioctl)
++#define __EVL_CALL_ENTRIES			\
++	__EVL_CALL_ENTRY(read)		\
++		__EVL_CALL_ENTRY(write)	\
++		__EVL_CALL_ENTRY(ioctl)
+ 
+-#define __EVENLESS_NI	__syshand__(ni)
++#define __EVL_NI	__syshand__(ni)
+ 
+-#define __EVENLESS_CALL_NI					\
+-	[0 ... __NR_EVENLESS_SYSCALLS-1] = __EVENLESS_NI,
++#define __EVL_CALL_NI					\
++	[0 ... __NR_EVL_SYSCALLS-1] = __EVL_NI,
+ 
+-#define __EVENLESS_CALL_ENTRY(__name)				\
+-	[sys_evenless_ ## __name] = __syshand__(__name),
++#define __EVL_CALL_ENTRY(__name)				\
++	[sys_evl_ ## __name] = __syshand__(__name),
+ 
+ static const evl_syshand evl_syscalls[] = {
+-	__EVENLESS_CALL_NI
+-	__EVENLESS_CALL_ENTRIES
++	__EVL_CALL_NI
++	__EVL_CALL_ENTRIES
+ };
+diff --git a/kernel/evenless/thread.c b/kernel/evl/thread.c
+similarity index 99%
+rename from kernel/evenless/thread.c
+rename to kernel/evl/thread.c
+index 37ebd5db5bd..41894248729 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evl/thread.c
+@@ -22,23 +22,23 @@
+ #include <linux/err.h>
+ #include <linux/ptrace.h>
+ #include <linux/math64.h>
+-#include <evenless/sched.h>
+-#include <evenless/timer.h>
+-#include <evenless/wait.h>
+-#include <evenless/clock.h>
+-#include <evenless/stat.h>
+-#include <evenless/assert.h>
+-#include <evenless/lock.h>
+-#include <evenless/thread.h>
+-#include <evenless/sched.h>
+-#include <evenless/memory.h>
+-#include <evenless/file.h>
+-#include <evenless/factory.h>
+-#include <evenless/monitor.h>
+-#include <evenless/mutex.h>
+-#include <evenless/poll.h>
+-#include <asm/evenless/syscall.h>
+-#include <trace/events/evenless.h>
++#include <evl/sched.h>
++#include <evl/timer.h>
++#include <evl/wait.h>
++#include <evl/clock.h>
++#include <evl/stat.h>
++#include <evl/assert.h>
++#include <evl/lock.h>
++#include <evl/thread.h>
++#include <evl/sched.h>
++#include <evl/memory.h>
++#include <evl/file.h>
++#include <evl/factory.h>
++#include <evl/monitor.h>
++#include <evl/mutex.h>
++#include <evl/poll.h>
++#include <asm/evl/syscall.h>
++#include <trace/events/evl.h>
+ 
+ static DECLARE_WAIT_QUEUE_HEAD(join_all);
+ 
+diff --git a/kernel/evenless/tick.c b/kernel/evl/tick.c
+similarity index 98%
+rename from kernel/evenless/tick.c
+rename to kernel/evl/tick.c
+index ba8c825ac80..2c38d244b61 100644
+--- a/kernel/evenless/tick.c
++++ b/kernel/evl/tick.c
+@@ -14,12 +14,12 @@
+ #include <linux/timekeeping.h>
+ #include <linux/irq_pipeline.h>
+ #include <linux/slab.h>
+-#include <evenless/sched.h>
+-#include <evenless/timer.h>
+-#include <evenless/clock.h>
+-#include <evenless/tick.h>
+-#include <evenless/control.h>
+-#include <trace/events/evenless.h>
++#include <evl/sched.h>
++#include <evl/timer.h>
++#include <evl/clock.h>
++#include <evl/tick.h>
++#include <evl/control.h>
++#include <trace/events/evl.h>
+ 
+ /*
+  * This is our high-precision clock tick device, which operates the
+diff --git a/kernel/evenless/timer.c b/kernel/evl/timer.c
+similarity index 98%
+rename from kernel/evenless/timer.c
+rename to kernel/evl/timer.c
+index 0cec520856c..e26cd8247ea 100644
+--- a/kernel/evenless/timer.c
++++ b/kernel/evl/timer.c
+@@ -9,13 +9,13 @@
+ #include <linux/sched.h>
+ #include <linux/cred.h>
+ #include <linux/err.h>
+-#include <evenless/sched.h>
+-#include <evenless/thread.h>
+-#include <evenless/timer.h>
+-#include <evenless/clock.h>
+-#include <evenless/tick.h>
++#include <evl/sched.h>
++#include <evl/thread.h>
++#include <evl/timer.h>
++#include <evl/clock.h>
++#include <evl/tick.h>
+ #include <asm/div64.h>
+-#include <trace/events/evenless.h>
++#include <trace/events/evl.h>
+ 
+ static struct evl_timerbase *
+ lock_timer_base(struct evl_timer *timer, unsigned long *flags)
+diff --git a/kernel/evenless/trace.c b/kernel/evl/trace.c
+similarity index 94%
+rename from kernel/evenless/trace.c
+rename to kernel/evl/trace.c
+index d81156fd097..9a47dafece6 100644
+--- a/kernel/evenless/trace.c
++++ b/kernel/evl/trace.c
+@@ -6,9 +6,9 @@
+ 
+ #include <linux/types.h>
+ #include <linux/uaccess.h>
+-#include <evenless/factory.h>
+-#include <uapi/evenless/trace.h>
+-#include <trace/events/evenless.h>
++#include <evl/factory.h>
++#include <uapi/evl/trace.h>
++#include <trace/events/evl.h>
+ #include <trace/trace.h>
+ 
+ static long trace_common_ioctl(struct file *filp, unsigned int cmd,
+diff --git a/kernel/evenless/wait.c b/kernel/evl/wait.c
+similarity index 94%
+rename from kernel/evenless/wait.c
+rename to kernel/evl/wait.c
+index 085b8315caf..056a8dfc2a8 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evl/wait.c
+@@ -5,12 +5,12 @@
+  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <evenless/sched.h>
+-#include <evenless/wait.h>
+-#include <evenless/thread.h>
+-#include <evenless/clock.h>
+-#include <uapi/evenless/signal.h>
+-#include <trace/events/evenless.h>
++#include <evl/sched.h>
++#include <evl/wait.h>
++#include <evl/thread.h>
++#include <evl/clock.h>
++#include <uapi/evl/signal.h>
++#include <trace/events/evl.h>
+ 
+ void evl_init_wait(struct evl_wait_queue *wq,
+ 		struct evl_clock *clock, int flags)
+diff --git a/kernel/evenless/xbuf.c b/kernel/evl/xbuf.c
+similarity index 98%
+rename from kernel/evenless/xbuf.c
+rename to kernel/evl/xbuf.c
+index 0ffce3a1d15..9c4305a4222 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evl/xbuf.c
+@@ -12,17 +12,17 @@
+ #include <linux/wait.h>
+ #include <linux/log2.h>
+ #include <linux/atomic.h>
+-#include <evenless/wait.h>
+-#include <evenless/thread.h>
+-#include <evenless/clock.h>
+-#include <evenless/xbuf.h>
+-#include <evenless/memory.h>
+-#include <evenless/lock.h>
+-#include <evenless/factory.h>
+-#include <evenless/sched.h>
+-#include <evenless/poll.h>
+-#include <evenless/flag.h>
+-#include <uapi/evenless/xbuf.h>
++#include <evl/wait.h>
++#include <evl/thread.h>
++#include <evl/clock.h>
++#include <evl/xbuf.h>
++#include <evl/memory.h>
++#include <evl/lock.h>
++#include <evl/factory.h>
++#include <evl/sched.h>
++#include <evl/poll.h>
++#include <evl/flag.h>
++#include <uapi/evl/xbuf.h>
+ 
+ struct xbuf_ring {
+ 	void *bufmem;
+-- 
+2.16.4
+

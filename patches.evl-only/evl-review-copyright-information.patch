@@ -1,0 +1,648 @@
+From 4fd2190b20c600f9c963cad189526027e147130c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Mar 2019 11:55:11 +0100
+Subject: [PATCH] evl: review copyright information
+
+A significant portion of EVL is derived from Xenomai's cobalt core:
+state this clearly and refer to https://xenomai.org in all related
+files.
+---
+ arch/arm/include/asm/evenless/thread.h        | 16 +---------------
+ arch/arm/include/uapi/asm/evenless/fptest.h   |  3 ++-
+ arch/arm64/include/uapi/asm/evenless/fptest.h |  3 ++-
+ drivers/evenless/hectic.c                     |  3 +--
+ drivers/evenless/latmus.c                     |  3 +--
+ include/evenless/assert.h                     |  2 +-
+ include/evenless/clock.h                      |  2 +-
+ include/evenless/list.h                       |  2 +-
+ include/evenless/lock.h                       |  2 +-
+ include/evenless/memory.h                     |  2 +-
+ include/evenless/sched.h                      |  2 +-
+ include/evenless/sched/idle.h                 |  2 +-
+ include/evenless/sched/param.h                |  2 +-
+ include/evenless/sched/queue.h                |  2 +-
+ include/evenless/sched/quota.h                |  2 +-
+ include/evenless/sched/rt.h                   |  2 +-
+ include/evenless/sched/weak.h                 |  2 +-
+ include/evenless/stat.h                       |  2 +-
+ include/evenless/thread.h                     |  2 +-
+ include/evenless/tick.h                       |  2 +-
+ include/evenless/timer.h                      |  2 +-
+ include/evenless/wait.h                       |  2 +-
+ include/trace/events/evenless.h               |  2 +-
+ include/uapi/evenless/devices/hectic.h        |  2 +-
+ include/uapi/evenless/devices/latmus.h        |  1 +
+ include/uapi/evenless/mutex.h                 |  2 +-
+ include/uapi/evenless/sched.h                 |  2 +-
+ include/uapi/evenless/signal.h                |  2 +-
+ include/uapi/evenless/thread.h                |  2 +-
+ include/uapi/evenless/types.h                 |  2 +-
+ kernel/evenless/clock.c                       |  2 +-
+ kernel/evenless/lock.c                        |  6 +++---
+ kernel/evenless/memory.c                      |  2 +-
+ kernel/evenless/mutex.c                       |  2 +-
+ kernel/evenless/sched/core.c                  |  2 +-
+ kernel/evenless/sched/idle.c                  |  2 +-
+ kernel/evenless/sched/quota.c                 |  4 ++--
+ kernel/evenless/sched/rt.c                    |  2 +-
+ kernel/evenless/sched/weak.c                  |  2 +-
+ kernel/evenless/syscall.c                     |  3 +--
+ kernel/evenless/thread.c                      |  2 +-
+ kernel/evenless/timer.c                       |  2 +-
+ kernel/evenless/wait.c                        |  2 +-
+ 43 files changed, 48 insertions(+), 62 deletions(-)
+
+diff --git a/arch/arm/include/asm/evenless/thread.h b/arch/arm/include/asm/evenless/thread.h
+index 00a4649c288..235cc80b4e1 100644
+--- a/arch/arm/include/asm/evenless/thread.h
++++ b/arch/arm/include/asm/evenless/thread.h
+@@ -1,20 +1,6 @@
+ /*
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005 Stelian Pop
+- *
+- * Xenomai is free software; you can redistribute it and/or modify it
+- * under the terms of the GNU General Public License as published by
+- * the Free Software Foundation; either version 2 of the License, or
+- * (at your option) any later version.
+- *
+- * Xenomai is distributed in the hope that it will be useful, but
+- * WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with Xenomai; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+- * 02111-1307, USA.
+  */
+ #ifndef _EVENLESS_ARM_ASM_THREAD_H
+ #define _EVENLESS_ARM_ASM_THREAD_H
+diff --git a/arch/arm/include/uapi/asm/evenless/fptest.h b/arch/arm/include/uapi/asm/evenless/fptest.h
+index c1d7f37642f..df9f454d7b7 100644
+--- a/arch/arm/include/uapi/asm/evenless/fptest.h
++++ b/arch/arm/include/uapi/asm/evenless/fptest.h
+@@ -1,6 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+- * Derived from Xenomai's Cobalt core:
++ *
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+ #ifndef _EVENLESS_ARM_ASM_UAPI_FPTEST_H
+diff --git a/arch/arm64/include/uapi/asm/evenless/fptest.h b/arch/arm64/include/uapi/asm/evenless/fptest.h
+index e78f7984838..d8df4641dd0 100644
+--- a/arch/arm64/include/uapi/asm/evenless/fptest.h
++++ b/arch/arm64/include/uapi/asm/evenless/fptest.h
+@@ -1,6 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+- * Derived from Xenomai's Cobalt core:
++ *
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+ #ifndef _EVENLESS_ARM64_ASM_UAPI_FPTEST_H
+diff --git a/drivers/evenless/hectic.c b/drivers/evenless/hectic.c
+index 44ead71f8b6..fe7b4a621fb 100644
+--- a/drivers/evenless/hectic.c
++++ b/drivers/evenless/hectic.c
+@@ -1,8 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt's switchtest driver
+- * (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt's switchtest driver, https://xenomai.org/
+  * Copyright (C) 2010 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+diff --git a/drivers/evenless/latmus.c b/drivers/evenless/latmus.c
+index 6d3420c4ada..15ff9607b65 100644
+--- a/drivers/evenless/latmus.c
++++ b/drivers/evenless/latmus.c
+@@ -1,8 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt's autotune driver
+- * (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt's autotune driver, https://xenomai.org/
+  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/assert.h b/include/evenless/assert.h
+index 6a68baccb3c..1e861be0853 100644
+--- a/include/evenless/assert.h
++++ b/include/evenless/assert.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/clock.h b/include/evenless/clock.h
+index c341ea4bdbc..ae96c1a2b1e 100644
+--- a/include/evenless/clock.h
++++ b/include/evenless/clock.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/list.h b/include/evenless/list.h
+index 234272530dd..6b545e4285d 100644
+--- a/include/evenless/list.h
++++ b/include/evenless/list.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/lock.h b/include/evenless/lock.h
+index 94e698957a6..af49835310a 100644
+--- a/include/evenless/lock.h
++++ b/include/evenless/lock.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Inherited from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001-2008, 2018 Philippe Gerum <rpm@xenomai.org>
+  * Copyright (C) 2004,2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  *
+diff --git a/include/evenless/memory.h b/include/evenless/memory.h
+index f9bd280169a..e340d1b128a 100644
+--- a/include/evenless/memory.h
++++ b/include/evenless/memory.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 47a73542b37..4b5007a8586 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/idle.h b/include/evenless/sched/idle.h
+index a7e6f006b1c..cb3072a89ac 100644
+--- a/include/evenless/sched/idle.h
++++ b/include/evenless/sched/idle.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/param.h b/include/evenless/sched/param.h
+index d11f874f25f..56355775e8a 100644
+--- a/include/evenless/sched/param.h
++++ b/include/evenless/sched/param.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Based on the Xenomai Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/queue.h b/include/evenless/sched/queue.h
+index 7a9f638a462..ff9cfc1a0a7 100644
+--- a/include/evenless/sched/queue.h
++++ b/include/evenless/sched/queue.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/quota.h b/include/evenless/sched/quota.h
+index 763ebe53747..259ced3c318 100644
+--- a/include/evenless/sched/quota.h
++++ b/include/evenless/sched/quota.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/rt.h b/include/evenless/sched/rt.h
+index f1eecc9383f..77ae8489c8f 100644
+--- a/include/evenless/sched/rt.h
++++ b/include/evenless/sched/rt.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/sched/weak.h b/include/evenless/sched/weak.h
+index 2cbedab7c32..145e13d8dbb 100644
+--- a/include/evenless/sched/weak.h
++++ b/include/evenless/sched/weak.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/stat.h b/include/evenless/stat.h
+index 47da6d91e33..bded74ef52c 100644
+--- a/include/evenless/stat.h
++++ b/include/evenless/stat.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Jan Kiszka <jan.kiszka@web.de>.
+  * Copyright (C) 2006 Dmitry Adamushko <dmitry.adamushko@gmail.com>
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index 0bf794edcd1..ac3d64566eb 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  * Copyright Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
+  */
+diff --git a/include/evenless/tick.h b/include/evenless/tick.h
+index db529b4542d..296592f97eb 100644
+--- a/include/evenless/tick.h
++++ b/include/evenless/tick.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2016 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/timer.h b/include/evenless/timer.h
+index 9fe240c80fe..0a0655c54cd 100644
+--- a/include/evenless/timer.h
++++ b/include/evenless/timer.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/evenless/wait.h b/include/evenless/wait.h
+index 49da5e3d481..0bbfe00f83a 100644
+--- a/include/evenless/wait.h
++++ b/include/evenless/wait.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/trace/events/evenless.h b/include/trace/events/evenless.h
+index 369a7113f87..decd77dffbd 100644
+--- a/include/trace/events/evenless.h
++++ b/include/trace/events/evenless.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai's Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2014 Jan Kiszka <jan.kiszka@siemens.com>.
+  * Copyright (C) 2014, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+diff --git a/include/uapi/evenless/devices/hectic.h b/include/uapi/evenless/devices/hectic.h
+index 051029da1d6..28009ac8375 100644
+--- a/include/uapi/evenless/devices/hectic.h
++++ b/include/uapi/evenless/devices/hectic.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+- * Derived from Xenomai Cobalt's switchtest driver
++ * Derived from Xenomai Cobalt's switchtest driver, https://xenomai.org/
+  * Copyright (C) 2010 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+diff --git a/include/uapi/evenless/devices/latmus.h b/include/uapi/evenless/devices/latmus.h
+index 68718295b71..d0fcca5b011 100644
+--- a/include/uapi/evenless/devices/latmus.h
++++ b/include/uapi/evenless/devices/latmus.h
+@@ -1,6 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
++ * Derived from Xenomai Cobalt's autotune driver, https://xenomai.org/
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/uapi/evenless/mutex.h b/include/uapi/evenless/mutex.h
+index 0944647f406..02e652ac1dc 100644
+--- a/include/uapi/evenless/mutex.h
++++ b/include/uapi/evenless/mutex.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+- * Based on the Xenomai Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2013, 2018 Philippe Gerum <rpm@xenomai.org>
+  * Copyright (C) 2008, 2009 Jan Kiszka <jan.kiszka@siemens.com>.
+  */
+diff --git a/include/uapi/evenless/sched.h b/include/uapi/evenless/sched.h
+index 3ab7191cb3e..96fdcf6f0a1 100644
+--- a/include/uapi/evenless/sched.h
++++ b/include/uapi/evenless/sched.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Based on the Xenomai Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/uapi/evenless/signal.h b/include/uapi/evenless/signal.h
+index 4c92f5a5453..563839a7e7b 100644
+--- a/include/uapi/evenless/signal.h
++++ b/include/uapi/evenless/signal.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+- * Derived from the Xenomai Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  * Copyright (C) 2013, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+diff --git a/include/uapi/evenless/thread.h b/include/uapi/evenless/thread.h
+index 4c1a5b70272..fe6639f8316 100644
+--- a/include/uapi/evenless/thread.h
++++ b/include/uapi/evenless/thread.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+- * Derived from the Xenomai/cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+diff --git a/include/uapi/evenless/types.h b/include/uapi/evenless/types.h
+index 26a02ff9dff..3cb3bebfd25 100644
+--- a/include/uapi/evenless/types.h
++++ b/include/uapi/evenless/types.h
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+  *
+- * Based on the Xenomai Cobalt core:
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index dfe50b62e48..879c729522a 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006, 2018 Philippe Gerum  <rpm@xenomai.org>
+  * Copyright Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  */
+diff --git a/kernel/evenless/lock.c b/kernel/evenless/lock.c
+index 2150252c65e..35a995b3291 100644
+--- a/kernel/evenless/lock.c
++++ b/kernel/evenless/lock.c
+@@ -1,13 +1,13 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Inherited from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2004, 2005 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  * Copyright (C) 2010, 2018 Philippe Gerum  <rpm@xenomai.org>
+  *
+  * NOTE: this code is on its way out, the ugly superlock is the only
+- * remaining lock of this type. Moving away from the inefficient
+- * single-lock model is planned.
++ * remaining lock of this type. We are moving away from the
++ * inefficient single-lock model.
+  */
+ 
+ #include <linux/module.h>
+diff --git a/kernel/evenless/memory.c b/kernel/evenless/memory.c
+index 816a51b76ed..83f3a04cf31 100644
+--- a/kernel/evenless/memory.c
++++ b/kernel/evenless/memory.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index efecc590502..5b41ed31565 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index 77ed93f8555..a3f4aa2dd23 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/sched/idle.c b/kernel/evenless/sched/idle.c
+index 489a6528628..5b872fed467 100644
+--- a/kernel/evenless/sched/idle.c
++++ b/kernel/evenless/sched/idle.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evenless/sched/quota.c
+index db85432cef9..bc96bd7713c 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evenless/sched/quota.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+@@ -53,7 +53,7 @@
+  * until the corresponding budget is replenished.
+  */
+ 
+-#define MAX_QUOTA_GROUPS  32
++#define MAX_QUOTA_GROUPS  1024
+ 
+ static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
+ 
+diff --git a/kernel/evenless/sched/rt.c b/kernel/evenless/sched/rt.c
+index 4f727a3be9d..3ee18dfc9ca 100644
+--- a/kernel/evenless/sched/rt.c
++++ b/kernel/evenless/sched/rt.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/sched/weak.c b/kernel/evenless/sched/weak.c
+index 83da85783ad..a8ec88bb945 100644
+--- a/kernel/evenless/sched/weak.c
++++ b/kernel/evenless/sched/weak.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+diff --git a/kernel/evenless/syscall.c b/kernel/evenless/syscall.c
+index cd5fab3ea10..ec127d2c6e1 100644
+--- a/kernel/evenless/syscall.c
++++ b/kernel/evenless/syscall.c
+@@ -1,8 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Context handling logic derived from Xenomai Cobalt
+- * (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
+  * Copyright (C) 2005 Gilles Chanteperdrix  <gilles.chanteperdrix@xenomai.org>
+  */
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 6a4dbb647fe..e02de1143fd 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2006, 2016 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+diff --git a/kernel/evenless/timer.c b/kernel/evenless/timer.c
+index 0f7f59ac861..9995da24652 100644
+--- a/kernel/evenless/timer.c
++++ b/kernel/evenless/timer.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2004 Gilles Chanteperdrix  <gilles.chanteperdrix@xenomai.org>
+  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index f32c8210a9b..41ad07b3154 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -1,7 +1,7 @@
+ /*
+  * SPDX-License-Identifier: GPL-2.0
+  *
+- * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
++ * Derived from Xenomai Cobalt, https://xenomai.org/
+  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-- 
+2.16.4
+

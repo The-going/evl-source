@@ -1,0 +1,26 @@
+From f694dbe7af7ff777f796c0f3c4a4edccfb563807 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 18 Mar 2019 16:11:35 +0100
+Subject: [PATCH] evl/init: fix SMP build
+
+---
+ include/evl/init.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/include/evl/init.h b/include/evl/init.h
+index f668d709a40..b588c58b81f 100644
+--- a/include/evl/init.h
++++ b/include/evl/init.h
+@@ -14,9 +14,7 @@ struct evl_machine_cpudata {
+ 
+ DECLARE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
+ 
+-#ifdef CONFIG_SMP
+ extern struct cpumask evl_oob_cpus;
+-#endif
+ 
+ #ifdef CONFIG_EVL_DEBUG
+ void evl_warn_init(const char *fn, int level, int status);
+-- 
+2.16.4
+

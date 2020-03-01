@@ -1,0 +1,604 @@
+From b769c39e80f608b8d65f5de668b964f6fccae374 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 21:32:33 +0200
+Subject: [PATCH] sched: dovetail: introduce alternate scheduling API
+
+These changes enable a shared control of tasks between the regular
+in-band scheduler and a resident co-kernel which runs on the
+out-of-band stage.
+
+Tasks controlled by the co-kernel have higher priority than tasks
+controlled by the regular in-band scheduler.
+
+Such tasks may migrate between execution stages.
+---
+ fs/exec.c                |   3 ++
+ include/linux/dovetail.h |  94 +++++++++++++++++++++++++++++++++
+ include/linux/irqstage.h |   4 ++
+ include/linux/mm.h       |   1 +
+ include/linux/sched.h    |   7 +++
+ kernel/dovetail.c        | 121 ++++++++++++++++++++++++++++++++++++++++++
+ kernel/sched/core.c      | 133 +++++++++++++++++++++++++++++++++++++++++++++--
+ mm/mmu_context.c         |   3 ++
+ 8 files changed, 362 insertions(+), 4 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index fb72d36f782..247dc74b8bb 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1010,6 +1010,7 @@ static int exec_mmap(struct mm_struct *mm)
+ {
+ 	struct task_struct *tsk;
+ 	struct mm_struct *old_mm, *active_mm;
++	unsigned long flags;
+ 
+ 	/* Notify parent that we're no longer interested in the old VM */
+ 	tsk = current;
+@@ -1033,8 +1034,10 @@ static int exec_mmap(struct mm_struct *mm)
+ 	task_lock(tsk);
+ 	active_mm = tsk->active_mm;
+ 	tsk->mm = mm;
++	protect_inband_mm(flags);
+ 	tsk->active_mm = mm;
+ 	activate_mm(active_mm, mm);
++	unprotect_inband_mm(flags);
+ 	tsk->mm->vmacache_seqnum = 0;
+ 	vmacache_flush(tsk);
+ 	task_unlock(tsk);
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index a2f6e7b54bf..2c06473c68b 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -28,6 +28,14 @@ struct dovetail_migration_data {
+ 	int dest_cpu;
+ };
+ 
++struct dovetail_altsched_context {
++	struct task_struct *task;
++	struct mm_struct *active_mm;
++	bool borrowed_mm;
++};
++
++void inband_task_init(struct task_struct *p);
++
+ int pipeline_syscall(struct thread_info *ti,
+ 		     unsigned long syscall, struct pt_regs *regs);
+ 
+@@ -77,12 +85,80 @@ static inline void inband_cleanup_notify(struct mm_struct *mm)
+ 	inband_event_notify(INBAND_PROCESS_CLEANUP, mm);
+ }
+ 
++static inline
++void inband_switch_notify(struct task_struct *next)
++{
++	struct task_struct *prev = current;
++
++	if (test_ti_local_flags(task_thread_info(next), _TLF_DOVETAIL) ||
++	    test_ti_local_flags(task_thread_info(prev), _TLF_DOVETAIL)) {
++		__this_cpu_write(irq_pipeline.rqlock_owner, prev);
++		inband_event_notify(INBAND_TASK_SCHEDULE, next);
++	}
++}
++
++static inline void prepare_inband_switch(struct task_struct *next)
++{
++	inband_switch_notify(next);
++	hard_local_irq_disable();
++}
++
++int inband_switch_tail(void);
++
++void oob_trampoline(void);
++
++void arch_inband_task_init(struct task_struct *p);
++
+ void sync_inband_irqs(void);
+ 
++#define protect_inband_mm(__flags)			\
++	do {						\
++		(__flags) = hard_cond_local_irq_save();	\
++		barrier();				\
++	} while (0)					\
++
++#define unprotect_inband_mm(__flags)			\
++	do {						\
++		barrier();				\
++		hard_cond_local_irq_restore(__flags);	\
++	} while (0)					\
++
+ int dovetail_start(void);
+ 
+ void dovetail_stop(void);
+ 
++void dovetail_init_altsched(struct dovetail_altsched_context *p);
++
++void dovetail_start_altsched(void);
++
++void dovetail_stop_altsched(void);
++
++__must_check int dovetail_leave_inband(void);
++
++static inline
++void dovetail_resume_oob(struct dovetail_altsched_context *outgoing)
++{
++	struct task_struct *tsk = current;
++	/*
++	 * We are about to leave the current inband context for
++	 * switching to an out-of-band task, save the preempted
++	 * context information.
++	 */
++	outgoing->task = tsk;
++	outgoing->active_mm = tsk->active_mm;
++}
++
++static inline void dovetail_leave_oob(void)
++{
++	clear_thread_local_flags(_TLF_OOB|_TLF_OFFSTAGE);
++	clear_thread_flag(TIF_MAYDAY);
++}
++
++void dovetail_resume_inband(void);
++
++void dovetail_context_switch(struct dovetail_altsched_context *out,
++			     struct dovetail_altsched_context *in);
++
+ static inline
+ struct oob_thread_state *dovetail_current_state(void)
+ {
+@@ -108,6 +184,9 @@ static inline void dovetail_send_mayday(struct task_struct *castaway)
+ 
+ #else	/* !CONFIG_DOVETAIL */
+ 
++static inline
++void inband_task_init(struct task_struct *p) { }
++
+ #define oob_trap_notify(__trapnr, __regs)	 do { } while (0)
+ 
+ static inline
+@@ -126,6 +205,21 @@ static inline void inband_exit_notify(void) { }
+ 
+ static inline void inband_cleanup_notify(struct mm_struct *mm) { }
+ 
++static inline void oob_trampoline(void) { }
++
++static inline void prepare_inband_switch(struct task_struct *next) { }
++
++static inline int inband_switch_tail(void)
++{
++	return 0;
++}
++
++#define protect_inband_mm(__flags)	\
++	do { (void)(__flags); } while (0)
++
++#define unprotect_inband_mm(__flags)	\
++	do { (void)(__flags); } while (0)
++
+ #endif	/* !CONFIG_DOVETAIL */
+ 
+ static inline bool dovetailing(void)
+diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
+index 2fafac82e34..31dceafcd98 100644
+--- a/include/linux/irqstage.h
++++ b/include/linux/irqstage.h
+@@ -49,6 +49,10 @@ struct irq_pipeline_data {
+ 	struct irq_stage_data stages[2];
+ 	struct irq_stage_data *__curr;
+ 	struct pt_regs tick_regs;
++#ifdef CONFIG_DOVETAIL
++	struct task_struct *task_inflight;
++	struct task_struct *rqlock_owner;
++#endif
+ };
+ 
+ DECLARE_PER_CPU(struct irq_pipeline_data, irq_pipeline);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7dec3031af6..459b1237229 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -19,6 +19,7 @@
+ #include <linux/pfn.h>
+ #include <linux/percpu-refcount.h>
+ #include <linux/bit_spinlock.h>
++#include <linux/dovetail.h>
+ #include <linux/shrinker.h>
+ #include <linux/resource.h>
+ #include <linux/page_ext.h>
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f9b43c98957..784c20d9724 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -22,6 +22,7 @@
+ #include <linux/nodemask.h>
+ #include <linux/rcupdate.h>
+ #include <linux/resource.h>
++#include <linux/irqstage.h>
+ #include <linux/latencytop.h>
+ #include <linux/sched/prio.h>
+ #include <linux/signal_types.h>
+@@ -112,6 +113,12 @@ struct task_group;
+ 					 (task->flags & PF_FROZEN) == 0 && \
+ 					 (task->state & TASK_NOLOAD) == 0)
+ 
++#ifdef CONFIG_DOVETAIL
++#define task_is_off_stage(task)		test_ti_local_flags(task_thread_info(task), _TLF_OFFSTAGE)
++#else
++#define task_is_off_stage(task)		0
++#endif
++
+ #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+ 
+ /*
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 05bc5c0d735..6da6429bdf5 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -12,6 +12,43 @@
+ 
+ static bool dovetail_enabled;
+ 
++void __weak arch_inband_task_init(struct task_struct *p)
++{
++}
++
++void inband_task_init(struct task_struct *p)
++{
++	struct thread_info *ti = task_thread_info(p);
++
++	clear_ti_local_flags(ti, _TLF_DOVETAIL|_TLF_OOB|_TLF_OFFSTAGE);
++	arch_inband_task_init(p);
++}
++
++void dovetail_init_altsched(struct dovetail_altsched_context *p)
++{
++	struct task_struct *tsk = current;
++
++	check_inband_stage();
++	p->task = tsk;
++	p->active_mm = tsk->mm;
++	p->borrowed_mm = false;
++}
++EXPORT_SYMBOL_GPL(dovetail_init_altsched);
++
++void dovetail_start_altsched(void)
++{
++	check_inband_stage();
++	set_thread_local_flags(_TLF_DOVETAIL);
++}
++EXPORT_SYMBOL_GPL(dovetail_start_altsched);
++
++void dovetail_stop_altsched(void)
++{
++	clear_thread_local_flags(_TLF_DOVETAIL);
++	clear_thread_flag(TIF_MAYDAY);
++}
++EXPORT_SYMBOL_GPL(dovetail_stop_altsched);
++
+ void __weak handle_oob_syscall(struct pt_regs *regs)
+ {
+ }
+@@ -198,6 +235,90 @@ void inband_event_notify(enum inband_event_type event, void *data)
+ 		handle_inband_event(event, data);
+ }
+ 
++void __weak resume_oob_task(struct task_struct *p)
++{
++}
++
++static void finalize_oob_transition(void) /* hard IRQs off */
++{
++	struct irq_pipeline_data *pd;
++	struct irq_stage_data *p;
++	struct task_struct *t;
++
++	check_inband_stage();
++	pd = raw_cpu_ptr(&irq_pipeline);
++	t = pd->task_inflight;
++	if (t == NULL)
++		return;
++
++	/*
++	 * @t which is in flight to the oob stage might have received
++	 * a signal while waiting in off-stage state to be actually
++	 * scheduled out. We can't act upon that signal safely from
++	 * here, we simply let the task complete the migration process
++	 * to the oob stage. The pending signal will be handled when
++	 * the task eventually exits the out-of-band context by the
++	 * converse migration.
++	 */
++	pd->task_inflight = NULL;
++
++	/*
++	 * IRQs are hard disabled, but the stage transition handler
++	 * may assume the oob stage is stalled: fix this up.
++	 */
++	p = this_oob_staged();
++	set_stage_bit(STAGE_STALL_BIT, p);
++	resume_oob_task(t);
++	clear_stage_bit(STAGE_STALL_BIT, p);
++	if (stage_irqs_pending(p))
++		/* Current stage (in-band) != p->stage (oob). */
++		sync_stage(p->stage);
++}
++
++void oob_trampoline(void)
++{
++	unsigned long flags;
++
++	flags = hard_local_irq_save();
++	finalize_oob_transition();
++	hard_local_irq_restore(flags);
++}
++
++int inband_switch_tail(void)
++{
++	bool inband;
++
++	check_hard_irqs_disabled();
++
++	/*
++	 * We may run this code either over the inband or oob
++	 * contexts. If inband, we may have a thread blocked in
++	 * dovetail_leave_inband(), waiting for the co-kernel to
++	 * schedule it back in over the oob context:
++	 * finalize_oob_transition() should take care of it. If oob,
++	 * the co-kernel just switched us back, and we may update the
++	 * context markers.
++	 *
++	 * CAUTION: The preemption count may not reflect the active
++	 * stage yet, so use the current stage pointer to determine
++	 * which one we are on.
++	 */
++	inband = current_stage == &inband_stage;
++	if (inband)
++		finalize_oob_transition();
++	else {
++		set_thread_local_flags(_TLF_OOB);
++		WARN_ON_ONCE(dovetail_debug() &&
++			     (preempt_count() & STAGE_MASK));
++		preempt_count_add(STAGE_OFFSET);
++	}
++
++	if (inband)
++		hard_local_irq_enable();
++
++	return !inband;
++}
++
+ int dovetail_start(void)
+ {
+ 	check_inband_stage();
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 5769e435ad2..28c270379c6 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1977,7 +1977,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+ 	 */
+ 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+ 	smp_mb__after_spinlock();
+-	if (!(p->state & state))
++	if (!(p->state & state) || task_is_off_stage(p))
+ 		goto out;
+ 
+ 	trace_sched_waking(p);
+@@ -2629,6 +2629,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
+ 	rseq_preempt(prev);
+ 	fire_sched_out_preempt_notifiers(prev, next);
+ 	prepare_task(next);
++	prepare_inband_switch(next);
+ 	prepare_arch_switch(next);
+ }
+ 
+@@ -2785,8 +2786,15 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+ 	 * finish_task_switch() will drop rq->lock() and lower preempt_count
+ 	 * and the preempt_enable() will end up enabling preemption (on
+ 	 * PREEMPT_COUNT kernels).
++	 *
++	 * When dovetailing is enabled, schedule_tail() is the place
++	 * where transitions of tasks from the in-band to the oob
++	 * stage completes. The co-kernel is notified that 'prev' is
++	 * now suspended in the in-band stage, and can be safely
++	 * resumed in the oob stage.
+ 	 */
+ 
++	oob_trampoline();
+ 	rq = finish_task_switch(prev);
+ 	balance_callback(rq);
+ 	preempt_enable();
+@@ -2844,6 +2852,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+ 	switch_to(prev, next, prev);
+ 	barrier();
+ 
++	/*
++	 * If 'next' is on its way to the oob stage, don't run the
++	 * context switch epilogue just yet. We will do that at some
++	 * point later, when the task switches back to the in-band
++	 * stage.
++	 */
++	if (unlikely(inband_switch_tail()))
++		return NULL;
++
+ 	return finish_task_switch(prev);
+ }
+ 
+@@ -3394,7 +3411,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+  *
+  * WARNING: must be called with preemption disabled!
+  */
+-static void __sched notrace __schedule(bool preempt)
++static int __sched notrace __schedule(bool preempt)
+ {
+ 	struct task_struct *prev, *next;
+ 	unsigned long *switch_count;
+@@ -3485,12 +3502,17 @@ static void __sched notrace __schedule(bool preempt)
+ 
+ 		/* Also unlocks the rq: */
+ 		rq = context_switch(rq, prev, next, &rf);
++		if (dovetailing() && rq == NULL)
++			/* Task moved to the oob stage. */
++			return 1;
+ 	} else {
+ 		rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
+ 		rq_unlock_irq(rq, &rf);
+ 	}
+ 
+ 	balance_callback(rq);
++
++	return 0;
+ }
+ 
+ void __noreturn do_task_dead(void)
+@@ -3528,7 +3550,8 @@ asmlinkage __visible void __sched schedule(void)
+ 	sched_submit_work(tsk);
+ 	do {
+ 		preempt_disable();
+-		__schedule(false);
++		if (__schedule(false))
++			return;
+ 		sched_preempt_enable_no_resched();
+ 	} while (need_resched());
+ }
+@@ -3608,7 +3631,8 @@ static void __sched notrace preempt_schedule_common(void)
+ 		 */
+ 		preempt_disable_notrace();
+ 		preempt_latency_start(1);
+-		__schedule(true);
++		if (__schedule(true))
++			return;
+ 		preempt_latency_stop(1);
+ 		preempt_enable_no_resched_notrace();
+ 
+@@ -7062,6 +7086,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+ 
+ #endif	/* CONFIG_CGROUP_SCHED */
+ 
++#ifdef CONFIG_DOVETAIL
++
++int dovetail_leave_inband(void)
++{
++	struct task_struct *p = current;
++	struct irq_pipeline_data *pd;
++	unsigned long flags;
++
++	preempt_disable();
++
++	pd = raw_cpu_ptr(&irq_pipeline);
++
++	if (WARN_ON_ONCE(dovetail_debug() && pd->task_inflight))
++		goto out;	/* Paranoid. */
++
++	raw_spin_lock_irqsave(&p->pi_lock, flags);
++	pd->task_inflight = p;
++	/*
++	 * The scope of the off-stage state is broader than _TLF_OOB,
++	 * in that it includes the transition path from the in-band
++	 * context to the oob stage.
++	 */
++	set_thread_local_flags(_TLF_OFFSTAGE);
++	set_current_state(TASK_INTERRUPTIBLE);
++	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
++	sched_submit_work(p);
++	if (likely(__schedule(false)))
++		return 0;
++
++	clear_thread_local_flags(_TLF_OFFSTAGE);
++	pd->task_inflight = NULL;
++out:
++	preempt_enable();
++
++	return -ERESTARTSYS;
++}
++EXPORT_SYMBOL_GPL(dovetail_leave_inband);
++
++void dovetail_resume_inband(void)
++{
++	struct task_struct *p;
++	struct rq *rq;
++
++	p = __this_cpu_read(irq_pipeline.rqlock_owner);
++	if (WARN_ON_ONCE(dovetail_debug() && p == NULL))
++		return;
++
++	if (WARN_ON_ONCE(dovetail_debug() && (preempt_count() & STAGE_MASK)))
++		return;
++
++	rq = finish_task_switch(p);
++	balance_callback(rq);
++	preempt_enable();
++	oob_trampoline();
++}
++EXPORT_SYMBOL_GPL(dovetail_resume_inband);
++
++void dovetail_context_switch(struct dovetail_altsched_context *out,
++			     struct dovetail_altsched_context *in)
++{
++	struct task_struct *next, *prev, *last;
++	struct mm_struct *prev_mm, *next_mm;
++
++	next = in->task;
++	prev = out->task;
++	prev_mm = out->active_mm;
++	next_mm = in->active_mm;
++
++	if (next_mm == NULL) {
++		in->active_mm = prev_mm;
++		in->borrowed_mm = true;
++		enter_lazy_tlb(prev_mm, next);
++	} else {
++		switch_oob_mm(prev_mm, next_mm, next);
++		/*
++		 * We might be switching back to the inband context
++		 * which we preempted earlier, shortly after "current"
++		 * dropped its mm context in the do_exit() path
++		 * (next->mm == NULL). In such a case, a lazy TLB
++		 * state is expected when leaving the mm.
++		 */
++		if (next->mm == NULL)
++			enter_lazy_tlb(prev_mm, next);
++	}
++
++	if (out->borrowed_mm) {
++		out->borrowed_mm = false;
++		out->active_mm = NULL;
++	}
++
++	switch_to(prev, next, last);
++
++	if (check_hard_irqs_disabled())
++		hard_irqs_disabled();
++
++	arch_dovetail_context_resume();
++}
++EXPORT_SYMBOL_GPL(dovetail_context_switch);
++
++#endif /* CONFIG_DOVETAIL */
++
+ void dump_cpu_task(int cpu)
+ {
+ 	pr_info("Task dump for CPU %d:\n", cpu);
+diff --git a/mm/mmu_context.c b/mm/mmu_context.c
+index 3e612ae748e..1a6fa10052c 100644
+--- a/mm/mmu_context.c
++++ b/mm/mmu_context.c
+@@ -23,15 +23,18 @@ void use_mm(struct mm_struct *mm)
+ {
+ 	struct mm_struct *active_mm;
+ 	struct task_struct *tsk = current;
++	unsigned long flags;
+ 
+ 	task_lock(tsk);
+ 	active_mm = tsk->active_mm;
++	protect_inband_mm(flags);
+ 	if (active_mm != mm) {
+ 		mmgrab(mm);
+ 		tsk->active_mm = mm;
+ 	}
+ 	tsk->mm = mm;
+ 	switch_mm(active_mm, mm, tsk);
++	unprotect_inband_mm(flags);
+ 	task_unlock(tsk);
+ #ifdef finish_arch_post_lock_switch
+ 	finish_arch_post_lock_switch();
+-- 
+2.16.4
+

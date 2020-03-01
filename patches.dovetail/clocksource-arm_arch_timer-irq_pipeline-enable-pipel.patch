@@ -1,0 +1,35 @@
+From 156fbe23528ec0bb233db3812244d0fb064b9ac6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 5 Apr 2017 20:48:20 +0200
+Subject: [PATCH] clocksource/arm_arch_timer: irq_pipeline: enable pipelined
+ clock events
+
+---
+ drivers/clocksource/arm_arch_timer.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/clocksource/arm_arch_timer.c b/drivers/clocksource/arm_arch_timer.c
+index 9a7d4dc00b6..6806e7dccaa 100644
+--- a/drivers/clocksource/arm_arch_timer.c
++++ b/drivers/clocksource/arm_arch_timer.c
+@@ -600,7 +600,7 @@ static __always_inline irqreturn_t timer_handler(const int access,
+ 	if (ctrl & ARCH_TIMER_CTRL_IT_STAT) {
+ 		ctrl |= ARCH_TIMER_CTRL_IT_MASK;
+ 		arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, evt);
+-		evt->event_handler(evt);
++		clockevents_handle_event(evt);
+ 		return IRQ_HANDLED;
+ 	}
+ 
+@@ -719,7 +719,7 @@ static int arch_timer_set_next_event_phys_mem(unsigned long evt,
+ static void __arch_timer_setup(unsigned type,
+ 			       struct clock_event_device *clk)
+ {
+-	clk->features = CLOCK_EVT_FEAT_ONESHOT;
++	clk->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PIPELINE;
+ 
+ 	if (type == ARCH_TIMER_TYPE_CP15) {
+ 		if (arch_timer_c3stop)
+-- 
+2.16.4
+

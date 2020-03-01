@@ -1,0 +1,83 @@
+From 60b6550c82689b85f7d52eb399480ea36d34d84d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 15 Feb 2019 16:31:57 +0100
+Subject: [PATCH] evl/mutex: export flushing routine
+
+---
+ include/evenless/mutex.h |  5 ++++-
+ kernel/evenless/mutex.c  | 21 +++++++++++----------
+ 2 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/include/evenless/mutex.h b/include/evenless/mutex.h
+index 9253b47d73a..d52fef5cafa 100644
+--- a/include/evenless/mutex.h
++++ b/include/evenless/mutex.h
+@@ -48,7 +48,7 @@ void evl_init_mutex_pp(struct evl_mutex *mutex,
+ 		atomic_t *fastlock,
+ 		u32 *ceiling_ref);
+ 
+-bool evl_destroy_mutex(struct evl_mutex *mutex);
++void evl_destroy_mutex(struct evl_mutex *mutex);
+ 
+ int evl_trylock_mutex(struct evl_mutex *mutex);
+ 
+@@ -64,6 +64,9 @@ void __evl_unlock_mutex(struct evl_mutex *mutex);
+ 
+ void evl_unlock_mutex(struct evl_mutex *mutex);
+ 
++void evl_flush_mutex(struct evl_mutex *mutex,
++		int reason);
++
+ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
+ 
+ #ifdef CONFIG_EVENLESS_DEBUG_MUTEX_INBAND
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index 183453f9b12..efecc590502 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -334,31 +334,32 @@ void evl_init_mutex_pp(struct evl_mutex *mutex,
+ }
+ EXPORT_SYMBOL_GPL(evl_init_mutex_pp);
+ 
+-bool evl_destroy_mutex(struct evl_mutex *mutex)
++void evl_flush_mutex(struct evl_mutex *mutex, int reason)
+ {
+ 	struct evl_thread *waiter, *tmp;
+ 	unsigned long flags;
+-	bool ret;
+ 
+-	xnlock_get_irqsave(&nklock, flags);
++	trace_evl_mutex_flush(mutex);
+ 
+-	trace_evl_mutex_destroy(mutex);
++	xnlock_get_irqsave(&nklock, flags);
+ 
+-	if (list_empty(&mutex->wait_list)) {
++	if (list_empty(&mutex->wait_list))
+ 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
+-		ret = false;
+-	} else {
+-		ret = true;
++	else {
+ 		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next)
+-			evl_wakeup_thread(waiter, T_PEND, T_RMID);
++			evl_wakeup_thread(waiter, T_PEND, reason);
+ 
+ 		if (mutex->flags & EVL_MUTEX_CLAIMED)
+ 			clear_pi_boost(mutex, mutex->owner);
+ 	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
++}
+ 
+-	return ret;
++void evl_destroy_mutex(struct evl_mutex *mutex)
++{
++	trace_evl_mutex_destroy(mutex);
++	evl_flush_mutex(mutex, T_RMID);
+ }
+ EXPORT_SYMBOL_GPL(evl_destroy_mutex);
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,175 @@
+From 1f324172ee9bab7cf04239d2b3ad8e9fbf181f1a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 4 Mar 2017 14:59:48 +0100
+Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
+
+---
+ kernel/trace/trace.c            |  4 +++-
+ kernel/trace/trace.h            |  7 ++++++-
+ kernel/trace/trace_irqsoff.c    |  6 +++---
+ kernel/trace/trace_output.c     | 11 +++++++++--
+ kernel/trace/trace_preemptirq.c | 18 ++++++++++++++++++
+ 5 files changed, 39 insertions(+), 7 deletions(-)
+
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index c4238b44162..8ea9f652028 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -2138,12 +2138,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+ 	entry->flags =
+ #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+ 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
+-#else
++		(hard_irqs_disabled() ? TRACE_FLAG_IRQS_HARDOFF : 0) |
++#elif !defined(CONFIG_IRQ_PIPELINE)
+ 		TRACE_FLAG_IRQS_NOSUPPORT |
+ #endif
+ 		((pc & NMI_MASK    ) ? TRACE_FLAG_NMI     : 0) |
+ 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
+ 		((pc & SOFTIRQ_OFFSET) ? TRACE_FLAG_SOFTIRQ : 0) |
++		(running_oob() ? TRACE_FLAG_OOB_STAGE : 0) |
+ 		(tif_need_resched() ? TRACE_FLAG_NEED_RESCHED : 0) |
+ 		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
+ }
+diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
+index 08900828d28..396218e0573 100644
+--- a/kernel/trace/trace.h
++++ b/kernel/trace/trace.h
+@@ -122,11 +122,14 @@ struct kretprobe_trace_entry_head {
+ /*
+  * trace_flag_type is an enumeration that holds different
+  * states when a trace occurs. These are:
+- *  IRQS_OFF		- interrupts were disabled
++ *  IRQS_OFF		- interrupts were off (only virtually if pipelining)
+  *  IRQS_NOSUPPORT	- arch does not support irqs_disabled_flags
+  *  NEED_RESCHED	- reschedule is requested
+  *  HARDIRQ		- inside an interrupt handler
+  *  SOFTIRQ		- inside a softirq handler
++ *  IRQS_HARDOFF	- interrupts were hard disabled
++ *  OOB_STAGE		- running over the oob stage (assume IRQ tracing
++ *                        support is always available w/ pipelining).
+  */
+ enum trace_flag_type {
+ 	TRACE_FLAG_IRQS_OFF		= 0x01,
+@@ -136,6 +139,8 @@ enum trace_flag_type {
+ 	TRACE_FLAG_SOFTIRQ		= 0x10,
+ 	TRACE_FLAG_PREEMPT_RESCHED	= 0x20,
+ 	TRACE_FLAG_NMI			= 0x40,
++	TRACE_FLAG_IRQS_HARDOFF		= 0x80,
++	TRACE_FLAG_OOB_STAGE		= TRACE_FLAG_IRQS_NOSUPPORT,
+ };
+ 
+ #define TRACE_BUF_SIZE		1024
+diff --git a/kernel/trace/trace_irqsoff.c b/kernel/trace/trace_irqsoff.c
+index d3294721f11..bad7794c25e 100644
+--- a/kernel/trace/trace_irqsoff.c
++++ b/kernel/trace/trace_irqsoff.c
+@@ -43,7 +43,7 @@ static int start_irqsoff_tracer(struct trace_array *tr, int graph);
+ static inline int
+ preempt_trace(int pc)
+ {
+-	return ((trace_type & TRACER_PREEMPT_OFF) && pc);
++	return (running_inband() && (trace_type & TRACER_PREEMPT_OFF) && pc);
+ }
+ #else
+ # define preempt_trace(pc) (0)
+@@ -54,7 +54,7 @@ static inline int
+ irq_trace(void)
+ {
+ 	return ((trace_type & TRACER_IRQS_OFF) &&
+-		irqs_disabled());
++		running_inband() && irqs_disabled());
+ }
+ #else
+ # define irq_trace() (0)
+@@ -427,7 +427,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
+ 
+ 	atomic_inc(&data->disabled);
+ 
+-	local_save_flags(flags);
++	stage_save_flags(flags);
+ 	__trace_function(tr, ip, parent_ip, flags, pc);
+ 	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
+ 	data->critical_start = 0;
+diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
+index 54373d93e25..c8957039fad 100644
+--- a/kernel/trace/trace_output.c
++++ b/kernel/trace/trace_output.c
+@@ -430,14 +430,19 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+ 	int hardirq;
+ 	int softirq;
+ 	int nmi;
++	int oob;
+ 
+ 	nmi = entry->flags & TRACE_FLAG_NMI;
+ 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
+ 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
++	oob = irqs_pipelined() && (entry->flags & TRACE_FLAG_OOB_STAGE);
+ 
+ 	irqs_off =
++		(entry->flags & (TRACE_FLAG_IRQS_OFF|TRACE_FLAG_IRQS_HARDOFF)) ==
++		(TRACE_FLAG_IRQS_OFF|TRACE_FLAG_IRQS_HARDOFF) ? '*' :
++		(entry->flags & TRACE_FLAG_IRQS_HARDOFF) ? 'D' :
+ 		(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+-		(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
++		!irqs_pipelined() && (entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
+ 		'.';
+ 
+ 	switch (entry->flags & (TRACE_FLAG_NEED_RESCHED |
+@@ -457,6 +462,8 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+ 	}
+ 
+ 	hardsoft_irq =
++		(nmi && oob)  ? '#' :
++		oob           ? '~' :
+ 		(nmi && hardirq)     ? 'Z' :
+ 		nmi                  ? 'z' :
+ 		(hardirq && softirq) ? 'H' :
+@@ -467,7 +474,7 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
+ 	trace_seq_printf(s, "%c%c%c",
+ 			 irqs_off, need_resched, hardsoft_irq);
+ 
+-	if (entry->preempt_count)
++	if (!oob && entry->preempt_count)
+ 		trace_seq_printf(s, "%x", entry->preempt_count);
+ 	else
+ 		trace_seq_putc(s, '.');
+diff --git a/kernel/trace/trace_preemptirq.c b/kernel/trace/trace_preemptirq.c
+index 71f553cceb3..0b8ec4f8136 100644
+--- a/kernel/trace/trace_preemptirq.c
++++ b/kernel/trace/trace_preemptirq.c
+@@ -9,6 +9,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/module.h>
+ #include <linux/ftrace.h>
++#include <linux/irq_pipeline.h>
+ #include "trace.h"
+ 
+ #define CREATE_TRACE_POINTS
+@@ -69,6 +70,23 @@ __visible void trace_hardirqs_off_caller(unsigned long caller_addr)
+ 	lockdep_hardirqs_off(CALLER_ADDR0);
+ }
+ EXPORT_SYMBOL(trace_hardirqs_off_caller);
++
++void trace_hardirqs_on_pipelined(void)
++{
++	/*
++	 * If the IRQ was not delivered to the kernel, keep the
++	 * tracing logic unaware of the receipt, so that no false
++	 * positive is triggered in lockdep (e.g. IN-HARDIRQ-W ->
++	 * HARDIRQ-ON-W).
++	 */
++	if (irqs_pipelined() && (!running_inband() || irqs_disabled())) {
++		WARN_ON(irq_pipeline_debug() && !hard_irqs_disabled());
++		return;
++	}
++
++	trace_hardirqs_on();
++}
++
+ #endif /* CONFIG_TRACE_IRQFLAGS */
+ 
+ #ifdef CONFIG_TRACE_PREEMPT_TOGGLE
+-- 
+2.16.4
+

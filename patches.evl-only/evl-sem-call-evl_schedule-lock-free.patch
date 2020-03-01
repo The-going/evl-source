@@ -1,0 +1,30 @@
+From 252d2ffadb5ffa2dab8f251104bef340311f10c6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 10:58:37 +0100
+Subject: [PATCH] evl/sem: call evl_schedule() lock-free
+
+---
+ kernel/evenless/sem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evenless/sem.c b/kernel/evenless/sem.c
+index 8b80ea193c2..1730455719c 100644
+--- a/kernel/evenless/sem.c
++++ b/kernel/evenless/sem.c
+@@ -118,11 +118,11 @@ static int release_sem(struct evl_sem *sem, int count)
+ 		}
+ 		evl_wake_up(&sem->wait_queue, waiter);
+ 	}
+-
+-	evl_schedule();
+ out:
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
++	evl_schedule();
++
+ 	return 0;
+ }
+ 
+-- 
+2.16.4
+

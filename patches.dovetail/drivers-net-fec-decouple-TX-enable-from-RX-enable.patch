@@ -1,0 +1,44 @@
+From efb52ef13256362c6c09dc92a29f165f4b2bc517 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 8 Feb 2015 15:11:06 +0100
+Subject: [PATCH] drivers/net/fec: decouple TX enable from RX enable
+
+Do not wait for the RX budget to be replenished before unmasking the
+TX event in the EIMR, manage the RX and TX masking bits separately
+instead.
+
+This fixes the slowdown on TX upon high RX load conditions, which used
+to cause a storm of ENOBUFS errors on sockets receiving high output
+traffic (e.g. from ping, "sendto: no buffer space available").
+---
+ drivers/net/ethernet/freescale/fec_main.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/ethernet/freescale/fec_main.c b/drivers/net/ethernet/freescale/fec_main.c
+index 697c2427f2b..c497dcd5bad 100644
+--- a/drivers/net/ethernet/freescale/fec_main.c
++++ b/drivers/net/ethernet/freescale/fec_main.c
+@@ -1618,6 +1618,7 @@ fec_enet_interrupt(int irq, void *dev_id)
+ 
+ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
+ {
++	unsigned int imask = FEC_ENET_TXF | FEC_NAPI_IMASK;
+ 	struct net_device *ndev = napi->dev;
+ 	struct fec_enet_private *fep = netdev_priv(ndev);
+ 	int pkts;
+@@ -1628,8 +1629,11 @@ static int fec_enet_rx_napi(struct napi_struct *napi, int budget)
+ 
+ 	if (pkts < budget) {
+ 		napi_complete_done(napi, pkts);
+-		writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
++		imask |= FEC_ENET_RXF;
+ 	}
++
++	writel(imask, fep->hwp + FEC_IMASK);
++
+ 	return pkts;
+ }
+ 
+-- 
+2.16.4
+

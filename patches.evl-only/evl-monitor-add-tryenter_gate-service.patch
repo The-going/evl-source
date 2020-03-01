@@ -1,0 +1,69 @@
+From ec389cb626868d770ebb8dd5f17732c7c16347a9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 9 Feb 2019 15:57:53 +0100
+Subject: [PATCH] evl/monitor: add tryenter_gate() service
+
+---
+ include/uapi/evenless/monitor.h |  9 +++++----
+ kernel/evenless/monitor.c       | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+), 4 deletions(-)
+
+diff --git a/include/uapi/evenless/monitor.h b/include/uapi/evenless/monitor.h
+index 5733b5a8733..9ef7a454f6a 100644
+--- a/include/uapi/evenless/monitor.h
++++ b/include/uapi/evenless/monitor.h
+@@ -60,9 +60,10 @@ struct evl_monitor_binding {
+ #define EVL_MONITOR_IOCBASE	'm'
+ 
+ #define EVL_MONIOC_ENTER	_IOW(EVL_MONITOR_IOCBASE, 0, struct evl_monitor_lockreq)
+-#define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 1)
+-#define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 2, struct evl_monitor_waitreq)
+-#define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_unwaitreq)
+-#define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_binding)
++#define EVL_MONIOC_TRYENTER	_IO(EVL_MONITOR_IOCBASE, 1)
++#define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 2)
++#define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
++#define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
++#define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
+ 
+ #endif /* !_EVENLESS_UAPI_MONITOR_H */
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index 40abfebf632..f6914e7d33f 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -210,6 +210,22 @@ static int enter_monitor(struct evl_monitor *gate,
+ 	return ret;
+ }
+ 
++static int tryenter_monitor(struct evl_monitor *gate)
++{
++	unsigned long flags;
++	int ret;
++
++	if (gate->type == EVL_MONITOR_EV)
++		return -EINVAL;
++
++	xnlock_get_irqsave(&nklock, flags);
++	evl_commit_monitor_ceiling();
++	ret = evl_trylock_mutex(&gate->lock);
++	xnlock_put_irqrestore(&nklock, flags);
++
++	return ret;
++}
++
+ /* nklock may be held, irqs off (NONE REQUIRED) */
+ static void __exit_monitor(struct evl_monitor *gate,
+ 			struct evl_thread *curr)
+@@ -447,6 +463,9 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
+ 			return -EFAULT;
+ 		ret = enter_monitor(mon, &lreq);
+ 		break;
++	case EVL_MONIOC_TRYENTER:
++		ret = tryenter_monitor(mon);
++		break;
+ 	case EVL_MONIOC_EXIT:
+ 		ret = exit_monitor(mon);
+ 		break;
+-- 
+2.16.4
+

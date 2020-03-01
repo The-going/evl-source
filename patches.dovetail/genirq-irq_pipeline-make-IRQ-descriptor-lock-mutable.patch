@@ -1,0 +1,42 @@
+From f4ce47e3b71b39dd4572209084a8187993a198cf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 13 Oct 2016 10:00:24 +0200
+Subject: [PATCH] genirq: irq_pipeline: make IRQ descriptor lock mutable
+
+We need the IRQ descriptor lock to be usable both from root and head
+stages indifferently, so that we can share critical portions of the
+genirq core code between those stages when pipelining interrupts,
+avoiding ugly code duplication.
+
+This scheme assumes that such portions meet real-time requirements,
+including the controller-specific irqchip handlers called under lock.
+
+Using a mutable lock makes it a hard lock fully disabling
+preemption for the calling context, meaning:
+
+- both virtually (stalling the current stage and/or disabling
+scheduling preemption) and physically (at CPU level) for the root
+stage;
+
+- only physically for the head stage, since we may not reschedule from
+  such context anyway.
+---
+ include/linux/irqdesc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/irqdesc.h b/include/linux/irqdesc.h
+index c01775da1ca..8c3c13b7646 100644
+--- a/include/linux/irqdesc.h
++++ b/include/linux/irqdesc.h
+@@ -70,7 +70,7 @@ struct irq_desc {
+ 	unsigned int		irqs_unhandled;
+ 	atomic_t		threads_handled;
+ 	int			threads_handled_last;
+-	raw_spinlock_t		lock;
++	mutable_spinlock_t	lock;
+ 	struct cpumask		*percpu_enabled;
+ 	const struct cpumask	*percpu_affinity;
+ #ifdef CONFIG_SMP
+-- 
+2.16.4
+

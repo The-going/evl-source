@@ -1,0 +1,80 @@
+From 294750b315053f0ff6fc8e1a9beef3740cae8a84 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 7 Feb 2019 17:54:07 +0100
+Subject: [PATCH] evl/sched: drop mapping of SCHED_FIFO,-prio to
+ SCHED_WEAK,prio
+
+Such mapping has no particular upside, drop it for consistency and
+simplicity.
+---
+ kernel/evenless/sched/core.c | 19 +++----------------
+ kernel/evenless/thread.c     |  6 ------
+ 2 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index 2fe027fab6a..5163b893b08 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -801,16 +801,6 @@ evl_find_sched_class(union evl_sched_param *param,
+ 	policy = attrs->sched_policy;
+ 	prio = attrs->sched_priority;
+ 	tslice = EVL_INFINITE;
+-
+-	/*
+-	 * NOTE: The user-defined policy may be different than ours,
+-	 * e.g. SCHED_FIFO,prio=-7 from userland would be interpreted
+-	 * as SCHED_WEAK,prio=7 in kernel space.
+-	 */
+-	if (prio < 0) {
+-		prio = -prio;
+-		policy = SCHED_WEAK;
+-	}
+ 	sched_class = &evl_sched_rt;
+ 	param->rt.prio = prio;
+ 
+@@ -820,8 +810,7 @@ evl_find_sched_class(union evl_sched_param *param,
+ 			return NULL;
+ 		/* Fallback wanted */
+ 	case SCHED_WEAK:
+-		if (prio < EVL_WEAK_MIN_PRIO ||
+-			prio > EVL_WEAK_MAX_PRIO)
++		if (prio < EVL_WEAK_MIN_PRIO ||	prio > EVL_WEAK_MAX_PRIO)
+ 			return NULL;
+ 		param->weak.prio = prio;
+ 		sched_class = &evl_sched_weak;
+@@ -833,13 +822,11 @@ evl_find_sched_class(union evl_sched_param *param,
+ 			tslice = *tslice_r;
+ 		/* falldown wanted */
+ 	case SCHED_FIFO:
+-		if (prio < EVL_FIFO_MIN_PRIO ||
+-			prio > EVL_FIFO_MAX_PRIO)
++		if (prio < EVL_FIFO_MIN_PRIO ||	prio > EVL_FIFO_MAX_PRIO)
+ 			return NULL;
+ 		break;
+ 	case SCHED_EVL:
+-		if (prio < EVL_CORE_MIN_PRIO ||
+-			prio > EVL_CORE_MAX_PRIO)
++		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
+ 			return NULL;
+ 		break;
+ #ifdef CONFIG_EVENLESS_SCHED_QUOTA
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index a21f9eece0f..6c9f64e8a96 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -2038,12 +2038,6 @@ static int get_sched_attrs(struct evl_thread *thread,
+ 		goto out;
+ 	}
+ 
+-	if (base_class == &evl_sched_weak) {
+-		if (attrs->sched_policy != SCHED_WEAK)
+-			attrs->sched_priority = -attrs->sched_priority;
+-		goto out;
+-	}
+-
+ #ifdef CONFIG_EVENLESS_SCHED_QUOTA
+ 	if (base_class == &evl_sched_quota) {
+ 		attrs->sched_quota_group = thread->quota->tgid;
+-- 
+2.16.4
+

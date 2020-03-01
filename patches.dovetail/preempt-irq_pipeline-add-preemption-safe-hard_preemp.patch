@@ -1,0 +1,53 @@
+From 32072a3b7e8fe7285cd7fb6f6856500298e132f2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 24 Apr 2017 12:20:17 +0200
+Subject: [PATCH] preempt: irq_pipeline: add preemption-safe
+ hard_preempt_{enable, disable}() ops
+
+---
+ include/linux/preempt.h | 16 ++++++++++++++++
+ kernel/irq/pipeline.c   |  3 ++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/preempt.h b/include/linux/preempt.h
+index 35f6f83cc33..33337499b84 100644
+--- a/include/linux/preempt.h
++++ b/include/linux/preempt.h
+@@ -338,4 +338,20 @@ static inline void preempt_notifier_init(struct preempt_notifier *notifier,
+ 
+ #endif
+ 
++#ifdef CONFIG_IRQ_PIPELINE
++unsigned long hard_preempt_disable(void);
++void hard_preempt_enable(unsigned long flags);
++#else
++#define hard_preempt_disable()		\
++({					\
++	preempt_disable();		\
++	0;				\
++})
++#define hard_preempt_enable(__flags)	\
++	do {				\
++		preempt_enable();	\
++		(void)(__flags);	\
++	} while (0)
++#endif
++
+ #endif /* __LINUX_PREEMPT_H */
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index f000cdf10d1..415585a6d1b 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -732,7 +732,8 @@ void hard_preempt_enable(unsigned long flags)
+ 	if (running_inband()) {
+ 		preempt_enable_no_resched();
+ 		hard_local_irq_restore(flags);
+-		preempt_check_resched();
++		if (!hard_irqs_disabled_flags(flags))
++			preempt_check_resched();
+ 	} else
+ 		hard_local_irq_restore(flags);
+ }
+-- 
+2.16.4
+

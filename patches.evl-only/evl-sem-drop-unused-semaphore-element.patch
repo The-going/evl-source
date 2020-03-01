@@ -1,0 +1,414 @@
+From 278798e5e53f8d34bbbf59bee08a9f76401e17ea Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Mar 2019 12:20:33 +0100
+Subject: [PATCH] evl/sem: drop unused semaphore element
+
+Since userland converted semaphore support to using ungated monitors,
+we have no more users of the standalone semaphore element. Drop it.
+---
+ include/evenless/factory.h  |   1 -
+ include/uapi/evenless/sem.h |  42 -------
+ kernel/evenless/Kconfig     |   9 --
+ kernel/evenless/Makefile    |   1 -
+ kernel/evenless/factory.c   |   1 -
+ kernel/evenless/memory.c    |   5 +-
+ kernel/evenless/sem.c       | 259 --------------------------------------------
+ 7 files changed, 1 insertion(+), 317 deletions(-)
+ delete mode 100644 include/uapi/evenless/sem.h
+ delete mode 100644 kernel/evenless/sem.c
+
+diff --git a/include/evenless/factory.h b/include/evenless/factory.h
+index 2c867a860b2..adcccffe344 100644
+--- a/include/evenless/factory.h
++++ b/include/evenless/factory.h
+@@ -151,7 +151,6 @@ extern struct evl_factory evl_clock_factory;
+ extern struct evl_factory evl_control_factory;
+ extern struct evl_factory evl_monitor_factory;
+ extern struct evl_factory evl_poll_factory;
+-extern struct evl_factory evl_sem_factory;
+ extern struct evl_factory evl_thread_factory;
+ extern struct evl_factory evl_timerfd_factory;
+ extern struct evl_factory evl_trace_factory;
+diff --git a/include/uapi/evenless/sem.h b/include/uapi/evenless/sem.h
+deleted file mode 100644
+index c0829587321..00000000000
+--- a/include/uapi/evenless/sem.h
++++ /dev/null
+@@ -1,42 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+- *
+- * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+- */
+-
+-#ifndef _EVENLESS_UAPI_SEM_H
+-#define _EVENLESS_UAPI_SEM_H
+-
+-#include <uapi/evenless/factory.h>
+-
+-struct timespec;
+-
+-#define EVL_SEM_VALUE_MAX	INT_MAX
+-
+-/* Attribute flags. */
+-#define EVL_SEM_FIFO      0x0
+-#define EVL_SEM_PRIO      0x1
+-#define EVL_SEM_PULSE     0x4
+-
+-struct evl_sem_attrs {
+-	__u32 clockfd;
+-	__u32 flags;
+-	__s32 initval;
+-};
+-
+-struct evl_sem_state {
+-	atomic_t value;
+-	__u32 flags;
+-};
+-
+-struct evl_sem_waitreq {
+-	struct timespec timeout;
+-};
+-
+-#define EVL_SEM_IOCBASE	's'
+-
+-#define EVL_SEMIOC_GET		_IOW(EVL_SEM_IOCBASE, 0, struct evl_sem_waitreq)
+-#define EVL_SEMIOC_PUT		_IO(EVL_SEM_IOCBASE, 1)
+-#define EVL_SEMIOC_BIND		_IOR(EVL_SEM_IOCBASE, 2, struct evl_element_ids)
+-
+-#endif /* !_EVENLESS_UAPI_SEM_H */
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index dd6aa123f57..08f85a02ce7 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -99,15 +99,6 @@ config EVENLESS_NR_CLOCKS
+ 	This value gives the maximum number of semaphores which can be
+ 	alive concurrently in the system for user-space applications.
+ 
+-config EVENLESS_NR_SEMAPHORES
+-	int "Maximum number of semaphores"
+-	range 1 16384
+-	default 512
+-	help
+-
+-	This value gives the maximum number of semaphores which can be
+-	alive concurrently in the system for user-space applications.
+-
+ config EVENLESS_NR_TIMERFDS
+ 	int "Maximum number of timerfds"
+ 	range 1 16384
+diff --git a/kernel/evenless/Makefile b/kernel/evenless/Makefile
+index b012d39b0b3..968c4848f33 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evenless/Makefile
+@@ -16,7 +16,6 @@ evenless-y :=		\
+ 	mutex.o		\
+ 	poll.o		\
+ 	proxy.o		\
+-	sem.o		\
+ 	syscall.o	\
+ 	thread.o	\
+ 	tick.o		\
+diff --git a/kernel/evenless/factory.c b/kernel/evenless/factory.c
+index 353a4fe309e..7e6c350474a 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evenless/factory.c
+@@ -35,7 +35,6 @@ static struct evl_factory *factories[] = {
+ 	&evl_control_factory,
+ 	&evl_thread_factory,
+ 	&evl_monitor_factory,
+-	&evl_sem_factory,
+ 	&evl_timerfd_factory,
+ 	&evl_poll_factory,
+ 	&evl_xbuf_factory,
+diff --git a/kernel/evenless/memory.c b/kernel/evenless/memory.c
+index 7419e7324b8..816a51b76ed 100644
+--- a/kernel/evenless/memory.c
++++ b/kernel/evenless/memory.c
+@@ -22,7 +22,6 @@
+ #include <evenless/assert.h>
+ #include <evenless/init.h>
+ #include <uapi/evenless/thread.h>
+-#include <uapi/evenless/sem.h>
+ #include <uapi/evenless/monitor.h>
+ 
+ static unsigned long sysheap_size_arg;
+@@ -632,9 +631,7 @@ static int init_shared_heap(void)
+ 	size = CONFIG_EVENLESS_NR_THREADS *
+ 		sizeof(struct evl_user_window) +
+ 		CONFIG_EVENLESS_NR_MONITORS *
+-		sizeof(struct evl_monitor_state) +
+-		CONFIG_EVENLESS_NR_SEMAPHORES *
+-		sizeof(struct evl_sem_state);
++		sizeof(struct evl_monitor_state);
+ 	size = PAGE_ALIGN(size);
+ 	mem = kzalloc(size, GFP_KERNEL);
+ 	if (mem == NULL)
+diff --git a/kernel/evenless/sem.c b/kernel/evenless/sem.c
+deleted file mode 100644
+index e39ec0dc3bb..00000000000
+--- a/kernel/evenless/sem.c
++++ /dev/null
+@@ -1,259 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0
+- *
+- * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+- */
+-
+-#include <linux/types.h>
+-#include <linux/list.h>
+-#include <linux/slab.h>
+-#include <linux/kernel.h>
+-#include <evenless/wait.h>
+-#include <evenless/thread.h>
+-#include <evenless/clock.h>
+-#include <evenless/sem.h>
+-#include <evenless/memory.h>
+-#include <evenless/lock.h>
+-#include <evenless/factory.h>
+-#include <evenless/sched.h>
+-#include <asm/evenless/syscall.h>
+-#include <trace/events/evenless.h>
+-
+-struct evl_sem {
+-	struct evl_element element;
+-	struct evl_sem_state *state;
+-	struct evl_wait_queue wait_queue;
+-	int initval;
+-};
+-
+-static int get_sem(struct evl_sem *sem,
+-		struct evl_sem_waitreq *req)
+-{
+-	struct evl_sem_state *state = sem->state;
+-	enum evl_tmode tmode;
+-	unsigned long flags;
+-	ktime_t timeout;
+-	int ret = 0;
+-
+-	if ((unsigned long)req->timeout.tv_nsec >= ONE_BILLION)
+-		return -EINVAL;
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	if (!(state->flags & EVL_SEM_PULSE) &&
+-		atomic_dec_return(&state->value) >= 0)
+-		goto out;
+-
+-	timeout = timespec_to_ktime(req->timeout);
+-	tmode = timeout ? EVL_ABS : EVL_REL;
+-	ret = evl_wait_timeout(&sem->wait_queue, timeout, tmode);
+-	if (ret && !(state->flags & EVL_SEM_PULSE))
+-		atomic_inc(&state->value);
+-out:
+-	xnlock_put_irqrestore(&nklock, flags);
+-
+-	return ret;
+-}
+-
+-static int put_sem(struct evl_sem *sem)
+-{
+-	struct evl_sem_state *state = sem->state;
+-	unsigned long flags;
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	if (state->flags & EVL_SEM_PULSE)
+-		evl_flush_wait_locked(&sem->wait_queue, 0);
+-	else if (atomic_inc_return(&state->value) <= 0)
+-		evl_wake_up_head(&sem->wait_queue);
+-
+-	xnlock_put_irqrestore(&nklock, flags);
+-
+-	evl_schedule();
+-
+-	return 0;
+-}
+-
+-static long sem_common_ioctl(struct evl_sem *sem,
+-			unsigned int cmd, unsigned long arg)
+-{
+-	long ret;
+-
+-	switch (cmd) {
+-	case EVL_SEMIOC_PUT:
+-		ret = put_sem(sem);
+-		break;
+-	default:
+-		ret = -ENOTTY;
+-	}
+-
+-	return ret;
+-}
+-
+-static long sem_oob_ioctl(struct file *filp, unsigned int cmd,
+-			unsigned long arg)
+-{
+-	struct evl_sem *sem = element_of(filp, struct evl_sem);
+-	struct evl_sem_waitreq wreq, __user *u_wreq;
+-	long ret;
+-
+-	switch (cmd) {
+-	case EVL_SEMIOC_GET:
+-		u_wreq = (typeof(u_wreq))arg;
+-		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
+-		if (ret)
+-			return -EFAULT;
+-		ret = get_sem(sem, &wreq);
+-		break;
+-	default:
+-		ret = sem_common_ioctl(sem, cmd, arg);
+-	}
+-
+-	return ret;
+-}
+-
+-static long sem_ioctl(struct file *filp, unsigned int cmd,
+-		unsigned long arg)
+-{
+-	struct evl_sem *sem = element_of(filp, struct evl_sem);
+-	struct evl_element_ids eids, __user *u_eids;
+-
+-	if (cmd != EVL_SEMIOC_BIND)
+-		return sem_common_ioctl(sem, cmd, arg);
+-
+-	eids.minor = sem->element.minor;
+-	eids.state_offset = evl_shared_offset(sem->state);
+-	eids.fundle = fundle_of(sem);
+-	u_eids = (typeof(u_eids))arg;
+-
+-	return copy_to_user(u_eids, &eids, sizeof(eids)) ? -EFAULT : 0;
+-}
+-
+-static int sem_release(struct inode *inode, struct file *filp)
+-{
+-	struct evl_sem *sem = element_of(filp, struct evl_sem);
+-
+-	evl_flush_wait(&sem->wait_queue, T_RMID);
+-
+-	return evl_release_element(inode, filp);
+-}
+-
+-static const struct file_operations sem_fops = {
+-	.open		= evl_open_element,
+-	.release	= sem_release,
+-	.unlocked_ioctl	= sem_ioctl,
+-	.oob_ioctl	= sem_oob_ioctl,
+-};
+-
+-static struct evl_element *
+-sem_factory_build(struct evl_factory *fac, const char *name,
+-		void __user *u_attrs, u32 *state_offp)
+-{
+-	struct evl_sem_state *state;
+-	struct evl_sem_attrs attrs;
+-	struct evl_clock *clock;
+-	int synflags = 0, ret;
+-	struct evl_sem *sem;
+-
+-	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
+-	if (ret)
+-		return ERR_PTR(-EFAULT);
+-
+-	if (attrs.flags & ~(EVL_SEM_PRIO|EVL_SEM_PULSE))
+-		return ERR_PTR(-EINVAL);
+-
+-	if (attrs.initval < 0)
+-		return ERR_PTR(-EINVAL);
+-
+-	if ((attrs.flags & EVL_SEM_PULSE) && attrs.initval > 0)
+-		return ERR_PTR(-EINVAL);
+-
+-	clock = evl_get_clock_by_fd(attrs.clockfd);
+-	if (clock == NULL)
+-		return ERR_PTR(-EINVAL);
+-
+-	sem = kzalloc(sizeof(*sem), GFP_KERNEL);
+-	if (sem == NULL) {
+-		ret = -ENOMEM;
+-		goto fail_alloc;
+-	}
+-
+-	ret = evl_init_element(&sem->element, &evl_sem_factory);
+-	if (ret)
+-		goto fail_element;
+-
+-	state = evl_alloc_chunk(&evl_shared_heap, sizeof(*state));
+-	if (state == NULL) {
+-		ret = -ENOMEM;
+-		goto fail_heap;
+-	}
+-
+-	if (attrs.flags & EVL_SEM_PRIO)
+-		synflags |= EVL_WAIT_PRIO;
+-
+-	evl_init_wait(&sem->wait_queue, clock, synflags);
+-	atomic_set(&state->value, attrs.initval);
+-	state->flags = attrs.flags;
+-	sem->state = state;
+-	sem->initval = attrs.initval;
+-
+-	*state_offp = evl_shared_offset(state);
+-	evl_index_element(&sem->element);
+-
+-	return &sem->element;
+-
+-fail_heap:
+-	evl_destroy_element(&sem->element);
+-fail_element:
+-	kfree(sem);
+-fail_alloc:
+-	evl_put_clock(clock);
+-
+-	return ERR_PTR(ret);
+-}
+-
+-static void sem_factory_dispose(struct evl_element *e)
+-{
+-	struct evl_sem *sem;
+-
+-	sem = container_of(e, struct evl_sem, element);
+-
+-	evl_unindex_element(&sem->element);
+-	evl_put_clock(sem->wait_queue.clock);
+-	evl_destroy_wait(&sem->wait_queue);
+-	evl_free_chunk(&evl_shared_heap, sem->state);
+-	evl_destroy_element(&sem->element);
+-	kfree_rcu(sem, element.rcu);
+-}
+-
+-static ssize_t value_show(struct device *dev,
+-			struct device_attribute *attr,
+-			char *buf)
+-{
+-	struct evl_sem *sem;
+-	ssize_t ret;
+-
+-	sem = evl_get_element_by_dev(dev, struct evl_sem);
+-	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+-		atomic_read(&sem->state->value));
+-	evl_put_element(&sem->element);
+-
+-	return ret;
+-}
+-static DEVICE_ATTR_RO(value);
+-
+-static struct attribute *sem_attrs[] = {
+-	&dev_attr_value.attr,
+-	NULL,
+-};
+-ATTRIBUTE_GROUPS(sem);
+-
+-struct evl_factory evl_sem_factory = {
+-	.name	=	"semaphore",
+-	.fops	=	&sem_fops,
+-	.build =	sem_factory_build,
+-	.dispose =	sem_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_SEMAPHORES,
+-	.attrs	=	sem_groups,
+-	.flags	=	EVL_FACTORY_CLONE,
+-};
+-- 
+2.16.4
+

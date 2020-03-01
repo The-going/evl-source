@@ -1,0 +1,27 @@
+From a3f45eda47704c3879c8c7afa8fade51ce943710 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 11 Feb 2019 18:06:01 +0100
+Subject: [PATCH] evl/wait: strip out useless includes
+
+---
+ kernel/evenless/wait.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 9044dae51fa..f32c8210a9b 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -5,10 +5,6 @@
+  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#include <stdarg.h>
+-#include <linux/signal.h>
+-#include <linux/kernel.h>
+-#include <linux/atomic.h>
+ #include <evenless/sched.h>
+ #include <evenless/wait.h>
+ #include <evenless/thread.h>
+-- 
+2.16.4
+

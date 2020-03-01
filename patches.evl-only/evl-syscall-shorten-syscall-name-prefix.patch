@@ -1,0 +1,40 @@
+From 3591338a449769f163aeffce2c84f08f85854bf3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 16 Feb 2019 18:20:05 +0100
+Subject: [PATCH] evl/syscall: shorten syscall name prefix
+
+---
+ kernel/evenless/syscall.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evenless/syscall.c b/kernel/evenless/syscall.c
+index 865eeb381b6..cd5fab3ea10 100644
+--- a/kernel/evenless/syscall.c
++++ b/kernel/evenless/syscall.c
+@@ -31,7 +31,7 @@
+ #endif
+ 
+ #define EVENLESS_SYSCALL(__name, __args)	\
+-	long EvEnLeSs_ ## __name __args
++	long EVL_ ## __name __args
+ 
+ #define SYSCALL_PROPAGATE   0
+ #define SYSCALL_STOP        1
+@@ -317,12 +317,12 @@ static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
+ 	return ret;
+ }
+ 
+-static int EvEnLeSs_ni(void)
++static int EVL_ni(void)
+ {
+ 	return -ENOSYS;
+ }
+ 
+-#define __syshand__(__name)	((evl_syshand)(EvEnLeSs_ ## __name))
++#define __syshand__(__name)	((evl_syshand)(EVL_ ## __name))
+ 
+ #define __EVENLESS_CALL_ENTRIES			\
+ 	__EVENLESS_CALL_ENTRY(read)		\
+-- 
+2.16.4
+

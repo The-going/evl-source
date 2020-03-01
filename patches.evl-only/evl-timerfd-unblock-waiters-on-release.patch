@@ -1,0 +1,36 @@
+From 95852b97b15302ce442119f1c39164eeed31a0e9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 15 Feb 2019 16:34:40 +0100
+Subject: [PATCH] evl/timerfd: unblock waiters on release
+
+---
+ kernel/evenless/timerfd.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evenless/timerfd.c b/kernel/evenless/timerfd.c
+index 3ffa960fc38..d8121fceb4b 100644
+--- a/kernel/evenless/timerfd.c
++++ b/kernel/evenless/timerfd.c
+@@ -172,9 +172,18 @@ static __poll_t timerfd_oob_poll(struct file *filp,
+ 	return timerfd->ticked ? POLLIN|POLLRDNORM : 0;
+ }
+ 
++static int timerfd_release(struct inode *inode, struct file *filp)
++{
++	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
++
++	evl_flush_wait(&timerfd->readers, T_RMID);
++
++	return evl_release_element(inode, filp);
++}
++
+ static const struct file_operations timerfd_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_release_element,
++	.release	= timerfd_release,
+ 	.oob_ioctl	= timerfd_oob_ioctl,
+ 	.oob_read	= timerfd_oob_read,
+ 	.oob_poll	= timerfd_oob_poll,
+-- 
+2.16.4
+

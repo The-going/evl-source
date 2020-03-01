@@ -1,0 +1,34 @@
+From e5d73652fcc97741808c19bee5506114ed588e43 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Feb 2019 12:24:17 +0100
+Subject: [PATCH] evl/thread: convert to evl_drop_poll_table()
+
+---
+ kernel/evenless/thread.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 47973a19741..b9bea659f2f 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -36,6 +36,7 @@
+ #include <evenless/factory.h>
+ #include <evenless/monitor.h>
+ #include <evenless/mutex.h>
++#include <evenless/poller.h>
+ #include <asm/evenless/syscall.h>
+ #include <trace/events/evenless.h>
+ 
+@@ -226,8 +227,7 @@ static void do_cleanup_current(struct evl_thread *curr)
+ 	if (curr->state & T_USER) {
+ 		evl_free_chunk(&evl_shared_heap, curr->u_window);
+ 		curr->u_window = NULL;
+-		if (curr->poll_context.table)
+-			evl_free(curr->poll_context.table);
++		evl_drop_poll_table(curr);
+ 	}
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+-- 
+2.16.4
+

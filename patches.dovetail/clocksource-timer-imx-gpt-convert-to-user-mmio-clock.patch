@@ -1,0 +1,41 @@
+From 987f37c2a854bccaeef741431067d95d77ae6243 Mon Sep 17 00:00:00 2001
+From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+Date: Thu, 21 Jul 2016 01:09:11 +0200
+Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
+
+---
+ drivers/clocksource/Kconfig         | 2 +-
+ drivers/clocksource/timer-imx-gpt.c | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
+index 24899d57aab..1275fd116ce 100644
+--- a/drivers/clocksource/Kconfig
++++ b/drivers/clocksource/Kconfig
+@@ -582,7 +582,7 @@ config H8300_TPU
+ config CLKSRC_IMX_GPT
+ 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
+ 	depends on (ARM || ARM64) && CLKDEV_LOOKUP
+-	select CLKSRC_MMIO
++	select CLKSRC_VDSO_MAPPED
+ 
+ config CLKSRC_IMX_TPM
+ 	bool "Clocksource using i.MX TPM" if COMPILE_TEST
+diff --git a/drivers/clocksource/timer-imx-gpt.c b/drivers/clocksource/timer-imx-gpt.c
+index e5dffe39d60..dfb789f58f2 100644
+--- a/drivers/clocksource/timer-imx-gpt.c
++++ b/drivers/clocksource/timer-imx-gpt.c
+@@ -164,8 +164,8 @@ static int __init mxc_clocksource_init(struct imx_timer *imxtm)
+ 	sched_clock_reg = reg;
+ 
+ 	sched_clock_register(mxc_read_sched_clock, 32, c);
+-	return clocksource_mmio_init(reg, "mxc_timer1", c, 200, 32,
+-			clocksource_mmio_readl_up);
++	return clocksource_user_single_mmio_init(reg, "mxc_timer1", c, 200, 32,
++					 clocksource_mmio_readl_up);
+ }
+ 
+ /* clock event */
+-- 
+2.16.4
+

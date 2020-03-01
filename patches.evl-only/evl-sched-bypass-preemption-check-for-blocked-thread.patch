@@ -1,0 +1,211 @@
+From cb7fa9b182908d3847ce69b2ed637e09f11e0f0d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 30 Jan 2019 10:16:12 +0100
+Subject: [PATCH] evl/sched: bypass preemption check for blocked threads
+
+evl_schedule() should not enforce preemption disabling, but rather
+leave this check to the inner __evl_schedule() handler which will
+ignore the preemption count if the current thread has to block.
+
+This way, we can use evl_schedule() as the general interface for
+kicking the rescheduling procedure, fixing the hack in
+blocked_thread_timed() which we needed since the former
+evl_suspend_thread() call was prevented from calling the scheduler
+implicitly.
+
+This set of changes preserves the ability to sleep with a non-zero
+preemption count, which is required in some occasions, e.g.:
+
+evl_disable_preempt();
+...
+evl_wait_flag();
+...
+evl_enable_preempt();
+---
+ include/evenless/sched.h     | 24 +++++-------------------
+ kernel/evenless/sched/core.c | 21 ++++++++++-----------
+ kernel/evenless/synch.c      |  6 +-----
+ kernel/evenless/thread.c     |  5 ++---
+ kernel/evenless/tick.c       |  2 +-
+ 5 files changed, 19 insertions(+), 39 deletions(-)
+
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 783b4498572..8de66f8cbb0 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -266,18 +266,16 @@ static inline bool is_threading_cpu(int cpu)
+ 	for_each_online_cpu(cpu)	\
+ 		if (is_evl_cpu(cpu))
+ 
+-bool ___evl_schedule(struct evl_rq *this_rq);
++bool __evl_schedule(struct evl_rq *this_rq);
+ 
+-irqreturn_t __evl_schedule_handler(int irq, void *dev_id);
+-
+-static inline bool __evl_schedule(void)
++static inline bool evl_schedule(void)
+ {
+ 	struct evl_rq *this_rq = this_evl_rq();
+ 
+ 	/*
+ 	 * If we race here reading the scheduler state locklessly
+ 	 * because of a CPU migration, we must be running over the
+-	 * in-band stage, in which case the call to ___evl_schedule()
++	 * in-band stage, in which case the call to __evl_schedule()
+ 	 * will be escalated to the oob stage where migration cannot
+ 	 * happen, ensuring safe access to the runqueue state.
+ 	 *
+@@ -291,7 +289,7 @@ static inline bool __evl_schedule(void)
+ 	if (((this_rq->status|this_rq->lflags) & (RQ_IRQ|RQ_SCHED)) != RQ_SCHED)
+ 		return false;
+ 
+-	return (bool)run_oob_call((int (*)(void *))___evl_schedule, this_rq);
++	return (bool)run_oob_call((int (*)(void *))__evl_schedule, this_rq);
+ }
+ 
+ static inline int evl_preempt_count(void)
+@@ -307,7 +305,7 @@ static inline void __evl_disable_preempt(void)
+ static inline void __evl_enable_preempt(void)
+ {
+ 	if (--dovetail_current_state()->preempt_count == 0)
+-		__evl_schedule();
++		evl_schedule();
+ }
+ 
+ #ifdef CONFIG_EVENLESS_DEBUG_LOCKING
+@@ -329,18 +327,6 @@ static inline void evl_enable_preempt(void)
+ 
+ #endif /* !CONFIG_EVENLESS_DEBUG_LOCKING */
+ 
+-static inline bool evl_schedule(void)
+-{
+-	/*
+-	 * Block rescheduling if either the current thread holds the
+-	 * scheduler lock.
+-	 */
+-	if (unlikely(evl_preempt_count() > 0))
+-		return false;
+-
+-	return __evl_schedule();
+-}
+-
+ static inline bool evl_in_irq(void)
+ {
+ 	return !!(this_evl_rq()->lflags & RQ_IRQ);
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index f51339d9a26..f4a118e3dd9 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -237,14 +237,13 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
+ 	struct evl_thread *curr = rq->curr;
+ 	struct evl_thread *thread;
+ 
++	/*
++	 * We have to switch the current thread out if a blocking
++	 * condition is raised for it. Otherwise, check whether
++	 * preemption is allowed.
++	 */
+ 	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
+-		/*
+-		 * Do not preempt the current thread if it holds the
+-		 * scheduler lock. However, such lock is never
+-		 * considered for the root thread which may never
+-		 * defer scheduling.
+-		 */
+-		if (evl_preempt_count() > 0 && !(curr->state & T_ROOT)) {
++		if (evl_preempt_count() > 0) {
+ 			evl_set_self_resched(rq);
+ 			return curr;
+ 		}
+@@ -693,7 +692,7 @@ static inline void leave_root(struct evl_thread *root)
+ #endif
+ }
+ 
+-irqreturn_t __evl_schedule_handler(int irq, void *dev_id)
++static irqreturn_t reschedule_interrupt(int irq, void *dev_id)
+ {
+ 	/* hw interrupts are off. */
+ 	trace_evl_schedule_remote(this_evl_rq());
+@@ -702,7 +701,7 @@ irqreturn_t __evl_schedule_handler(int irq, void *dev_id)
+ 	return IRQ_HANDLED;
+ }
+ 
+-bool ___evl_schedule(struct evl_rq *this_rq)
++bool __evl_schedule(struct evl_rq *this_rq)
+ {
+ 	struct evl_thread *prev, *next, *curr;
+ 	bool switched, oob_entry;
+@@ -792,7 +791,7 @@ bool ___evl_schedule(struct evl_rq *this_rq)
+ 
+ 	return switched;
+ }
+-EXPORT_SYMBOL_GPL(___evl_schedule);
++EXPORT_SYMBOL_GPL(__evl_schedule);
+ 
+ struct evl_sched_class *
+ evl_find_sched_class(union evl_sched_param *param,
+@@ -995,7 +994,7 @@ int __init evl_init_sched(void)
+ 
+ 	if (IS_ENABLED(CONFIG_SMP)) {
+ 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
+-					   __evl_schedule_handler,
++					   reschedule_interrupt,
+ 					   IRQF_OOB,
+ 					   "Evenless reschedule",
+ 					   &evl_machine_cpudata);
+diff --git a/kernel/evenless/synch.c b/kernel/evenless/synch.c
+index 51e228e901e..a5895d48e76 100644
+--- a/kernel/evenless/synch.c
++++ b/kernel/evenless/synch.c
+@@ -102,11 +102,7 @@ int block_thread_timed(ktime_t timeout, enum evl_tmode timeout_mode,
+ 
+ 	evl_block_thread_timeout(curr, T_PEND, timeout, timeout_mode,
+ 				 clock, wchan);
+-	/*
+-	 * FIXME: bypass sched_lock test until the situation is fixed
+-	 * for evl_enable/disable_preempt().
+-	 */
+-	__evl_schedule();
++	evl_schedule();
+ 
+ 	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
+ }
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 6ed31fabfdd..83d8af8a6bc 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -531,8 +531,7 @@ void evl_block_thread_timeout(struct evl_thread *thread, int mask,
+ 
+ 	/*
+ 	 * If the thread is current on its CPU, we need to raise
+-	 * RQ_SCHED on the target runqueue; __evl_schedule() may
+-	 * trigger a resched IPI to a remote CPU if required.
++	 * RQ_SCHED on the target runqueue.
+ 	 *
+ 	 * Otherwise, handle the case of suspending a user thread
+ 	 * running in-band which is _not_ current EVL-wise, but could
+@@ -610,7 +609,7 @@ void evl_switch_inband(int cause)
+ 	dovetail_leave_oob();
+ 	xnlock_clear_irqon(&nklock);
+ 	oob_irq_disable();	/* <= REQUIRED. */
+-	___evl_schedule(rq);
++	__evl_schedule(rq);
+ 	oob_irq_enable();
+ 	dovetail_resume_inband();
+ 
+diff --git a/kernel/evenless/tick.c b/kernel/evenless/tick.c
+index d79b7864ac8..09061db666f 100644
+--- a/kernel/evenless/tick.c
++++ b/kernel/evenless/tick.c
+@@ -275,7 +275,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 	 *
+ 	 * The in-band tick deferral is cleared whenever EVL is about
+ 	 * to yield control to the in-band code (see
+-	 * ___evl_schedule()), or a timer with an earlier timeout date
++	 * __evl_schedule()), or a timer with an earlier timeout date
+ 	 * is scheduled, whichever comes first.
+ 	 */
+ 	this_rq->lflags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
+-- 
+2.16.4
+

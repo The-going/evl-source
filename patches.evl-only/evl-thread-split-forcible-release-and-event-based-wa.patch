@@ -1,0 +1,371 @@
+From d0b7917765d413bef48f3cc8e7dae4d8d3e19344 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 1 Feb 2019 15:47:20 +0100
+Subject: [PATCH] evl/thread: split forcible release and event-based wakeup
+ calls
+
+This completes the simplification work by dedicating calls to resume
+and thread from a forcible stop (T_SUSP, T_HALT, T_INBAND and
+T_DORMANT), and event-bounded waits.
+
+For consistency purpose, the related calls have been renamed:
+evl_{hold, release}_thread() control the forcible stop states, while
+evl_{sleep_on, wakeup}_thread() control the event wait states.
+---
+ include/evenless/thread.h       |   7 ++-
+ include/trace/events/evenless.h |  28 +++++++++--
+ kernel/evenless/mutex.c         |   4 +-
+ kernel/evenless/sched/core.c    |   2 +-
+ kernel/evenless/thread.c        | 104 ++++++++++++++++++++++++----------------
+ kernel/evenless/wait.c          |   4 +-
+ 6 files changed, 98 insertions(+), 51 deletions(-)
+
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index 050c0b3be9c..f7b1a90a831 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -218,12 +218,15 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_clock *clock,
+ 		struct evl_wait_channel *wchan);
+ 
+-void evl_hold_thread(struct evl_thread *thread,
++void evl_wakeup_thread(struct evl_thread *thread,
+ 		int mask);
+ 
+-void evl_resume_thread(struct evl_thread *thread,
++void evl_hold_thread(struct evl_thread *thread,
+ 		int mask);
+ 
++void evl_release_thread(struct evl_thread *thread,
++			int mask);
++
+ int evl_unblock_thread(struct evl_thread *thread);
+ 
+ ktime_t evl_delay_thread(ktime_t timeout,
+diff --git a/include/trace/events/evenless.h b/include/trace/events/evenless.h
+index f2642df85e9..fd4026ae1ca 100644
+--- a/include/trace/events/evenless.h
++++ b/include/trace/events/evenless.h
+@@ -336,25 +336,47 @@ TRACE_EVENT(evl_sleep_on,
+ 		  __entry->wchan)
+ );
+ 
++TRACE_EVENT(evl_wakeup_thread,
++	TP_PROTO(struct evl_thread *thread, unsigned long mask),
++	TP_ARGS(thread, mask),
++
++	TP_STRUCT__entry(
++		__string(name, thread->name)
++		__field(pid_t, pid)
++		__field(unsigned long, mask)
++	),
++
++	TP_fast_assign(
++		__assign_str(name, thread->name);
++		__entry->pid = evl_get_inband_pid(thread);
++		__entry->mask = mask;
++	),
++
++	TP_printk("name=%s pid=%d mask=%#lx",
++		  __get_str(name), __entry->pid, __entry->mask)
++);
++
+ TRACE_EVENT(evl_hold_thread,
+ 	TP_PROTO(struct evl_thread *thread, unsigned long mask),
+ 	TP_ARGS(thread, mask),
+ 
+ 	TP_STRUCT__entry(
++		__string(name, thread->name)
+ 		__field(pid_t, pid)
+ 		__field(unsigned long, mask)
+ 	),
+ 
+ 	TP_fast_assign(
++		__assign_str(name, thread->name);
+ 		__entry->pid = evl_get_inband_pid(thread);
+ 		__entry->mask = mask;
+ 	),
+ 
+-	TP_printk("pid=%d mask=%#lx",
+-		__entry->pid, __entry->mask)
++	TP_printk("name=%s pid=%d mask=%#lx",
++		  __get_str(name), __entry->pid, __entry->mask)
+ );
+ 
+-TRACE_EVENT(evl_resume_thread,
++TRACE_EVENT(evl_release_thread,
+ 	TP_PROTO(struct evl_thread *thread, unsigned long mask),
+ 	TP_ARGS(thread, mask),
+ 
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index 1e4c36cd292..9ad8ebcc569 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -353,7 +353,7 @@ bool evl_destroy_mutex(struct evl_mutex *mutex)
+ 			list_del(&waiter->wait_next);
+ 			waiter->info |= T_RMID;
+ 			waiter->wchan = NULL;
+-			evl_resume_thread(waiter, T_PEND);
++			evl_wakeup_thread(waiter, T_PEND);
+ 		}
+ 		if (mutex->flags & EVL_MUTEX_CLAIMED)
+ 			clear_pi_boost(mutex, mutex->owner);
+@@ -572,7 +572,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	n_owner->wwake = &mutex->wchan;
+ 	set_current_owner_locked(mutex, n_owner);
+ 	n_owner->info |= T_WAKEN;
+-	evl_resume_thread(n_owner, T_PEND);
++	evl_wakeup_thread(n_owner, T_PEND);
+ 
+ 	if (mutex->flags & EVL_MUTEX_CLAIMED)
+ 		clear_pi_boost(mutex, lastowner);
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index ddbad6c78d8..58842d4808d 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -909,7 +909,7 @@ int evl_sched_yield(void)
+ 
+ 	oob_context_only();
+ 
+-	evl_resume_thread(curr, 0);
++	evl_release_thread(curr, 0);
+ 	if (evl_schedule())
+ 		return 0;
+ 
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 84b4e461f31..79533e4511f 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -47,10 +47,7 @@ static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
+ {
+ 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
+ 
+-	xnlock_get(&nklock);
+-	thread->info |= T_TIMEO;
+-	evl_resume_thread(thread, T_DELAY);
+-	xnlock_put(&nklock);
++	evl_wakeup_thread(thread, T_DELAY|T_PEND);
+ }
+ 
+ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+@@ -64,7 +61,7 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+ 	 * blocked on a resource.
+ 	 */
+ 	if ((thread->state & (T_DELAY|T_PEND)) == T_DELAY)
+-		evl_resume_thread(thread, T_DELAY);
++		evl_wakeup_thread(thread, T_DELAY);
+ 
+ 	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
+ 
+@@ -226,14 +223,6 @@ static void uninit_thread(struct evl_thread *thread)
+ 	kfree(thread->name);
+ }
+ 
+-static inline void abort_wait(struct evl_thread *thread)
+-{
+-	struct evl_wait_channel *wchan = thread->wchan;
+-
+-	if (wchan)
+-		wchan->abort_wait(thread);
+-}
+-
+ static void do_cleanup_current(struct evl_thread *curr)
+ {
+ 	struct evl_mutex *mutex, *tmp;
+@@ -324,7 +313,7 @@ static int map_kthread_self(struct evl_kthread *kthread)
+ 	dovetail_init_altsched(&curr->altsched);
+ 	set_oob_threadinfo(curr);
+ 	dovetail_start_altsched();
+-	evl_resume_thread(curr, T_DORMANT);
++	evl_release_thread(curr, T_DORMANT);
+ 
+ 	trace_evl_thread_map(curr);
+ 
+@@ -453,13 +442,26 @@ void evl_start_thread(struct evl_thread *thread)
+ 		enlist_new_thread(thread);
+ 
+ 	trace_evl_thread_start(thread);
+-	evl_resume_thread(thread, T_DORMANT);
++	evl_release_thread(thread, T_DORMANT);
+ 	evl_schedule();
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ EXPORT_SYMBOL_GPL(evl_start_thread);
+ 
++static inline bool abort_wait(struct evl_thread *thread)
++{
++	struct evl_wait_channel *wchan = thread->wchan;
++
++	if (wchan) {
++		thread->wchan = NULL;
++		wchan->abort_wait(thread, wchan);
++		return true;
++	}
++
++	return false;
++}
++
+ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_clock *clock,
+ 		struct evl_wait_channel *wchan)
+@@ -524,6 +526,40 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ }
+ EXPORT_SYMBOL_GPL(evl_sleep_on);
+ 
++void evl_wakeup_thread(struct evl_thread *thread, int mask)
++{
++	unsigned long oldstate, flags;
++	struct evl_rq *rq;
++
++	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND)))
++		return;
++
++	xnlock_get_irqsave(&nklock, flags);
++
++	trace_evl_wakeup_thread(thread, mask);
++
++	rq = thread->rq;
++	oldstate = thread->state;
++	if (likely(oldstate & mask)) {
++		thread->state &= ~mask;
++
++		if (mask & (T_DELAY|T_PEND))
++			evl_stop_timer(&thread->rtimer);
++
++		if ((mask & T_PEND) && abort_wait(thread) && (mask & T_DELAY))
++			thread->info |= T_TIMEO;
++
++		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
++			evl_enqueue_thread(thread);
++			thread->state |= T_READY;
++			evl_set_resched(rq);
++		}
++	}
++
++	xnlock_put_irqrestore(&nklock, flags);
++}
++EXPORT_SYMBOL_GPL(evl_wakeup_thread);
++
+ void evl_hold_thread(struct evl_thread *thread, int mask)
+ {
+ 	unsigned long oldstate, flags;
+@@ -579,26 +615,23 @@ void evl_hold_thread(struct evl_thread *thread, int mask)
+ }
+ EXPORT_SYMBOL_GPL(evl_hold_thread);
+ 
+-void evl_resume_thread(struct evl_thread *thread, int mask)
++void evl_release_thread(struct evl_thread *thread, int mask)
+ {
+ 	unsigned long oldstate, flags;
+ 	struct evl_rq *rq;
+ 
++	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT)))
++		return;
++
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+-	trace_evl_resume_thread(thread, mask);
++	trace_evl_release_thread(thread, mask);
+ 
+ 	rq = thread->rq;
+ 	oldstate = thread->state;
+-	if (oldstate & EVL_THREAD_BLOCK_BITS) {
++	if (oldstate & mask) {
+ 		thread->state &= ~mask;
+ 
+-		if (mask & (T_DELAY|T_PEND))
+-			evl_stop_timer(&thread->rtimer);
+-
+-		if (mask & T_PEND)
+-			abort_wait(thread);
+-
+ 		if (thread->state & EVL_THREAD_BLOCK_BITS)
+ 			goto out;
+ 
+@@ -621,30 +654,19 @@ void evl_resume_thread(struct evl_thread *thread, int mask)
+ 
+ 	return;
+ }
+-EXPORT_SYMBOL_GPL(evl_resume_thread);
++EXPORT_SYMBOL_GPL(evl_release_thread);
+ 
+ int evl_unblock_thread(struct evl_thread *thread)
+ {
+ 	unsigned long flags;
+ 	int ret = 1;
+ 
+-	/*
+-	 * Attempt to abort an undergoing wait for the given thread.
+-	 * If this state is due to an alarm that has been armed to
+-	 * limit the sleeping thread's waiting time while it pends for
+-	 * a resource, the corresponding T_PEND state will be cleared
+-	 * by evl_resume_thread() in the same move. Otherwise, this call
+-	 * may abort an undergoing infinite wait for a resource (if
+-	 * any).
+-	 */
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+ 	trace_evl_unblock_thread(thread);
+ 
+-	if (thread->state & T_DELAY)
+-		evl_resume_thread(thread, T_DELAY);
+-	else if (thread->state & T_PEND)
+-		evl_resume_thread(thread, T_PEND);
++	if (thread->state & (T_DELAY|T_PEND))
++		evl_wakeup_thread(thread, T_DELAY|T_PEND);
+ 	else
+ 		ret = 0;
+ 
+@@ -1043,7 +1065,7 @@ void evl_cancel_thread(struct evl_thread *thread)
+ 		if (!(thread->state & T_INBAND))
+ 			goto check_self_cancel;
+ 		thread->info |= T_KICKED;
+-		evl_resume_thread(thread, T_DORMANT);
++		evl_release_thread(thread, T_DORMANT);
+ 		goto out;
+ 	}
+ 
+@@ -1391,7 +1413,7 @@ static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
+ 	 * should act upon this case specifically.
+ 	 */
+ 	if (thread->state & (T_SUSP|T_HALT)) {
+-		evl_resume_thread(thread, T_SUSP|T_HALT);
++		evl_release_thread(thread, T_SUSP|T_HALT);
+ 		thread->info |= T_KICKED;
+ 	}
+ 
+@@ -1822,7 +1844,7 @@ void resume_oob_task(struct task_struct *p) /* hw IRQs off */
+ 	 */
+ 	xnlock_get(&nklock);
+ 	if (affinity_ok(p))
+-		evl_resume_thread(thread, T_INBAND);
++		evl_release_thread(thread, T_INBAND);
+ 	xnlock_put(&nklock);
+ 
+ 	evl_schedule();
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 0e471be2b4c..902d4bf10be 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -83,7 +83,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 						struct evl_thread, wait_next);
+ 		list_del(&waiter->wait_next);
+ 		waiter->wchan = NULL;
+-		evl_resume_thread(waiter, T_PEND);
++		evl_wakeup_thread(waiter, T_PEND);
+ 	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+@@ -106,7 +106,7 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ 			list_del(&waiter->wait_next);
+ 			waiter->info |= reason;
+ 			waiter->wchan = NULL;
+-			evl_resume_thread(waiter, T_PEND);
++			evl_wakeup_thread(waiter, T_PEND);
+ 		}
+ 	}
+ 
+-- 
+2.16.4
+

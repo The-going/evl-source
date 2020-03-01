@@ -1,0 +1,37 @@
+From ca9e1f40e6dbbb27b22d9563cc2957b65c6300cb Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 28 Jan 2019 15:35:50 +0100
+Subject: [PATCH] evl/drivers: include missing linux/uaccess.h
+
+---
+ drivers/evenless/hectic.c | 1 +
+ drivers/evenless/latmus.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/drivers/evenless/hectic.c b/drivers/evenless/hectic.c
+index 1bb352b8fc7..11cf34c28c2 100644
+--- a/drivers/evenless/hectic.c
++++ b/drivers/evenless/hectic.c
+@@ -11,6 +11,7 @@
+ #include <linux/module.h>
+ #include <linux/vmalloc.h>
+ #include <linux/slab.h>
++#include <linux/uaccess.h>
+ #include <linux/semaphore.h>
+ #include <linux/irq_work.h>
+ #include <evenless/synch.h>
+diff --git a/drivers/evenless/latmus.c b/drivers/evenless/latmus.c
+index de6e1dea8b4..35cf283fcd7 100644
+--- a/drivers/evenless/latmus.c
++++ b/drivers/evenless/latmus.c
+@@ -14,6 +14,7 @@
+ #include <linux/cdev.h>
+ #include <linux/fs.h>
+ #include <linux/fcntl.h>
++#include <linux/uaccess.h>
+ #include <evenless/file.h>
+ #include <evenless/wait.h>
+ #include <evenless/clock.h>
+-- 
+2.16.4
+

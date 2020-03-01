@@ -1,0 +1,311 @@
+From 3be1b8396db1bbb19db7272888dc41a31cd9fe7c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 11 Dec 2016 17:16:22 +0100
+Subject: [PATCH] ARM: dovetail: route syscalls and traps to co-kernel
+
+---
+ arch/arm/include/asm/dovetail.h      | 15 +++++++++++++
+ arch/arm/include/uapi/asm/dovetail.h |  7 ++++++
+ arch/arm/kernel/entry-armv.S         | 11 +++++++++
+ arch/arm/kernel/entry-common.S       | 43 +++++++++++++++++++++++++++++++++++-
+ arch/arm/kernel/ptrace.c             |  1 +
+ arch/arm/mm/alignment.c              |  3 +++
+ arch/arm/mm/fault.c                  | 33 ++++++++++++++++++---------
+ 7 files changed, 102 insertions(+), 11 deletions(-)
+ create mode 100644 arch/arm/include/uapi/asm/dovetail.h
+
+diff --git a/arch/arm/include/asm/dovetail.h b/arch/arm/include/asm/dovetail.h
+index 5875ecad0b0..ce1951b185a 100644
+--- a/arch/arm/include/asm/dovetail.h
++++ b/arch/arm/include/asm/dovetail.h
+@@ -6,7 +6,22 @@
+ #ifndef _ASM_ARM_DOVETAIL_H
+ #define _ASM_ARM_DOVETAIL_H
+ 
++/* ARM traps */
++#define ARM_TRAP_ACCESS		0	/* Data or instruction access exception */
++#define ARM_TRAP_SECTION	1	/* Section fault */
++#define ARM_TRAP_DABT		2	/* Generic data abort */
++#define ARM_TRAP_PABT		3	/* Prefetch abort */
++#define ARM_TRAP_BREAK		4	/* Instruction breakpoint */
++#define ARM_TRAP_FPU		5	/* Floating point exception */
++#define ARM_TRAP_VFP		6	/* VFP floating point exception */
++#define ARM_TRAP_UNDEFINSTR	7	/* Undefined instruction */
++#define ARM_TRAP_ALIGNMENT	8	/* Unaligned access exception */
++
++#ifndef __ASSEMBLY__
++
+ static inline void arch_dovetail_context_resume(void)
+ { }
+ 
++#endif
++
+ #endif /* _ASM_ARM_DOVETAIL_H */
+diff --git a/arch/arm/include/uapi/asm/dovetail.h b/arch/arm/include/uapi/asm/dovetail.h
+new file mode 100644
+index 00000000000..8413e8f2389
+--- /dev/null
++++ b/arch/arm/include/uapi/asm/dovetail.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef _UAPI_ASM_DOVETAIL_H
++#define _UAPI_ASM_DOVETAIL_H
++
++#define __ARM_NR_dovetail	0xf0042
++
++#endif /* _UAPI_ASM_DOVETAIL_H */
+diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
+index 7cb77558786..c99fdce046d 100644
+--- a/arch/arm/kernel/entry-armv.S
++++ b/arch/arm/kernel/entry-armv.S
+@@ -35,6 +35,7 @@
+ #include "entry-header.S"
+ #include <asm/entry-macro-multi.S>
+ #include <asm/probes.h>
++#include <asm/dovetail.h>
+ 
+ /*
+  * Interrupt handling.
+@@ -274,6 +275,16 @@ __und_svc:
+ 	svc_entry MAX_STACK_SIZE
+ #else
+ 	svc_entry
++#endif
++#ifdef CONFIG_DOVETAIL
++	get_thread_info tsk
++	ldr	r0, [tsk, #TI_PREEMPT]		@ get preempt count
++	tst	r0, #TI_OOB_MASK		@ oob stage?
++	beq	1f
++	mov	r0, #ARM_TRAP_UNDEFINSTR
++	mov	r1, sp				@ r1 = &regs
++	bl	__oob_trap_notify
++1:
+ #endif
+ 	@
+ 	@ call emulation code, which returns using r9 if it has emulated
+diff --git a/arch/arm/kernel/entry-common.S b/arch/arm/kernel/entry-common.S
+index 198bf16c7bc..65a447fd15d 100644
+--- a/arch/arm/kernel/entry-common.S
++++ b/arch/arm/kernel/entry-common.S
+@@ -2,6 +2,7 @@
+  *  linux/arch/arm/kernel/entry-common.S
+  *
+  *  Copyright (C) 2000 Russell King
++ *  Copyright (C) 2005 Stelian Pop.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+@@ -15,6 +16,7 @@
+ #include <asm/memory.h>
+ #ifdef CONFIG_AEABI
+ #include <asm/unistd-oabi.h>
++#include <uapi/asm/dovetail.h>
+ #endif
+ 
+ 	.equ	NR_syscalls, __NR_syscalls
+@@ -147,7 +149,7 @@ no_work_pending:
+ ENDPROC(ret_to_user_from_irq)
+ ENDPROC(ret_to_user)
+ ENTRY(fast_ret_to_user)
+-	disable_irq_notrace
++	disable_irq_notrace			@ disable interrupts
+ 	b	no_work_pending
+ ENDPROC(fast_ret_to_user)
+ 
+@@ -256,6 +258,45 @@ ENTRY(vector_swi)
+  TRACE(	ldmia	sp, {r0 - r3}		)
+ 
+ local_restart:
++#ifdef CONFIG_DOVETAIL
++	ldr	r10, [tsk, #TI_LOCAL_FLAGS]	@ tsk(r9) is callee-saved
++	ldr	r0, =(__ARM_NR_dovetail - __NR_SYSCALL_BASE)
++	cmp	scno, r0
++	bne	slow_path
++	tst	r10, #_TLF_OOB
++	beq	slow_path
++	mov	r0, sp				@ regs
++	bl	handle_oob_syscall
++	ldr	r10, [tsk, #TI_LOCAL_FLAGS]
++	tst	r10, #_TLF_OOB
++	bne	fastcall_exit_check		@ check for MAYDAY
++	bl	sync_inband_irqs
++	b	ret_slow_syscall
++fastcall_exit_check:
++	ldr	r10, [tsk, #TI_FLAGS]
++	tst	r10, #_TIF_MAYDAY
++	beq	fast_ret_to_user
++	mov	r0, sp
++	bl	dovetail_call_mayday
++	b	fast_ret_to_user
++slow_path:
++	tst	r10, #_TLF_DOVETAIL
++	bne	pipeline_syscall
++	cmp	scno, r0
++	bne	root_syscall
++pipeline_syscall:
++	mov	r1, sp				@ regs
++	mov	r0, tsk
++	bl	__pipeline_syscall
++	ldr	r10, [tsk, #TI_LOCAL_FLAGS]
++	tst	r10, #_TLF_OOB
++	bne	fast_ret_to_user
++	cmp	r0, #0
++	bgt	ret_slow_syscall
++root_syscall:
++	ldmia	sp, { r0 - r3 }
++#endif /* CONFIG_DOVETAIL */
++
+ 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
+ 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
+ 
+diff --git a/arch/arm/kernel/ptrace.c b/arch/arm/kernel/ptrace.c
+index 6fa5b638755..ed6e6ec929d 100644
+--- a/arch/arm/kernel/ptrace.c
++++ b/arch/arm/kernel/ptrace.c
+@@ -209,6 +209,7 @@ void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
+ 
+ static int break_trap(struct pt_regs *regs, unsigned int instr)
+ {
++	oob_trap_notify(ARM_TRAP_BREAK, regs);
+ 	ptrace_break(current, regs);
+ 	return 0;
+ }
+diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
+index faf05a32971..0abea1cae8f 100644
+--- a/arch/arm/mm/alignment.c
++++ b/arch/arm/mm/alignment.c
+@@ -22,6 +22,7 @@
+ #include <linux/init.h>
+ #include <linux/sched/signal.h>
+ #include <linux/uaccess.h>
++#include <linux/dovetail.h>
+ 
+ #include <asm/cp15.h>
+ #include <asm/system_info.h>
+@@ -783,6 +784,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	if (interrupts_enabled(regs))
+ 		hard_local_irq_enable();
+ 
++	oob_trap_notify(ARM_TRAP_ALIGNMENT, regs);
++
+ 	instrptr = instruction_pointer(regs);
+ 
+ 	if (thumb_mode(regs)) {
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index 53851b817e7..a54151857ce 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -26,11 +26,18 @@
+ #include <asm/system_misc.h>
+ #include <asm/system_info.h>
+ #include <asm/tlbflush.h>
++#include <asm/dovetail.h>
+ 
+ #include "fault.h"
+ 
+ #ifdef CONFIG_MMU
+ 
++#ifdef CONFIG_DOVETAIL
++#define fault_entry(__exception, __regs)	__fault_entry(__exception, __regs)
++#else
++#define fault_entry(__exception, __regs)	__fault_entry(-1, __regs)
++#endif
++
+ #ifdef CONFIG_IRQ_PIPELINE
+ /*
+  * We need to synchronize the virtual interrupt state with the hard
+@@ -44,12 +51,20 @@
+  * helpers. From the main kernel's point of view, there is no change.
+  */
+ static inline
+-unsigned long fault_entry(struct pt_regs *regs)
++unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+ {
+ 	unsigned long flags;
+ 	int nosync = 1;
+ 
++	/*
++	 * CAUTION: The co-kernel might demote the current context to
++	 * the in-band stage as a result of handling this trap,
++	 * returning with hard irqs on.
++	 */
++	oob_trap_notify(exception, regs);
++
+ 	flags = hard_local_irq_save();
++
+ 	if (hard_irqs_disabled_flags(flags))
+ 		nosync = test_and_set_stage_bit(STAGE_STALL_BIT,
+ 					this_inband_staged());
+@@ -90,12 +105,12 @@ static inline void fault_exit(unsigned long combo)
+ #else	/* !CONFIG_IRQ_PIPELINE */
+ 
+ static inline
+-unsigned long fault_entry(struct pt_regs *regs)
++unsigned long __fault_entry(unsigned int exception, struct pt_regs *regs)
+ {
+ 	return 0;
+ }
+ 
+-static inline void fault_exit(unsigned long x) { }
++static inline void fault_exit(unsigned long combo) { }
+ 
+ #endif	/* !CONFIG_IRQ_PIPELINE */
+ 
+@@ -267,7 +282,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	 * have no context to handle this fault with.
+ 	 */
+ 	if (user_mode(regs)) {
+-		irqflags = fault_entry(regs);
++		irqflags = fault_entry(ARM_TRAP_ACCESS, regs);
+ 		__do_user_fault(tsk, addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
+ 		fault_exit(irqflags);
+ 	} else
+@@ -345,7 +360,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+ 	unsigned long irqflags;
+ 
+-	irqflags = fault_entry(regs);
++	irqflags = fault_entry(ARM_TRAP_ACCESS, regs);
+ 
+ 	if (notify_page_fault(regs, fsr))
+ 		goto out;
+@@ -570,9 +585,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
+ 	return 0;
+ 
+ bad_area:
+-	irqflags = fault_entry(regs);
+ 	do_bad_area(addr, fsr, regs);
+-	fault_exit(irqflags);
+ 	return 0;
+ }
+ #else					/* CONFIG_MMU */
+@@ -594,7 +607,7 @@ do_sect_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ {
+ 	unsigned long irqflags;
+ 
+-	irqflags = fault_entry(regs);
++	irqflags = fault_entry(ARM_TRAP_SECTION, regs);
+ 	do_bad_area(addr, fsr, regs);
+ 	fault_exit(irqflags);
+ 	return 0;
+@@ -649,7 +662,7 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 	if (!inf->fn(addr, fsr & ~FSR_LNX_PF, regs))
+ 		return;
+ 
+-	irqflags = fault_entry(regs);
++	irqflags = fault_entry(ARM_TRAP_DABT, regs);
+ 	pr_alert("Unhandled fault: %s (0x%03x) at 0x%08lx\n",
+ 		inf->name, fsr, addr);
+ 	show_pte(current->mm, addr);
+@@ -681,7 +694,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
+ 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
+ 		return;
+ 
+-	irqflags = fault_entry(regs);
++	irqflags = fault_entry(ARM_TRAP_PABT, regs);
+ 	pr_alert("Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
+ 		inf->name, ifsr, addr);
+ 
+-- 
+2.16.4
+

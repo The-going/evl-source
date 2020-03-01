@@ -1,0 +1,191 @@
+From 1d22cbcc8c0c24bccbb5af077d5a393f939a4bf4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 12 Feb 2019 11:02:06 +0100
+Subject: [PATCH] evl/factory: detect duplicate element names early
+
+device_create() issues a debug backtrace to the kernel log upon
+duplicate device name.
+
+Use a simple hash to detect this upfront in the element factory,
+returning gracefully with -EEXIST instead of having the kernel freak
+out.
+---
+ include/evenless/factory.h | 11 +++++++--
+ kernel/evenless/factory.c  | 58 +++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 8 deletions(-)
+
+diff --git a/include/evenless/factory.h b/include/evenless/factory.h
+index b5f4b7bef37..5a28fe61d7c 100644
+--- a/include/evenless/factory.h
++++ b/include/evenless/factory.h
+@@ -17,6 +17,8 @@
+ #include <linux/rcupdate.h>
+ #include <linux/workqueue.h>
+ #include <linux/irq_work.h>
++#include <linux/mutex.h>
++#include <linux/hashtable.h>
+ #include <evenless/file.h>
+ #include <uapi/evenless/types.h>
+ 
+@@ -33,6 +35,8 @@ struct evl_element;
+ #define EVL_FACTORY_CLONE	BIT(0)
+ #define EVL_FACTORY_SINGLE	BIT(1)
+ 
++#define EVL_DEVHASH_BITS	8
++
+ struct evl_factory {
+ 	const char *name;
+ 	const struct file_operations *fops;
+@@ -55,10 +59,13 @@ struct evl_factory {
+ 			hard_spinlock_t lock;
+ 			fundle_t generator;
+ 		} index;
++		DECLARE_HASHTABLE(name_hash, EVL_DEVHASH_BITS);
++		struct mutex hash_lock;
+ 	}; /* Internal. */
+ };
+ 
+ struct evl_element {
++	struct rcu_head rcu;
+ 	struct evl_factory *factory;
+ 	struct cdev cdev;
+ 	struct filename *devname;
+@@ -70,7 +77,7 @@ struct evl_element {
+ 	struct rb_node index_node;
+ 	struct irq_work irq_work;
+ 	struct work_struct work;
+-	struct rcu_head rcu;
++	struct hlist_node hash;
+ };
+ 
+ static inline const char *
+@@ -118,7 +125,7 @@ int evl_release_element(struct inode *inode,
+ 
+ int evl_create_element_device(struct evl_element *e,
+ 			struct evl_factory *fac,
+-			const char *devname);
++			const char *name);
+ 
+ void evl_remove_element_device(struct evl_element *e);
+ 
+diff --git a/kernel/evenless/factory.c b/kernel/evenless/factory.c
+index 522acee2abe..787367676e7 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evenless/factory.c
+@@ -16,6 +16,8 @@
+ #include <linux/rcupdate.h>
+ #include <linux/irq_work.h>
+ #include <linux/uaccess.h>
++#include <linux/hashtable.h>
++#include <linux/stringhash.h>
+ #include <evenless/assert.h>
+ #include <evenless/file.h>
+ #include <evenless/control.h>
+@@ -239,21 +241,41 @@ int evl_release_element(struct inode *inode, struct file *filp)
+ 	return 0;
+ }
+ 
+-int evl_create_element_device(struct evl_element *e,
+-			struct evl_factory *fac,
+-			const char *devname)
++static int create_named_element_device(struct evl_element *e,
++				struct evl_factory *fac)
+ {
++	struct evl_element *n;
+ 	struct device *dev;
+ 	dev_t rdev;
++	u64 hlen;
+ 	int ret;
+ 
++	/*
++	 * Do a quick hash check on the new device name, to make sure
++	 * device_create() won't trigger a kernel log splash because
++	 * of a naming conflict.
++	 */
++	hlen = hashlen_string("EVL", e->devname->name);
++	mutex_lock(&fac->hash_lock);
++
++	hash_for_each_possible(fac->name_hash, n, hash, hlen)
++		if (!strcmp(n->devname->name, e->devname->name)) {
++			mutex_unlock(&fac->hash_lock);
++			return -EEXIST;
++		}
++
++	hash_add(fac->name_hash, &e->hash, hlen);
++
++	mutex_unlock(&fac->hash_lock);
++
+ 	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
+ 	cdev_init(&e->cdev, fac->fops);
+ 	ret = cdev_add(&e->cdev, rdev, 1);
+ 	if (ret)
+-		return ret;
++		goto fail_add;
+ 
+-	dev = device_create(fac->class, NULL, rdev, e, "%s", devname);
++	dev = device_create(fac->class, NULL, rdev, e,
++			"%s", evl_element_name(e));
+ 	if (IS_ERR(dev)) {
+ 		ret = PTR_ERR(dev);
+ 		goto fail_dev;
+@@ -271,10 +293,29 @@ int evl_create_element_device(struct evl_element *e,
+ 	device_destroy(fac->class, rdev);
+ fail_dev:
+ 	cdev_del(&e->cdev);
++fail_add:
++	mutex_lock(&fac->hash_lock);
++	hash_del(&e->hash);
++	mutex_unlock(&fac->hash_lock);
+ 
+ 	return ret;
+ }
+ 
++int evl_create_element_device(struct evl_element *e,
++			struct evl_factory *fac,
++			const char *name)
++{
++	struct filename *devname;
++
++	devname = getname_kernel(name);
++	if (devname == NULL)
++		return PTR_ERR(devname);
++
++	e->devname = devname;
++
++	return create_named_element_device(e, fac);
++}
++
+ void evl_remove_element_device(struct evl_element *e)
+ {
+ 	struct evl_factory *fac = e->factory;
+@@ -283,6 +324,9 @@ void evl_remove_element_device(struct evl_element *e)
+ 	rdev = MKDEV(MAJOR(fac->sub_rdev), e->minor);
+ 	device_destroy(fac->class, rdev);
+ 	cdev_del(&e->cdev);
++	mutex_lock(&fac->hash_lock);
++	hash_del(&e->hash);
++	mutex_unlock(&fac->hash_lock);
+ }
+ 
+ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
+@@ -342,7 +386,7 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
+ 	filp->private_data = e;
+ 	barrier();
+ 
+-	ret = evl_create_element_device(e, fac, devname->name);
++	ret = create_named_element_device(e, fac);
+ 	if (ret) {
+ 		/* release_clone_device() must skip cleanup. */
+ 		filp->private_data = NULL;
+@@ -569,6 +613,8 @@ static int create_factory(struct evl_factory *fac, dev_t rdev)
+ 	raw_spin_lock_init(&fac->index.lock);
+ 	fac->index.root = RB_ROOT;
+ 	fac->index.generator = EVL_NO_HANDLE;
++	hash_init(fac->name_hash);
++	mutex_init(&fac->hash_lock);
+ 
+ 	return 0;
+ 
+-- 
+2.16.4
+

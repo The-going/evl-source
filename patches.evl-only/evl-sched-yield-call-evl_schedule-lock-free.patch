@@ -1,0 +1,33 @@
+From 712247e88deed9e88174d9142d72ad0d582daa6a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 10:57:09 +0100
+Subject: [PATCH] evl/sched: yield: call evl_schedule() lock-free
+
+---
+ kernel/evenless/sched/core.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index f6f6180bae6..ed00601e6d7 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -867,13 +867,12 @@ void evl_notify_inband_yield(void) /* In-band only */
+ 	flags = hard_local_irq_save();
+ 
+ 	this_rq = this_evl_rq();
+-
+-	if (evl_wait_active(&this_rq->yield_sync)) {
++	if (evl_wait_active(&this_rq->yield_sync))
+ 		evl_flush_wait(&this_rq->yield_sync, 0);
+-		evl_schedule();
+-	}
+ 
+ 	hard_local_irq_restore(flags);
++
++	evl_schedule();
+ }
+ 
+ static int yield_inband(void)	/* OOB only */
+-- 
+2.16.4
+

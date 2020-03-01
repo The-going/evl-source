@@ -1,0 +1,33 @@
+From 4678b7736805083b946ee9175fc1cd35b043fa9d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 16 Feb 2019 12:04:32 +0100
+Subject: [PATCH] evl/config: increase default size of core heaps
+
+---
+ kernel/evenless/Kconfig | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index edf24514296..4ec461eef9e 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -53,14 +53,14 @@ menu "Sizes and static limits"
+ 
+ config EVENLESS_SYS_HEAPSZ
+ 	int "Size of system heap (Kb)"
+-	default 512
++	default 2048
+ 	help
+ 	The system heap is used for various internal allocations by
+ 	the Evenless kernel. The size is expressed in Kilobytes.
+ 
+ config EVENLESS_SHARED_HEAPSZ
+ 	int "Size of shared heap (Kb)"
+-	default 64
++	default 128
+ 	help
+ 	The Evenless core implements fast IPC mechanisms between
+ 	processes which require a shared kernel memory heap to be
+-- 
+2.16.4
+

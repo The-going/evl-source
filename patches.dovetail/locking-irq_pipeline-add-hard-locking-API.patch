@@ -1,0 +1,581 @@
+From 869e46627ef6a97829bd9f26e51bf8878eb64630 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 27 Jul 2016 16:07:57 +0200
+Subject: [PATCH] locking: irq_pipeline: add hard locking API
+
+Interrupt pipelining means that from the perspective of the host
+kernel, regular device IRQs become NMIs which can be handled from a
+special context called the head stage. As a result of this,
+local_irq_disable() only virtually disables interrupts for the host
+kernel, but won't block interrupt delivery to the head stage.
+
+This change set introduces a flavour of spin locks which guarantees
+serialization even while interrupts are being pipelined, based on hard
+IRQ disabling.
+
+Only such locks can provide proper serialization with activities
+running on the head IRQ stage.
+---
+ include/linux/lockdep.h           |  13 +--
+ include/linux/spinlock.h          |  86 ++++++++++++-------
+ include/linux/spinlock_api_up.h   |  18 ++++
+ include/linux/spinlock_pipeline.h | 176 ++++++++++++++++++++++++++++++++++++++
+ include/linux/spinlock_types.h    |  87 +++++++++++++++++++
+ kernel/locking/spinlock_debug.c   |   3 +
+ 6 files changed, 347 insertions(+), 36 deletions(-)
+ create mode 100644 include/linux/spinlock_pipeline.h
+
+diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+index c5335df2372..11fe774e292 100644
+--- a/include/linux/lockdep.h
++++ b/include/linux/lockdep.h
+@@ -284,21 +284,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+  * or they are too narrow (they suffer from a false class-split):
+  */
+ #define lockdep_set_class(lock, key) \
+-		lockdep_init_map(&(lock)->dep_map, #key, key, 0)
++	lockdep_init_map(LOCKDEP_ALTERNATIVES(lock), #key, key, 0)
+ #define lockdep_set_class_and_name(lock, key, name) \
+-		lockdep_init_map(&(lock)->dep_map, name, key, 0)
++	lockdep_init_map(LOCKDEP_ALTERNATIVES(lock), name, key, 0)
+ #define lockdep_set_class_and_subclass(lock, key, sub) \
+-		lockdep_init_map(&(lock)->dep_map, #key, key, sub)
++	lockdep_init_map(LOCKDEP_ALTERNATIVES(lock), #key, key, sub)
+ #define lockdep_set_subclass(lock, sub)	\
+-		lockdep_init_map(&(lock)->dep_map, #lock, \
+-				 (lock)->dep_map.key, sub)
++	lockdep_init_map(LOCKDEP_ALTERNATIVES(lock), #lock,	\
++			 LOCKDEP_ALTERNATIVES(lock)->key, sub)
+ 
+ #define lockdep_set_novalidate_class(lock) \
+ 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
+ /*
+  * Compare locking classes
+  */
+-#define lockdep_match_class(lock, key) lockdep_match_key(&(lock)->dep_map, key)
++#define lockdep_match_class(lock, key) \
++	lockdep_match_key(LOCKDEP_ALTERNATIVES(lock), key)
+ 
+ static inline int lockdep_match_key(struct lockdep_map *lock,
+ 				    struct lock_class_key *key)
+diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
+index e089157dcf9..f1393bbf6df 100644
+--- a/include/linux/spinlock.h
++++ b/include/linux/spinlock.h
+@@ -94,21 +94,27 @@
+   extern void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
+ 				   struct lock_class_key *key);
+ # define raw_spin_lock_init(lock)				\
++	LOCK_ALTERNATIVES(lock,	spin_lock_init,			\
+ do {								\
+ 	static struct lock_class_key __key;			\
+ 								\
+-	__raw_spin_lock_init((lock), #lock, &__key);		\
+-} while (0)
++	__raw_spin_lock_init(__RAWLOCK(lock), #lock, &__key);	\
++} while (0))
+ 
+ #else
+ # define raw_spin_lock_init(lock)				\
+-	do { *(lock) = __RAW_SPIN_LOCK_UNLOCKED(lock); } while (0)
++	LOCK_ALTERNATIVES(lock,	spin_lock_init,			\
++	do { *(__RAWLOCK(lock)) = __RAW_SPIN_LOCK_UNLOCKED(__RAWLOCK(lock)); } while (0))
+ #endif
+ 
+-#define raw_spin_is_locked(lock)	arch_spin_is_locked(&(lock)->raw_lock)
++#define raw_spin_is_locked(lock)		\
++	LOCK_ALTERNATIVES_RET(lock, spin_is_locked,	\
++	      arch_spin_is_locked(&(__RAWLOCK(lock))->raw_lock))
+ 
+ #ifdef arch_spin_is_contended
+-#define raw_spin_is_contended(lock)	arch_spin_is_contended(&(lock)->raw_lock)
++#define raw_spin_is_contended(lock)			\
++	LOCK_ALTERNATIVES_RET(lock, spin_is_contended,	\
++	      arch_spin_is_contended(&(__RAWLOCK(lock))->raw_lock))
+ #else
+ #define raw_spin_is_contended(lock)	(((void)(lock), 0))
+ #endif /*arch_spin_is_contended*/
+@@ -209,9 +215,13 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+  * various methods are defined as nops in the case they are not
+  * required.
+  */
+-#define raw_spin_trylock(lock)	__cond_lock(lock, _raw_spin_trylock(lock))
++#define raw_spin_trylock(lock)			\
++	__cond_lock(lock,			\
++		    LOCK_ALTERNATIVES_RET(lock,	\
++		    spin_trylock, _raw_spin_trylock(__RAWLOCK(lock))))
+ 
+-#define raw_spin_lock(lock)	_raw_spin_lock(lock)
++#define raw_spin_lock(lock)	\
++	LOCK_ALTERNATIVES(lock, spin_lock, _raw_spin_lock(__RAWLOCK(lock)))
+ 
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ # define raw_spin_lock_nested(lock, subclass) \
+@@ -235,11 +245,12 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+ 
+ #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+ 
+-#define raw_spin_lock_irqsave(lock, flags)			\
+-	do {						\
+-		typecheck(unsigned long, flags);	\
+-		flags = _raw_spin_lock_irqsave(lock);	\
+-	} while (0)
++#define raw_spin_lock_irqsave(lock, flags)				\
++	LOCK_ALTERNATIVES(lock, spin_lock_irqsave,			\
++	do {								\
++		typecheck(unsigned long, flags);			\
++		flags = _raw_spin_lock_irqsave(__RAWLOCK(lock));	\
++	} while (0), flags)
+ 
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ #define raw_spin_lock_irqsave_nested(lock, flags, subclass)		\
+@@ -257,45 +268,55 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+ 
+ #else
+ 
+-#define raw_spin_lock_irqsave(lock, flags)		\
+-	do {						\
+-		typecheck(unsigned long, flags);	\
+-		_raw_spin_lock_irqsave(lock, flags);	\
+-	} while (0)
++#define raw_spin_lock_irqsave(lock, flags)			\
++	LOCK_ALTERNATIVES(lock, spin_lock_irqsave,		\
++	do {							\
++		typecheck(unsigned long, flags);		\
++		_raw_spin_lock_irqsave(__RAWLOCK(lock), flags);	\
++	} while (0), flags)
+ 
+ #define raw_spin_lock_irqsave_nested(lock, flags, subclass)	\
+ 	raw_spin_lock_irqsave(lock, flags)
+ 
+ #endif
+ 
+-#define raw_spin_lock_irq(lock)		_raw_spin_lock_irq(lock)
++#define raw_spin_lock_irq(lock)		       \
++	LOCK_ALTERNATIVES(lock, spin_lock_irq, \
++			  _raw_spin_lock_irq(__RAWLOCK(lock)))
+ #define raw_spin_lock_bh(lock)		_raw_spin_lock_bh(lock)
+-#define raw_spin_unlock(lock)		_raw_spin_unlock(lock)
+-#define raw_spin_unlock_irq(lock)	_raw_spin_unlock_irq(lock)
+-
+-#define raw_spin_unlock_irqrestore(lock, flags)		\
+-	do {							\
+-		typecheck(unsigned long, flags);		\
+-		_raw_spin_unlock_irqrestore(lock, flags);	\
+-	} while (0)
++#define raw_spin_unlock(lock)		     \
++	LOCK_ALTERNATIVES(lock, spin_unlock, \
++			  _raw_spin_unlock(__RAWLOCK(lock)))
++#define raw_spin_unlock_irq(lock)	\
++	LOCK_ALTERNATIVES(lock, spin_unlock_irq, \
++			  _raw_spin_unlock_irq(__RAWLOCK(lock)))
++
++#define raw_spin_unlock_irqrestore(lock, flags)				\
++	LOCK_ALTERNATIVES(lock, spin_unlock_irqrestore,			\
++	do {								\
++		typecheck(unsigned long, flags);			\
++		_raw_spin_unlock_irqrestore(__RAWLOCK(lock), flags);	\
++	} while (0), flags)
+ #define raw_spin_unlock_bh(lock)	_raw_spin_unlock_bh(lock)
+ 
+ #define raw_spin_trylock_bh(lock) \
+ 	__cond_lock(lock, _raw_spin_trylock_bh(lock))
+ 
+ #define raw_spin_trylock_irq(lock) \
++	LOCK_ALTERNATIVES_RET(lock, spin_trylock_irq, \
+ ({ \
+ 	local_irq_disable(); \
+-	raw_spin_trylock(lock) ? \
++	raw_spin_trylock(__RAWLOCK(lock)) ?	\
+ 	1 : ({ local_irq_enable(); 0;  }); \
+-})
++}))
+ 
+ #define raw_spin_trylock_irqsave(lock, flags) \
++	LOCK_ALTERNATIVES_RET(lock, spin_trylock_irqsave, \
+ ({ \
+ 	local_irq_save(flags); \
+-	raw_spin_trylock(lock) ? \
++	raw_spin_trylock(__RAWLOCK(lock)) ?	\
+ 	1 : ({ local_irq_restore(flags); 0; }); \
+-})
++}), flags)
+ 
+ /* Include rwlock functions */
+ #include <linux/rwlock.h>
+@@ -309,6 +330,11 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+ # include <linux/spinlock_api_up.h>
+ #endif
+ 
++/* Pull the lock types specific to the IRQ pipeline. */
++#ifdef CONFIG_IRQ_PIPELINE
++#include <linux/spinlock_pipeline.h>
++#endif
++
+ /*
+  * Map the spin_lock functions to the raw variants for PREEMPT_RT=n
+  */
+diff --git a/include/linux/spinlock_api_up.h b/include/linux/spinlock_api_up.h
+index d0d188861ad..6895779e81b 100644
+--- a/include/linux/spinlock_api_up.h
++++ b/include/linux/spinlock_api_up.h
+@@ -30,21 +30,33 @@
+ #define __LOCK(lock) \
+   do { preempt_disable(); ___LOCK(lock); } while (0)
+ 
++#define __HARD_LOCK(lock) \
++  do { ___LOCK(lock); } while (0)
++
+ #define __LOCK_BH(lock) \
+   do { __local_bh_disable_ip(_THIS_IP_, SOFTIRQ_LOCK_OFFSET); ___LOCK(lock); } while (0)
+ 
+ #define __LOCK_IRQ(lock) \
+   do { local_irq_disable(); __LOCK(lock); } while (0)
+ 
++#define __HARD_LOCK_IRQ(lock) \
++  do { hard_local_irq_disable(); __HARD_LOCK(lock); } while (0)
++
+ #define __LOCK_IRQSAVE(lock, flags) \
+   do { local_irq_save(flags); __LOCK(lock); } while (0)
+ 
++#define __HARD_LOCK_IRQSAVE(lock, flags) \
++  do { flags = hard_local_irq_save(); __HARD_LOCK(lock); } while (0)
++
+ #define ___UNLOCK(lock) \
+   do { __release(lock); (void)(lock); } while (0)
+ 
+ #define __UNLOCK(lock) \
+   do { preempt_enable(); ___UNLOCK(lock); } while (0)
+ 
++#define __HARD_UNLOCK(lock) \
++  do { ___UNLOCK(lock); } while (0)
++
+ #define __UNLOCK_BH(lock) \
+   do { __local_bh_enable_ip(_THIS_IP_, SOFTIRQ_LOCK_OFFSET); \
+        ___UNLOCK(lock); } while (0)
+@@ -52,9 +64,15 @@
+ #define __UNLOCK_IRQ(lock) \
+   do { local_irq_enable(); __UNLOCK(lock); } while (0)
+ 
++#define __HARD_UNLOCK_IRQ(lock) \
++  do { hard_local_irq_enable(); __HARD_UNLOCK(lock); } while (0)
++
+ #define __UNLOCK_IRQRESTORE(lock, flags) \
+   do { local_irq_restore(flags); __UNLOCK(lock); } while (0)
+ 
++#define __HARD_UNLOCK_IRQRESTORE(lock, flags) \
++  do { hard_local_irq_restore(flags); __HARD_UNLOCK(lock); } while (0)
++
+ #define _raw_spin_lock(lock)			__LOCK(lock)
+ #define _raw_spin_lock_nested(lock, subclass)	__LOCK(lock)
+ #define _raw_read_lock(lock)			__LOCK(lock)
+diff --git a/include/linux/spinlock_pipeline.h b/include/linux/spinlock_pipeline.h
+new file mode 100644
+index 00000000000..de31c97e508
+--- /dev/null
++++ b/include/linux/spinlock_pipeline.h
+@@ -0,0 +1,176 @@
++#ifndef __LINUX_SPINLOCK_PIPELINE_H
++#define __LINUX_SPINLOCK_PIPELINE_H
++
++#ifndef __LINUX_SPINLOCK_H
++# error "Please don't include this file directly. Use spinlock.h."
++#endif
++
++#define hard_spin_lock_irqsave(__rlock, __flags)		\
++	do {							\
++		(__flags) = __hard_spin_lock_irqsave(__rlock);	\
++	} while (0)
++
++#define hard_spin_trylock_irqsave(__rlock, __flags)			\
++	({								\
++		int __locked;						\
++		(__flags) = __hard_spin_trylock_irqsave(__rlock, &__locked); \
++		__locked;						\
++	})
++
++#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
++
++#define hard_lock_acquire(__rlock, __try, __ip)				\
++	do {								\
++		if (irq_pipeline_debug_locking())			\
++			spin_acquire(&(__rlock)->dep_map, 0, __try, __ip); \
++	} while (0)
++
++#define hard_lock_release(__rlock, __ip)				\
++	do {								\
++		if (irq_pipeline_debug_locking())			\
++			spin_release(&(__rlock)->dep_map, 1, __ip);	\
++	} while (0)
++
++#ifdef CONFIG_DEBUG_SPINLOCK
++#define hard_spin_lock_init(__lock)				\
++	do {							\
++		static struct lock_class_key __key;		\
++		__raw_spin_lock_init((raw_spinlock_t *)__lock, #__lock, &__key); \
++	} while (0)
++#else
++#define hard_spin_lock_init(__rlock)				\
++	do { *(__rlock) = __HARD_SPIN_LOCK_UNLOCKED(__rlock); } while (0)
++#endif
++
++/*
++ * XXX: no preempt_enable/disable when hard locking.
++ */
++
++static inline
++void hard_spin_lock(struct raw_spinlock *rlock)
++{
++	hard_lock_acquire(rlock, 0, _THIS_IP_);
++	LOCK_CONTENDED(rlock, do_raw_spin_trylock, do_raw_spin_lock);
++}
++
++static inline
++void hard_spin_unlock(struct raw_spinlock *rlock)
++{
++	hard_lock_release(rlock, _THIS_IP_);
++	do_raw_spin_unlock(rlock);
++}
++
++static inline
++void hard_spin_lock_irq(struct raw_spinlock *rlock)
++{
++	hard_local_irq_disable();
++	hard_lock_acquire(rlock, 0, _THIS_IP_);
++	LOCK_CONTENDED(rlock, do_raw_spin_trylock, do_raw_spin_lock);
++}
++
++static inline
++void hard_spin_unlock_irq(struct raw_spinlock *rlock)
++{
++	hard_lock_release(rlock, _THIS_IP_);
++	do_raw_spin_unlock(rlock);
++	hard_local_irq_enable();
++}
++
++static inline
++void hard_spin_unlock_irqrestore(struct raw_spinlock *rlock,
++				 unsigned long flags)
++{
++	hard_lock_release(rlock, _THIS_IP_);
++	do_raw_spin_unlock(rlock);
++	hard_local_irq_restore(flags);
++}
++
++static inline
++unsigned long __hard_spin_lock_irqsave(struct raw_spinlock *rlock)
++{
++	unsigned long flags = hard_local_irq_save();
++
++	hard_lock_acquire(rlock, 0, _THIS_IP_);
++	/*
++	 * We don't want the hand-coded irq-enable of
++	 * do_raw_spin_lock_flags(), hard locked sections assume that
++	 * interrupts are not re-enabled during lock-acquire.
++	 */
++	LOCK_CONTENDED(rlock, do_raw_spin_trylock, do_raw_spin_lock);
++
++	return flags;
++}
++
++static inline
++int hard_spin_trylock(struct raw_spinlock *rlock)
++{
++	if (do_raw_spin_trylock(rlock)) {
++		hard_lock_acquire(rlock, 1, _THIS_IP_);
++		return 1;
++	}
++	return 0;
++}
++
++static inline
++unsigned long __hard_spin_trylock_irqsave(struct raw_spinlock *rlock,
++					  int *locked)
++{
++	unsigned long flags = hard_local_irq_save();
++	*locked = hard_spin_trylock(rlock);
++	return *locked ? flags : ({ hard_local_irq_restore(flags); flags; });
++}
++
++static inline
++int hard_spin_trylock_irq(struct raw_spinlock *rlock)
++{
++	hard_local_irq_disable();
++	return hard_spin_trylock(rlock) ? : ({ hard_local_irq_enable(); 0; });
++}
++
++static inline
++int hard_spin_is_locked(struct raw_spinlock *rlock)
++{
++	return arch_spin_is_locked(&rlock->raw_lock);
++}
++
++static inline
++int hard_spin_is_contended(struct raw_spinlock *rlock)
++{
++#ifdef CONFIG_GENERIC_LOCKBREAK
++	return rlock->break_lock;
++#elif defined(arch_spin_is_contended)
++	return arch_spin_is_contended(&rlock->raw_lock);
++#else
++	return 0;
++#endif
++}
++
++#else  /* !SMP && !DEBUG_SPINLOCK */
++
++#define hard_spin_lock_init(__rlock)	do { (void)(__rlock); } while (0)
++#define hard_spin_lock(__rlock)		__HARD_LOCK(__rlock)
++#define hard_spin_unlock(__rlock)	__HARD_UNLOCK(__rlock)
++#define hard_spin_lock_irq(__rlock)	__HARD_LOCK_IRQ(__rlock)
++#define hard_spin_unlock_irq(__rlock)	__HARD_UNLOCK_IRQ(__rlock)
++#define hard_spin_unlock_irqrestore(__rlock, __flags)	\
++	__HARD_UNLOCK_IRQRESTORE(__rlock, __flags)
++#define __hard_spin_lock_irqsave(__rlock)		\
++	({						\
++		unsigned long __flags;			\
++		__HARD_LOCK_IRQSAVE(__rlock, __flags);	\
++		__flags;				\
++	})
++#define __hard_spin_trylock_irqsave(__rlock, __locked)	\
++	({						\
++		unsigned long __flags;			\
++		__HARD_LOCK_IRQSAVE(__rlock, __flags);	\
++		*(__locked) = 1;			\
++		__flags;				\
++	})
++#define hard_spin_trylock(__rlock)	({ __HARD_LOCK(__rlock); 1; })
++#define hard_spin_trylock_irq(__rlock)	({ __HARD_LOCK_IRQ(__rlock); 1; })
++#define hard_spin_is_locked(__rlock)	((void)(__rlock), 0)
++#define hard_spin_is_contended(__rlock)	((void)(__rlock), 0)
++#endif	/* !SMP && !DEBUG_SPINLOCK */
++
++#endif /* __LINUX_SPINLOCK_PIPELINE_H */
+diff --git a/include/linux/spinlock_types.h b/include/linux/spinlock_types.h
+index 24b4e6f2c1a..7eb1b2aa827 100644
+--- a/include/linux/spinlock_types.h
++++ b/include/linux/spinlock_types.h
+@@ -80,6 +80,93 @@ typedef struct spinlock {
+ 
+ #define DEFINE_SPINLOCK(x)	spinlock_t x = __SPIN_LOCK_UNLOCKED(x)
+ 
++#ifdef CONFIG_IRQ_PIPELINE
++
++void __bad_spinlock_type(void);
++
++#define __RAWLOCK(x) ((struct raw_spinlock *)(x))
++
++#define LOCK_ALTERNATIVES(__lock, __base_op, __raw_form, __args...)	\
++	do {								\
++		if (__builtin_types_compatible_p(typeof(__lock),	\
++						 raw_spinlock_t *))	\
++			__raw_form;					\
++		else if (__builtin_types_compatible_p(typeof(__lock),	\
++						 hard_spinlock_t *))	\
++			hard_ ## __base_op(__RAWLOCK(__lock), ##__args); \
++		else							\
++			__bad_spinlock_type();				\
++	} while (0)
++
++#define LOCK_ALTERNATIVES_RET(__lock, __base_op, __raw_form, __args...) \
++	({								\
++		long __ret = 0;						\
++		if (__builtin_types_compatible_p(typeof(__lock),	\
++						 raw_spinlock_t *))	\
++			__ret = __raw_form;				\
++		else if (__builtin_types_compatible_p(typeof(__lock),	\
++						 hard_spinlock_t *))	\
++			__ret = hard_ ## __base_op(__RAWLOCK(__lock), ##__args); \
++		else							\
++			__bad_spinlock_type();				\
++		__ret;							\
++	})
++
++#define LOCKDEP_ALTERNATIVES(__lock)					\
++	({								\
++		struct lockdep_map *__ret;				\
++		if (__builtin_types_compatible_p(typeof(&(__lock)->dep_map), \
++						 struct phony_lockdep_map *)) \
++			__ret = &__RAWLOCK(__lock)->dep_map;		\
++		else							\
++			__ret = (struct lockdep_map *)(&(__lock)->dep_map); \
++		__ret;							\
++	})
++
++#define __HARD_SPIN_LOCK_UNLOCKED(__rlock)	\
++	__RAW_SPIN_LOCK_UNLOCKED(__rlock)
++
++#define __HARD_SPIN_LOCK_INITIALIZER(__lock)				\
++	{								\
++		.rlock = __HARD_SPIN_LOCK_UNLOCKED((__lock).rlock),	\
++	}
++
++#define DEFINE_HARD_SPINLOCK(x)	hard_spinlock_t x = {	\
++		.rlock = __HARD_SPIN_LOCK_UNLOCKED(x),	\
++	}
++
++struct phony_lockdep_map {
++	/* empty */
++};
++
++typedef struct hard_spinlock {
++	/* XXX: offset_of(struct hard_spinlock, rlock) == 0 */
++	struct raw_spinlock rlock;
++	struct phony_lockdep_map dep_map;
++} hard_spinlock_t;
++
++#else
++
++typedef raw_spinlock_t hard_spinlock_t;
++
++#define LOCK_ALTERNATIVES(__lock, __base_op, __raw_form, __args...)	\
++	__raw_form
++
++#define LOCK_ALTERNATIVES_RET(__lock, __base_op, __raw_form, __args...) \
++	__raw_form
++
++#define LOCKDEP_ALTERNATIVES(__lock)	(&(__lock)->dep_map)
++
++#define DEFINE_HARD_SPINLOCK(x)		DEFINE_RAW_SPINLOCK(x)
++
++#define __RAWLOCK(x) (x)
++
++#define __HARD_SPIN_LOCK_UNLOCKED(__lock)	__RAW_SPIN_LOCK_UNLOCKED(__lock)
++
++#define __HARD_SPIN_LOCK_INITIALIZER(__lock)	__RAW_SPIN_LOCK_UNLOCKED(__lock)
++
++#endif	/* CONFIG_IRQ_PIPELINE */
++
+ #include <linux/rwlock_types.h>
+ 
+ #endif /* __LINUX_SPINLOCK_TYPES_H */
+diff --git a/kernel/locking/spinlock_debug.c b/kernel/locking/spinlock_debug.c
+index 9aa0fccd5d4..aa4de1dd669 100644
+--- a/kernel/locking/spinlock_debug.c
++++ b/kernel/locking/spinlock_debug.c
+@@ -113,6 +113,7 @@ void do_raw_spin_lock(raw_spinlock_t *lock)
+ 	arch_spin_lock(&lock->raw_lock);
+ 	debug_spin_lock_after(lock);
+ }
++EXPORT_SYMBOL_GPL(do_raw_spin_lock);
+ 
+ int do_raw_spin_trylock(raw_spinlock_t *lock)
+ {
+@@ -128,12 +129,14 @@ int do_raw_spin_trylock(raw_spinlock_t *lock)
+ #endif
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(do_raw_spin_trylock);
+ 
+ void do_raw_spin_unlock(raw_spinlock_t *lock)
+ {
+ 	debug_spin_unlock(lock);
+ 	arch_spin_unlock(&lock->raw_lock);
+ }
++EXPORT_SYMBOL_GPL(do_raw_spin_unlock);
+ 
+ static void rwlock_bug(rwlock_t *lock, const char *msg)
+ {
+-- 
+2.16.4
+

@@ -1,0 +1,108 @@
+From cc3e65b21da11f7081f6195a084c5dc9b7bb24cf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 11 Feb 2019 19:09:17 +0100
+Subject: [PATCH] evl/assert: clarify assertion about holding the global core
+ lock
+
+As we are in the process of phasing out the nklock, convert
+atomic_only() to requires_ugly_lock() to give a clear hint that no
+more dependencies of that type should be added to the code.
+---
+ include/evenless/assert.h     |  4 ++--
+ include/evenless/sched.h      |  2 +-
+ kernel/evenless/sched/quota.c | 10 +++++-----
+ kernel/evenless/timer.c       |  2 +-
+ 4 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/include/evenless/assert.h b/include/evenless/assert.h
+index 7dd97051453..6a68baccb3c 100644
+--- a/include/evenless/assert.h
++++ b/include/evenless/assert.h
+@@ -36,7 +36,7 @@
+ #define inband_context_only()	EVL_WARN_ON_ONCE(CONTEXT, !running_inband())
+ 
+ /* TEMP: needed until we have gotten rid of the infamous nklock. */
+-#define atomic_only()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+-#define no_ugly_lock()	WARN_ON_ONCE(xnlock_is_owner(&nklock))
++#define requires_ugly_lock()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
++#define no_ugly_lock()		WARN_ON_ONCE(xnlock_is_owner(&nklock))
+ 
+ #endif /* !_EVENLESS_ASSERT_H */
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 901e77d0c9d..76cc0d86894 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -212,7 +212,7 @@ static inline int evl_need_resched(struct evl_rq *rq)
+ /* Set self resched flag for the current scheduler. */
+ static inline void evl_set_self_resched(struct evl_rq *rq)
+ {
+-	atomic_only();
++	requires_ugly_lock();
+ 	rq->status |= RQ_SCHED;
+ }
+ 
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evenless/sched/quota.c
+index aeda2fe1666..0207d92320a 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evenless/sched/quota.c
+@@ -475,7 +475,7 @@ int evl_quota_create_group(struct evl_quota_group *tg,
+ 	int tgid, nr_groups = CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS;
+ 	struct evl_sched_quota *qs = &rq->quota;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	tgid = find_first_zero_bit(group_map, nr_groups);
+ 	if (tgid >= nr_groups)
+@@ -514,7 +514,7 @@ int evl_quota_destroy_group(struct evl_quota_group *tg,
+ 	struct evl_thread *thread, *tmp;
+ 	union evl_sched_param param;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	if (!list_empty(&tg->members)) {
+ 		if (!force)
+@@ -547,7 +547,7 @@ void evl_quota_set_limit(struct evl_quota_group *tg,
+ 	ktime_t old_quota = tg->quota;
+ 	u64 n;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	if (quota_percent < 0 || quota_percent > 100) { /* Quota off. */
+ 		quota_percent = 100;
+@@ -614,7 +614,7 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
+ {
+ 	struct evl_quota_group *tg;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	if (list_empty(&rq->quota.groups))
+ 		return NULL;
+@@ -632,7 +632,7 @@ int evl_quota_sum_all(struct evl_rq *rq)
+ {
+ 	struct evl_sched_quota *qs = &rq->quota;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	return quota_sum_all(qs);
+ }
+diff --git a/kernel/evenless/timer.c b/kernel/evenless/timer.c
+index de4eb521292..0f7f59ac861 100644
+--- a/kernel/evenless/timer.c
++++ b/kernel/evenless/timer.c
+@@ -275,7 +275,7 @@ void __evl_set_timer_rq(struct evl_timer *timer,
+ {
+ 	int cpu;
+ 
+-	atomic_only();
++	requires_ugly_lock();
+ 
+ 	/*
+ 	 * Figure out which CPU is best suited for managing this
+-- 
+2.16.4
+

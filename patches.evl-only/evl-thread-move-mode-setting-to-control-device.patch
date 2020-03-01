@@ -1,0 +1,175 @@
+From fbe5a2ac7bc561d54d0315f23e5e4119a23c9d01 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 7 Feb 2019 18:17:24 +0100
+Subject: [PATCH] evl/thread: move mode setting to control device
+
+Runtime mode setting is a self-applicable operation, and as such must
+go through the control device where evl_current() implicitly applies.
+---
+ include/evenless/thread.h       |  2 ++
+ include/uapi/evenless/control.h |  2 ++
+ include/uapi/evenless/thread.h  |  2 --
+ kernel/evenless/control.c       |  8 ++++++
+ kernel/evenless/thread.c        | 62 ++++++++++++++++++-----------------------
+ 5 files changed, 39 insertions(+), 37 deletions(-)
+
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index fa00ac0a958..62a016ff19e 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -255,6 +255,8 @@ int evl_switch_oob(void);
+ 
+ void evl_switch_inband(int cause);
+ 
++int evl_update_mode(__u32 mask, bool set);
++
+ int evl_detach_self(void);
+ 
+ void __evl_kick_thread(struct evl_thread *thread);
+diff --git a/include/uapi/evenless/control.h b/include/uapi/evenless/control.h
+index 9c00a4e5bcf..43170c0b14b 100644
+--- a/include/uapi/evenless/control.h
++++ b/include/uapi/evenless/control.h
+@@ -19,5 +19,7 @@ struct evl_core_info {
+ #define EVL_CTLIOC_SWITCH_OOB		_IO(EVL_CONTROL_IOCBASE, 1)
+ #define EVL_CTLIOC_SWITCH_INBAND	_IO(EVL_CONTROL_IOCBASE, 2)
+ #define EVL_CTLIOC_DETACH_SELF		_IO(EVL_CONTROL_IOCBASE, 3)
++#define EVL_CTLIOC_SET_MODE		_IOW(EVL_CONTROL_IOCBASE, 4, __u32)
++#define EVL_CTLIOC_CLEAR_MODE		_IOW(EVL_CONTROL_IOCBASE, 5, __u32)
+ 
+ #endif /* !_EVENLESS_UAPI_CONTROL_H */
+diff --git a/include/uapi/evenless/thread.h b/include/uapi/evenless/thread.h
+index 52486524f3c..5038190083e 100644
+--- a/include/uapi/evenless/thread.h
++++ b/include/uapi/evenless/thread.h
+@@ -80,7 +80,5 @@ struct evl_user_window {
+ #define EVL_THRIOC_SET_SCHEDPARAM	_IOW(EVL_THREAD_IOCBASE, 1, struct evl_sched_attrs)
+ #define EVL_THRIOC_GET_SCHEDPARAM	_IOR(EVL_THREAD_IOCBASE, 2, struct evl_sched_attrs)
+ #define EVL_THRIOC_JOIN			_IO(EVL_THREAD_IOCBASE, 3)
+-#define EVL_THRIOC_SET_MODE		_IOW(EVL_THREAD_IOCBASE, 4, __u32)
+-#define EVL_THRIOC_CLEAR_MODE		_IOW(EVL_THREAD_IOCBASE, 5, __u32)
+ 
+ #endif /* !_EVENLESS_UAPI_THREAD_H */
+diff --git a/kernel/evenless/control.c b/kernel/evenless/control.c
+index 8bf430b8e7f..3e15e240794 100644
+--- a/kernel/evenless/control.c
++++ b/kernel/evenless/control.c
+@@ -99,6 +99,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
+ 			unsigned long arg)
+ {
+ 	struct evl_core_info info;
++	__u32 mask;
+ 	long ret;
+ 
+ 	/*
+@@ -126,6 +127,13 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
+ 		 */
+ 		ret = 0;
+ 		break;
++	case EVL_CTLIOC_SET_MODE:
++	case EVL_CTLIOC_CLEAR_MODE:
++		ret = raw_get_user(mask, (__u32 *)arg);
++		if (ret)
++			return -EFAULT;
++		ret = evl_update_mode(mask, cmd == EVL_CTLIOC_SET_MODE);
++		break;
+ 	case EVL_CTLIOC_DETACH_SELF:
+ 		ret = evl_detach_self();
+ 		break;
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 6c9f64e8a96..e181a029bac 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -1615,6 +1615,32 @@ int evl_killall(int mask)
+ }
+ EXPORT_SYMBOL_GPL(evl_killall);
+ 
++int evl_update_mode(__u32 mask, bool set)
++{
++	struct evl_thread *curr = evl_current();
++	unsigned long flags;
++
++	if (curr == NULL)
++		return -EPERM;
++
++	if (mask & ~T_WARN)
++		return -EINVAL;
++
++	trace_evl_thread_update_mode(mask, set);
++
++	xnlock_get_irqsave(&nklock, flags);
++
++	if (set)
++		curr->state |= mask;
++	else
++		curr->state &= ~mask;
++
++	xnlock_put_irqrestore(&nklock, flags);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(evl_update_mode);
++
+ pid_t evl_get_inband_pid(struct evl_thread *thread)
+ {
+ 	if (thread->state & (T_ROOT|T_DORMANT|T_ZOMBIE))
+@@ -2053,32 +2079,6 @@ static int get_sched_attrs(struct evl_thread *thread,
+ 	return 0;
+ }
+ 
+-static int update_state_bits(struct evl_thread *thread,
+-			__u32 mask, bool set)
+-{
+-	struct evl_thread *curr = evl_current();
+-	unsigned long flags;
+-
+-	if (curr != thread)
+-		return -EPERM;
+-
+-	if (mask & ~T_WARN)
+-		return -EINVAL;
+-
+-	trace_evl_thread_update_mode(mask, set);
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	if (set)
+-		curr->state |= mask;
+-	else
+-		curr->state &= ~mask;
+-
+-	xnlock_put_irqrestore(&nklock, flags);
+-
+-	return 0;
+-}
+-
+ static long thread_common_ioctl(struct evl_thread *thread,
+ 				unsigned int cmd, unsigned long arg)
+ {
+@@ -2113,7 +2113,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
+ 			unsigned long arg)
+ {
+ 	struct evl_thread *thread = element_of(filp, struct evl_thread);
+-	__u32 monfd, mask;
++	__u32 monfd;
+ 	long ret;
+ 
+ 	if (thread->state & T_ZOMBIE)
+@@ -2126,14 +2126,6 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
+ 			return -EFAULT;
+ 		ret = evl_signal_monitor_targeted(thread, monfd);
+ 		break;
+-	case EVL_THRIOC_SET_MODE:
+-	case EVL_THRIOC_CLEAR_MODE:
+-		ret = raw_get_user(mask, (__u32 *)arg);
+-		if (ret)
+-			return -EFAULT;
+-		ret = update_state_bits(thread, mask,
+-					cmd == EVL_THRIOC_SET_MODE);
+-		break;
+ 	default:
+ 		ret = thread_common_ioctl(thread, cmd, arg);
+ 	}
+-- 
+2.16.4
+

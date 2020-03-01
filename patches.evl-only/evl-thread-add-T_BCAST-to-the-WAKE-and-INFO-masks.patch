@@ -1,0 +1,27 @@
+From dc3aa5cc590e0990254e6fab13cb2d3c143f77d2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 12 Mar 2019 12:31:32 +0100
+Subject: [PATCH] evl/thread: add T_BCAST to the WAKE and INFO masks
+
+---
+ include/evl/thread.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/evl/thread.h b/include/evl/thread.h
+index 2e4f33f7fe8..eaf3873e9a9 100644
+--- a/include/evl/thread.h
++++ b/include/evl/thread.h
+@@ -26,8 +26,8 @@
+ #include <asm/evl/thread.h>
+ 
+ #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT)
+-#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED)
+-#define EVL_THREAD_WAKE_MASK	(T_RMID|T_TIMEO|T_BREAK)
++#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST)
++#define EVL_THREAD_WAKE_MASK	(T_RMID|T_TIMEO|T_BREAK|T_BCAST)
+ 
+ struct evl_thread;
+ struct evl_rq;
+-- 
+2.16.4
+

@@ -1,0 +1,25 @@
+From 85bdda1c68e77e37490eb47db7210328f4059e7c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 9 Feb 2019 15:37:04 +0100
+Subject: [PATCH] evl/monitor: signal: send ESRCH if target is not found
+
+---
+ kernel/evenless/monitor.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index 14f58670496..40abfebf632 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -58,7 +58,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
+ 	struct evl_monitor *event;
+ 	struct evl_file *efilp;
+ 	unsigned long flags;
+-	int ret = -EAGAIN;
++	int ret = -ESRCH;
+ 
+ 	event = get_monitor_by_fd(monfd, &efilp);
+ 	if (event == NULL)
+-- 
+2.16.4
+

@@ -1,0 +1,25 @@
+From b5425606358e09d1f0b946445575aaef983cec01 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 21 Feb 2017 09:30:38 +0100
+Subject: [PATCH] gpio: mxc: irq_pipeline: enable pipelined interrupt control
+
+---
+ drivers/gpio/gpio-mxc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/gpio/gpio-mxc.c b/drivers/gpio/gpio-mxc.c
+index 2d1dfa1e074..0facd5e5256 100644
+--- a/drivers/gpio/gpio-mxc.c
++++ b/drivers/gpio/gpio-mxc.c
+@@ -359,7 +359,7 @@ static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
+ 	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+ 	ct->chip.irq_set_type = gpio_set_irq_type;
+ 	ct->chip.irq_set_wake = gpio_set_wake_irq;
+-	ct->chip.flags = IRQCHIP_MASK_ON_SUSPEND;
++	ct->chip.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_PIPELINE_SAFE;
+ 	ct->regs.ack = GPIO_ISR;
+ 	ct->regs.mask = GPIO_IMR;
+ 
+-- 
+2.16.4
+

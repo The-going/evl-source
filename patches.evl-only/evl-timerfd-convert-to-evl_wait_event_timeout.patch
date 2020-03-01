@@ -1,0 +1,113 @@
+From 9f262e9d185a9cc911c1e6094e376f32f24e0902 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 12:36:14 +0100
+Subject: [PATCH] evl/timerfd: convert to evl_wait_event_timeout()
+
+---
+ kernel/evenless/timerfd.c | 63 +++++++++++++++++++----------------------------
+ 1 file changed, 25 insertions(+), 38 deletions(-)
+
+diff --git a/kernel/evenless/timerfd.c b/kernel/evenless/timerfd.c
+index 0b7fcf2505a..2341d462af7 100644
+--- a/kernel/evenless/timerfd.c
++++ b/kernel/evenless/timerfd.c
+@@ -14,6 +14,7 @@
+ #include <evenless/timer.h>
+ #include <evenless/lock.h>
+ #include <evenless/poller.h>
++#include <evenless/sched.h>
+ #include <evenless/factory.h>
+ #include <asm/evenless/syscall.h>
+ #include <uapi/evenless/timerfd.h>
+@@ -115,64 +116,50 @@ static void timerfd_handler(struct evl_timer *timer) /* hard IRQs off */
+ 	struct evl_timerfd *timerfd;
+ 
+ 	timerfd = container_of(timer, struct evl_timerfd, timer);
+-
+ 	timerfd->ticked = true;
+ 	evl_signal_poll_events(&timerfd->poll_head, POLLIN);
+ 	evl_flush_wait(&timerfd->readers, 0);
+ }
+ 
++static bool read_timerfd_event(struct evl_timerfd *timerfd)
++{
++	if (timerfd->ticked) {
++		timerfd->ticked = false;
++		return true;
++	}
++
++	return false;
++}
++
+ static ssize_t timerfd_oob_read(struct file *filp,
+ 				char __user *u_buf, size_t count)
+ {
+ 	struct evl_timerfd *timerfd = element_of(filp, struct evl_timerfd);
+ 	__u64 __user *u_ticks = (__u64 __user *)u_buf, ticks = 0;
+-	unsigned long flags;
++	ktime_t timeout = EVL_INFINITE;
+ 	int ret;
+ 
+ 	if (count < sizeof(ticks))
+ 		return -EINVAL;
+ 
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	if (timerfd->ticked) {
+-		ret = 0;
+-		goto out;
+-	}
+-
+-	if (filp->f_flags & O_NONBLOCK) {
+-		ret = -EAGAIN;
+-		goto fail;
+-	}
+-
+-	do
+-		ret = evl_wait_timeout(&timerfd->readers,
+-				EVL_INFINITE, EVL_REL);
+-	while (ret == 0 && !timerfd->ticked);
+-
+-	if (ret & T_BREAK) {
+-		ret = -EINTR;
+-		goto fail;
+-	}
+-out:
+-	if (ret == 0) {
+-		ticks = 1;
+-		if (evl_timer_is_periodic(&timerfd->timer))
+-			ticks += evl_get_timer_overruns(&timerfd->timer);
++	if (filp->f_flags & O_NONBLOCK)
++		timeout = EVL_NONBLOCK;
+ 
+-		timerfd->ticked = false;
+-		evl_clear_poll_events(&timerfd->poll_head, POLLIN);
+-	}
++	ret = evl_wait_event_timeout(&timerfd->readers, timeout,
++			EVL_REL, read_timerfd_event(timerfd));
++	if (ret)
++		return ret;
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
++	ticks = 1;
++	if (evl_timer_is_periodic(&timerfd->timer))
++		ticks += evl_get_timer_overruns(&timerfd->timer);
+ 
+-	if (ret == 0 && raw_put_user(ticks, u_ticks))
+-		ret = -EFAULT;
++	evl_clear_poll_events(&timerfd->poll_head, POLLIN);
+ 
+-	return ret ?: sizeof(ticks);
+-fail:
+-	xnlock_put_irqrestore(&nklock, flags);
++	if (raw_put_user(ticks, u_ticks))
++		return -EFAULT;
+ 
+-	return ret;
++	return sizeof(ticks);
+ }
+ 
+ static __poll_t timerfd_oob_poll(struct file *filp,
+-- 
+2.16.4
+

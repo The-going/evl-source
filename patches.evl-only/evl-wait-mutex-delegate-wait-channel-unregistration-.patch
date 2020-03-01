@@ -1,0 +1,153 @@
+From 8e98f1b3a3f1a0e326764f31e79aac1c4813e04d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 1 Feb 2019 18:34:21 +0100
+Subject: [PATCH] evl/wait, mutex: delegate wait channel unregistration to
+ abort handler
+
+---
+ include/evenless/mutex.h  |  3 ++-
+ include/evenless/thread.h |  3 ++-
+ include/evenless/wait.h   |  3 ++-
+ kernel/evenless/mutex.c   | 20 ++++++++++++++------
+ kernel/evenless/wait.c    | 11 ++++-------
+ 5 files changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/include/evenless/mutex.h b/include/evenless/mutex.h
+index 79ee496ca15..9253b47d73a 100644
+--- a/include/evenless/mutex.h
++++ b/include/evenless/mutex.h
+@@ -73,7 +73,8 @@ static inline
+ void evl_detect_boost_drop(struct evl_thread *owner) { }
+ #endif
+ 
+-void evl_abort_mutex_wait(struct evl_thread *thread);
++void evl_abort_mutex_wait(struct evl_thread *thread,
++			struct evl_wait_channel *wchan);
+ 
+ void evl_reorder_mutex_wait(struct evl_thread *thread);
+ 
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index b34d183d25b..37b7df96693 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -41,7 +41,8 @@ struct evl_init_thread_attr {
+ };
+ 
+ struct evl_wait_channel {
+-	void (*abort_wait)(struct evl_thread *thread);
++	void (*abort_wait)(struct evl_thread *thread,
++			struct evl_wait_channel *wchan);
+ 	void (*reorder_wait)(struct evl_thread *thread);
+ 	hard_spinlock_t lock;
+ };
+diff --git a/include/evenless/wait.h b/include/evenless/wait.h
+index f4d9dabe6b2..b942f47b5bd 100644
+--- a/include/evenless/wait.h
++++ b/include/evenless/wait.h
+@@ -85,7 +85,8 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
+ 
+ void evl_flush_wait(struct evl_wait_queue *wq, int reason);
+ 
+-void evl_abort_wait(struct evl_thread *thread);
++void evl_abort_wait(struct evl_thread *thread,
++		struct evl_wait_channel *wchan);
+ 
+ void evl_reorder_wait(struct evl_thread *thread);
+ 
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index d14a611230a..ab0969d7e7f 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -350,9 +350,7 @@ bool evl_destroy_mutex(struct evl_mutex *mutex)
+ 	} else {
+ 		ret = true;
+ 		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next) {
+-			list_del(&waiter->wait_next);
+ 			waiter->info |= T_RMID;
+-			waiter->wchan = NULL;
+ 			evl_wakeup_thread(waiter, T_PEND);
+ 		}
+ 		if (mutex->flags & EVL_MUTEX_CLAIMED)
+@@ -567,8 +565,18 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	}
+ 
+ 	n_owner = list_first_entry(&mutex->wait_list, struct evl_thread, wait_next);
+-	list_del(&n_owner->wait_next);
++	/*
++	 * We clear the wait channel early on - instead of waiting for
++	 * evl_wakeup_thread() to do so - because we want to hide
++	 * n_owner from the PI/PP adjustment which takes place over
++	 * set_current_owner_locked(). Because of that, we also have
++	 * to unlink the thread from the wait list manually since the
++	 * abort_wait() handler won't be called. NOTE: we do want
++	 * set_current_owner_locked() to run before
++	 * evl_wakeup_thread() is called.
++	 */
+ 	n_owner->wchan = NULL;
++	list_del(&n_owner->wait_next);
+ 	n_owner->wwake = &mutex->wchan;
+ 	set_current_owner_locked(mutex, n_owner);
+ 	n_owner->info |= T_WAKEN;
+@@ -638,9 +646,10 @@ wchan_to_mutex(struct evl_wait_channel *wchan)
+ }
+ 
+ /* nklock held, irqs off */
+-void evl_abort_mutex_wait(struct evl_thread *thread)
++void evl_abort_mutex_wait(struct evl_thread *thread,
++			struct evl_wait_channel *wchan)
+ {
+-	struct evl_mutex *mutex = wchan_to_mutex(thread->wchan);
++	struct evl_mutex *mutex = wchan_to_mutex(wchan);
+ 	struct evl_thread *owner, *target;
+ 
+ 	/*
+@@ -648,7 +657,6 @@ void evl_abort_mutex_wait(struct evl_thread *thread)
+ 	 * from waiting on a mutex. Doing so may require to update a
+ 	 * PI chain.
+ 	 */
+-	thread->wchan = NULL;
+ 	list_del(&thread->wait_next); /* mutex->wait_list */
+ 
+ 	/*
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 22a41876dd1..af3b049398e 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -81,8 +81,6 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 		if (waiter == NULL)
+ 			waiter = list_first_entry(&wq->wait_list,
+ 						struct evl_thread, wait_next);
+-		list_del(&waiter->wait_next);
+-		waiter->wchan = NULL;
+ 		evl_wakeup_thread(waiter, T_PEND);
+ 	}
+ 
+@@ -102,10 +100,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ 	trace_evl_wait_flush(wq);
+ 
+ 	if (!list_empty(&wq->wait_list)) {
+-		list_for_each_entry_safe(waiter, tmp, &wq->wait_list, wait_next) {
+-			list_del(&waiter->wait_next);
++		list_for_each_entry_safe(waiter, tmp,
++					&wq->wait_list, wait_next) {
+ 			waiter->info |= reason;
+-			waiter->wchan = NULL;
+ 			evl_wakeup_thread(waiter, T_PEND);
+ 		}
+ 	}
+@@ -115,10 +112,10 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ EXPORT_SYMBOL_GPL(evl_flush_wait);
+ 
+ /* nklock held, irqs off */
+-void evl_abort_wait(struct evl_thread *thread)
++void evl_abort_wait(struct evl_thread *thread,
++		struct evl_wait_channel *wchan)
+ {
+ 	list_del(&thread->wait_next);
+-	thread->wchan = NULL;
+ }
+ EXPORT_SYMBOL_GPL(evl_abort_wait);
+ 
+-- 
+2.16.4
+

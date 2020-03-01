@@ -1,0 +1,152 @@
+From e4da60a7edfc50a20503028d8465e5a906ee3615 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Mar 2019 12:27:04 +0100
+Subject: [PATCH] evl/sched: quota: make the period a dynamic tunable
+
+---
+ include/evenless/sched/quota.h |  4 ++++
+ kernel/evenless/Kconfig        | 16 +---------------
+ kernel/evenless/control.c      | 39 +++++++++++++++++++++++++++++++++++++++
+ kernel/evenless/sched/quota.c  | 14 +++++++++++++-
+ 4 files changed, 57 insertions(+), 16 deletions(-)
+
+diff --git a/include/evenless/sched/quota.h b/include/evenless/sched/quota.h
+index 259ced3c318..2eea3555b41 100644
+--- a/include/evenless/sched/quota.h
++++ b/include/evenless/sched/quota.h
+@@ -70,6 +70,10 @@ evl_quota_find_group(struct evl_rq *rq, int tgid);
+ 
+ int evl_quota_sum_all(struct evl_rq *rq);
+ 
++void evl_set_quota_period(ktime_t period);
++
++ktime_t evl_get_quota_period(void);
++
+ #endif /* !CONFIG_EVENLESS_SCHED_QUOTA */
+ 
+ #endif /* !_EVENLESS_SCHED_QUOTA_H */
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index 4e832e2dd6e..d14a709a0e6 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -12,24 +12,10 @@ config EVENLESS_SCHED_QUOTA
+ 	threads over a globally defined period, known as the quota
+ 	interval. This is done by pooling threads with common
+ 	requirements in groups, and giving each group a share of the
+-	global period (see CONFIG_EVENLESS_SCHED_QUOTA_PERIOD).
+-
+-	When threads have entirely consumed the quota allotted to the
+-	group they belong to, the latter is suspended as a whole,
+-	until the next quota interval starts. At this point, a new
+-	runtime budget is given to each group, in accordance with its
+-	share.
++	global period.
+ 
+ 	If in doubt, say N.
+ 
+-config EVENLESS_SCHED_QUOTA_PERIOD
+-	int "Quota interval (us)"
+-	default 10000
+-	range 100 1000000000
+-	depends on EVENLESS_SCHED_QUOTA
+-	help
+-	The global period thread groups can get a share of.
+-
+ config EVENLESS_STATS
+ 	bool "Runtime statistics"
+ 	default y
+diff --git a/kernel/evenless/control.c b/kernel/evenless/control.c
+index 228338da7cc..687ebc36978 100644
+--- a/kernel/evenless/control.c
++++ b/kernel/evenless/control.c
+@@ -257,9 +257,48 @@ static ssize_t abi_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(abi);
+ 
++#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++
++static ssize_t quota_show(struct device *dev,
++			struct device_attribute *attr,
++			char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%Lu\n",
++			ktime_to_ns(evl_get_quota_period()));
++}
++
++static ssize_t quota_store(struct device *dev,
++			struct device_attribute *attr,
++			const char *buf, size_t count)
++{
++	unsigned long long period;
++	int ret;
++
++	ret = kstrtoull(buf, 10, &period);
++	if (ret < 0)
++		return -EINVAL;
++
++	/*
++	 * If the quota period is shorter than the monotonic clock
++	 * gravity for user-targeted timers, assume PEBKAC.
++	 */
++	if (period < evl_get_clock_gravity(&evl_mono_clock, user))
++		return -EINVAL;
++
++	evl_set_quota_period(ns_to_ktime(period));
++
++	return count;
++}
++static DEVICE_ATTR_RW(quota);
++
++#endif
++
+ static struct attribute *control_attrs[] = {
+ 	&dev_attr_state.attr,
+ 	&dev_attr_abi.attr,
++#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++	&dev_attr_quota.attr,
++#endif
+ 	NULL,
+ };
+ ATTRIBUTE_GROUPS(control);
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evenless/sched/quota.c
+index bc96bd7713c..94c1d4cf4cd 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evenless/sched/quota.c
+@@ -55,6 +55,8 @@
+ 
+ #define MAX_QUOTA_GROUPS  1024
+ 
++static ktime_t quota_period = 1000000000UL; /* 1s */
++
+ static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
+ 
+ static LIST_HEAD(group_list);
+@@ -214,7 +216,7 @@ static void quota_init(struct evl_rq *rq)
+ {
+ 	struct evl_sched_quota *qs = &rq->quota;
+ 
+-	qs->period = CONFIG_EVENLESS_SCHED_QUOTA_PERIOD * 1000ULL;
++	qs->period = quota_period;
+ 	INIT_LIST_HEAD(&qs->groups);
+ 
+ 	evl_init_timer(&qs->refill_timer,
+@@ -714,6 +716,16 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
+ }
+ EXPORT_SYMBOL_GPL(evl_quota_find_group);
+ 
++void evl_set_quota_period(ktime_t period)
++{
++	quota_period = period;
++}
++
++ktime_t evl_get_quota_period(void)
++{
++	return quota_period;
++}
++
+ struct evl_sched_class evl_sched_quota = {
+ 	.sched_init		=	quota_init,
+ 	.sched_enqueue		=	quota_enqueue,
+-- 
+2.16.4
+

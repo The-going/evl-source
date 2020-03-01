@@ -1,0 +1,34 @@
+From bf83db9a622ce8107028a833f0b7cf36f4dc4a24 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Mar 2019 16:32:03 +0100
+Subject: [PATCH] evl/sched: allow preemption enabling/disabling from in-band
+
+Since our preemption count is stack-based, there is no issue to allow
+this. Besides, we have to because EVL spinlocks want to disable
+preemption, and those may definitely be taken from in-band context.
+---
+ kernel/evl/sched/core.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
+index cef5b231700..f19ad6dfd65 100644
+--- a/kernel/evl/sched/core.c
++++ b/kernel/evl/sched/core.c
+@@ -273,14 +273,12 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
+ 
+ void evl_disable_preempt(void)
+ {
+-	oob_context_only();
+ 	__evl_disable_preempt();
+ }
+ EXPORT_SYMBOL(evl_disable_preempt);
+ 
+ void evl_enable_preempt(void)
+ {
+-	oob_context_only();
+ 	__evl_enable_preempt();
+ }
+ EXPORT_SYMBOL(evl_enable_preempt);
+-- 
+2.16.4
+

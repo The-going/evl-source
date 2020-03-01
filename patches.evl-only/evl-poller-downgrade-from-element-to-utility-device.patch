@@ -1,0 +1,518 @@
+From c4f097c360d7da38b48382d766a49abe1994d80f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 23 Feb 2019 09:51:04 +0100
+Subject: [PATCH] evl/poller: downgrade from element to utility device
+
+There is no upside in sharing pollers between application processes,
+since file descriptors are process-local handles in essence. Therefore
+pollers are process-local utilities, so we don't need them to be
+visible from the file system.
+
+Downgrade the poller element to a plain single device from the
+factory. Each open instance of such device is a polling channel. At
+this chance, do a general rename from poller to poll, to match
+commonly accepted naming.
+---
+ include/evenless/factory.h            |   2 +-
+ include/evenless/{poller.h => poll.h} |   8 +-
+ include/uapi/evenless/poll.h          |  36 ++++++++
+ include/uapi/evenless/poller.h        |  36 --------
+ kernel/evenless/Kconfig               |   9 --
+ kernel/evenless/Makefile              |   2 +-
+ kernel/evenless/factory.c             |   2 +-
+ kernel/evenless/{poller.c => poll.c}  | 151 +++++++++++++---------------------
+ kernel/evenless/thread.c              |   2 +-
+ kernel/evenless/timerfd.c             |   2 +-
+ kernel/evenless/xbuf.c                |   2 +-
+ 11 files changed, 103 insertions(+), 149 deletions(-)
+ rename include/evenless/{poller.h => poll.h} (92%)
+ create mode 100644 include/uapi/evenless/poll.h
+ delete mode 100644 include/uapi/evenless/poller.h
+ rename kernel/evenless/{poller.c => poll.c} (83%)
+
+diff --git a/include/evenless/factory.h b/include/evenless/factory.h
+index 7b37ccc19db..83782cde10f 100644
+--- a/include/evenless/factory.h
++++ b/include/evenless/factory.h
+@@ -151,7 +151,7 @@ extern struct evl_factory evl_clock_factory;
+ extern struct evl_factory evl_control_factory;
+ extern struct evl_factory evl_logger_factory;
+ extern struct evl_factory evl_monitor_factory;
+-extern struct evl_factory evl_poller_factory;
++extern struct evl_factory evl_poll_factory;
+ extern struct evl_factory evl_sem_factory;
+ extern struct evl_factory evl_thread_factory;
+ extern struct evl_factory evl_timerfd_factory;
+diff --git a/include/evenless/poller.h b/include/evenless/poll.h
+similarity index 92%
+rename from include/evenless/poller.h
+rename to include/evenless/poll.h
+index 38b5f10c6a2..3fbfd1a5b09 100644
+--- a/include/evenless/poller.h
++++ b/include/evenless/poll.h
+@@ -4,8 +4,8 @@
+  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_POLLER_H
+-#define _EVENLESS_POLLER_H
++#ifndef _EVENLESS_POLL_H
++#define _EVENLESS_POLL_H
+ 
+ #include <linux/types.h>
+ #include <linux/list.h>
+@@ -14,7 +14,7 @@
+ #include <linux/poll.h>
+ #include <evenless/wait.h>
+ #include <evenless/factory.h>
+-#include <uapi/evenless/poller.h>
++#include <uapi/evenless/poll.h>
+ 
+ #define EVL_POLLHEAD_INITIALIZER(__name) {				\
+ 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
+@@ -64,4 +64,4 @@ evl_clear_poll_events(struct evl_poll_head *head,
+ 
+ void evl_drop_poll_table(struct evl_thread *thread);
+ 
+-#endif /* !_EVENLESS_POLLER_H */
++#endif /* !_EVENLESS_POLL_H */
+diff --git a/include/uapi/evenless/poll.h b/include/uapi/evenless/poll.h
+new file mode 100644
+index 00000000000..485e7cadcdd
+--- /dev/null
++++ b/include/uapi/evenless/poll.h
+@@ -0,0 +1,36 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
++ *
++ * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVENLESS_UAPI_POLL_H
++#define _EVENLESS_UAPI_POLL_H
++
++#define EVL_POLL_IOCBASE  'p'
++
++#define EVL_POLL_CTLADD  0
++#define EVL_POLL_CTLDEL  1
++#define EVL_POLL_CTLMOD  2
++
++struct evl_poll_ctlreq {
++	__u32 action;
++	__u32 fd;
++	__u32 events;
++};
++
++struct evl_poll_event {
++	__u32 fd;
++	__u32 events;
++};
++
++struct evl_poll_waitreq {
++	struct timespec timeout;
++	struct evl_poll_event *pollset;
++	int nrset;
++};
++
++#define EVL_POLIOC_CTL		_IOW(EVL_POLL_IOCBASE, 0, struct evl_poll_ctlreq)
++#define EVL_POLIOC_WAIT		_IOWR(EVL_POLL_IOCBASE, 1, struct evl_poll_waitreq)
++
++#endif /* !_EVENLESS_UAPI_POLL_H */
+diff --git a/include/uapi/evenless/poller.h b/include/uapi/evenless/poller.h
+deleted file mode 100644
+index 3217a8ad6c3..00000000000
+--- a/include/uapi/evenless/poller.h
++++ /dev/null
+@@ -1,36 +0,0 @@
+-/*
+- * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+- *
+- * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
+- */
+-
+-#ifndef _EVENLESS_UAPI_POLLER_H
+-#define _EVENLESS_UAPI_POLLER_H
+-
+-#define EVL_POLLER_IOCBASE	'p'
+-
+-#define EVL_POLLER_CTLADD   0
+-#define EVL_POLLER_CTLDEL   1
+-#define EVL_POLLER_CTLMOD   2
+-
+-struct evl_poller_ctlreq {
+-	__u32 action;
+-	__u32 fd;
+-	__u32 events;
+-};
+-
+-struct evl_poll_event {
+-	__u32 fd;
+-	__u32 events;
+-};
+-
+-struct evl_poller_waitreq {
+-	struct timespec timeout;
+-	struct evl_poll_event *pollset;
+-	int nrset;
+-};
+-
+-#define EVL_POLIOC_CTL	_IOW(EVL_POLLER_IOCBASE, 0, struct evl_poller_ctlreq)
+-#define EVL_POLIOC_WAIT	_IOWR(EVL_POLLER_IOCBASE, 1, struct evl_poller_waitreq)
+-
+-#endif /* !_EVENLESS_UAPI_POLLER_H */
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index 349162f2da6..9acba62370d 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -117,15 +117,6 @@ config EVENLESS_NR_TIMERFDS
+ 	This value gives the maximum number of timerfds which can be
+ 	alive concurrently in the system for user-space applications.
+ 
+-config EVENLESS_NR_POLLERS
+-	int "Maximum number of pollers"
+-	range 1 16384
+-	default 64
+-	help
+-
+-	This value gives the maximum number of pollers which can be
+-	alive concurrently in the system for user-space applications.
+-
+ config EVENLESS_NR_XBUFS
+ 	int "Maximum number of x-buffers"
+ 	range 1 16384
+diff --git a/kernel/evenless/Makefile b/kernel/evenless/Makefile
+index 6175d2a744e..fad5e172065 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evenless/Makefile
+@@ -16,7 +16,7 @@ evenless-y :=		\
+ 	memory.o	\
+ 	monitor.o	\
+ 	mutex.o		\
+-	poller.o	\
++	poll.o		\
+ 	sem.o		\
+ 	syscall.o	\
+ 	thread.o	\
+diff --git a/kernel/evenless/factory.c b/kernel/evenless/factory.c
+index 787367676e7..92feb4d97b1 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evenless/factory.c
+@@ -37,7 +37,7 @@ static struct evl_factory *factories[] = {
+ 	&evl_monitor_factory,
+ 	&evl_sem_factory,
+ 	&evl_timerfd_factory,
+-	&evl_poller_factory,
++	&evl_poll_factory,
+ 	&evl_xbuf_factory,
+ 	&evl_logger_factory,
+ 	&evl_mapper_factory,
+diff --git a/kernel/evenless/poller.c b/kernel/evenless/poll.c
+similarity index 83%
+rename from kernel/evenless/poller.c
+rename to kernel/evenless/poll.c
+index 5a1b8b329b6..adf0c5e7a55 100644
+--- a/kernel/evenless/poller.c
++++ b/kernel/evenless/poll.c
+@@ -5,17 +5,15 @@
+  */
+ 
+ #include <linux/types.h>
+-#include <linux/err.h>
+ #include <linux/fs.h>
+ #include <linux/slab.h>
+ #include <linux/rbtree.h>
+ #include <linux/poll.h>
+-#include <linux/pid.h>
+ #include <linux/module.h>
+ #include <evenless/file.h>
+ #include <evenless/thread.h>
+ #include <evenless/memory.h>
+-#include <evenless/poller.h>
++#include <evenless/poll.h>
+ #include <evenless/sched.h>
+ #include <evenless/flag.h>
+ #include <evenless/mutex.h>
+@@ -24,11 +22,10 @@
+ struct event_poller {
+ 	struct rb_root node_index;  /* struct poll_node */
+ 	struct list_head node_list;  /* struct poll_node */
+-	struct evl_element element;
++	struct evl_file efile;
+ 	struct evl_kmutex lock;
+ 	int nodenr;
+ 	unsigned int generation;
+-	struct pid *owner;
+ };
+ 
+ struct poll_node {
+@@ -54,7 +51,7 @@ struct evl_poll_watchpoint {
+ /* Maximum nesting depth (poller watching poller(s) */
+ #define POLLER_NEST_MAX  4
+ 
+-static const struct file_operations poller_fops;
++static const struct file_operations poll_fops;
+ 
+ void evl_poll_watch(struct evl_poll_head *head,
+ 		struct oob_poll_wait *wait)
+@@ -161,10 +158,10 @@ static int check_no_loop_deeper(struct event_poller *origin,
+ 		return -EINVAL;
+ 
+ 	filp = node->efilp->filp;
+-	if (filp->f_op != &poller_fops)
++	if (filp->f_op != &poll_fops)
+ 		return 0;
+ 
+-	poller = element_of(filp, struct event_poller);
++	poller = filp->private_data;
+ 	if (poller == origin)
+ 		return -EINVAL;
+ 
+@@ -188,7 +185,7 @@ static int check_no_loop(struct event_poller *poller,
+ }
+ 
+ static int add_node(struct file *filp, struct event_poller *poller,
+-		struct evl_poller_ctlreq *creq)
++		struct evl_poll_ctlreq *creq)
+ {
+ 	struct poll_node *node;
+ 	int ret;
+@@ -260,7 +257,7 @@ static void __del_node(struct poll_node *node)
+ }
+ 
+ static int del_node(struct event_poller *poller,
+-		struct evl_poller_ctlreq *creq)
++		struct evl_poll_ctlreq *creq)
+ {
+ 	struct poll_node *node;
+ 
+@@ -286,7 +283,7 @@ static int del_node(struct event_poller *poller,
+ 
+ static inline
+ int mod_node(struct event_poller *poller,
+-	struct evl_poller_ctlreq *creq)
++	struct evl_poll_ctlreq *creq)
+ {
+ 	struct poll_node *node;
+ 
+@@ -308,18 +305,18 @@ int mod_node(struct event_poller *poller,
+ 
+ static inline
+ int setup_node(struct file *filp, struct event_poller *poller,
+-	struct evl_poller_ctlreq *creq)
++	struct evl_poll_ctlreq *creq)
+ {
+ 	int ret;
+ 
+ 	switch (creq->action) {
+-	case EVL_POLLER_CTLADD:
++	case EVL_POLL_CTLADD:
+ 		ret = add_node(filp, poller, creq);
+ 		break;
+-	case EVL_POLLER_CTLDEL:
++	case EVL_POLL_CTLDEL:
+ 		ret = del_node(poller, creq);
+ 		break;
+-	case EVL_POLLER_CTLMOD:
++	case EVL_POLL_CTLMOD:
+ 		ret = mod_node(poller, creq);
+ 		break;
+ 	default:
+@@ -453,7 +450,7 @@ static inline void clear_wait(void)
+ static inline
+ int wait_events(struct file *filp,
+ 		struct event_poller *poller,
+-		struct evl_poller_waitreq *wreq)
++		struct evl_poll_waitreq *wreq)
+ {
+ 	DEFINE_EVL_FLAG(flag);
+ 	enum evl_tmode tmode;
+@@ -495,37 +492,54 @@ int wait_events(struct file *filp,
+ 	return count;
+ }
+ 
+-static int poller_open(struct inode *inode, struct file *filp)
++static int poll_open(struct inode *inode, struct file *filp)
+ {
+-	struct task_struct *group_leader;
+ 	struct event_poller *poller;
+ 	int ret;
+ 
+-	ret = evl_open_element(inode, filp);
+-	if (ret)
++	poller = kzalloc(sizeof(*poller), GFP_KERNEL);
++	if (poller == NULL)
++		return -ENOMEM;
++
++	ret = evl_open_file(&poller->efile, filp);
++	if (ret) {
++		kfree(poller);
+ 		return ret;
++	}
+ 
+-	/*
+-	 * A poller is privately owned by the process which
+-	 * instantiates it, as it implicitly refers to its file
+-	 * table. Deny threads from other processes from opening it.
+-	 */
+-	poller = element_of(filp, struct event_poller);
+-	rcu_read_lock();
+-	group_leader = pid_task(poller->owner, PIDTYPE_PID);
+-	if (group_leader != current->group_leader)
+-		ret = -EPERM;
+-	rcu_read_unlock();
++	poller->node_index = RB_ROOT;
++	INIT_LIST_HEAD(&poller->node_list);
++	evl_init_kmutex(&poller->lock);
++	filp->private_data = poller;
+ 
+ 	return ret;
+ }
+ 
+-static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
++static inline void flush_nodes(struct event_poller *poller)
++{
++	struct poll_node *node, *n;
++
++	list_for_each_entry_safe(node, n, &poller->node_list, next)
++		__del_node(node);
++}
++
++static int poll_release(struct inode *inode, struct file *filp)
++{
++	struct event_poller *poller = filp->private_data;
++
++	evl_release_file(&poller->efile);
++	flush_nodes(poller);
++	kfree(poller);
++
++	return 0;
++}
++
++static long poll_oob_ioctl(struct file *filp, unsigned int cmd,
+ 			unsigned long arg)
+ {
+-	struct event_poller *poller = element_of(filp, struct event_poller);
+-	struct evl_poller_waitreq wreq, __user *u_wreq;
+-	struct evl_poller_ctlreq creq, __user *u_creq;
++	struct event_poller *poller = filp->private_data;
++	struct evl_poll_waitreq wreq, __user *u_wreq;
++	struct evl_poll_ctlreq creq, __user *u_creq;
+ 	int ret;
+ 
+ 	switch (cmd) {
+@@ -555,65 +569,14 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
+ 	return ret;
+ }
+ 
+-static const struct file_operations poller_fops = {
+-	.open		= poller_open,
+-	.release	= evl_release_element,
+-	.oob_ioctl	= poller_oob_ioctl,
++static const struct file_operations poll_fops = {
++	.open		= poll_open,
++	.release	= poll_release,
++	.oob_ioctl	= poll_oob_ioctl,
+ };
+ 
+-static struct evl_element *
+-poller_factory_build(struct evl_factory *fac, const char *name,
+-		void __user *u_attrs, u32 *state_offp)
+-{
+-	struct event_poller *poller;
+-	int ret;
+-
+-	poller = kzalloc(sizeof(*poller), GFP_KERNEL);
+-	if (poller == NULL)
+-		return ERR_PTR(-ENOMEM);
+-
+-	ret = evl_init_element(&poller->element, &evl_poller_factory);
+-	if (ret)
+-		goto fail_element;
+-
+-	poller->node_index = RB_ROOT;
+-	INIT_LIST_HEAD(&poller->node_list);
+-	evl_init_kmutex(&poller->lock);
+-	poller->owner = get_task_pid(current->group_leader, PIDTYPE_PID);
+-
+-	return &poller->element;
+-
+-fail_element:
+-	kfree(poller);
+-
+-	return ERR_PTR(ret);
+-}
+-
+-static inline void flush_nodes(struct event_poller *poller)
+-{
+-	struct poll_node *node, *n;
+-
+-	list_for_each_entry_safe(node, n, &poller->node_list, next)
+-		__del_node(node);
+-}
+-
+-static void poller_factory_dispose(struct evl_element *e)
+-{
+-	struct event_poller *poller;
+-
+-	poller = container_of(e, struct event_poller, element);
+-
+-	put_pid(poller->owner);
+-	flush_nodes(poller);
+-	evl_destroy_element(&poller->element);
+-	kfree_rcu(poller, element.rcu);
+-}
+-
+-struct evl_factory evl_poller_factory = {
+-	.name	=	"poller",
+-	.fops	=	&poller_fops,
+-	.build =	poller_factory_build,
+-	.dispose =	poller_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_POLLERS,
+-	.flags	=	EVL_FACTORY_CLONE,
++struct evl_factory evl_poll_factory = {
++	.name	=	"poll",
++	.fops	=	&poll_fops,
++	.flags	=	EVL_FACTORY_SINGLE,
+ };
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index e19bae57fd7..560ca2df8cf 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -36,7 +36,7 @@
+ #include <evenless/factory.h>
+ #include <evenless/monitor.h>
+ #include <evenless/mutex.h>
+-#include <evenless/poller.h>
++#include <evenless/poll.h>
+ #include <asm/evenless/syscall.h>
+ #include <trace/events/evenless.h>
+ 
+diff --git a/kernel/evenless/timerfd.c b/kernel/evenless/timerfd.c
+index d8121fceb4b..339c32fa61f 100644
+--- a/kernel/evenless/timerfd.c
++++ b/kernel/evenless/timerfd.c
+@@ -13,7 +13,7 @@
+ #include <evenless/clock.h>
+ #include <evenless/timer.h>
+ #include <evenless/lock.h>
+-#include <evenless/poller.h>
++#include <evenless/poll.h>
+ #include <evenless/sched.h>
+ #include <evenless/factory.h>
+ #include <asm/evenless/syscall.h>
+diff --git a/kernel/evenless/xbuf.c b/kernel/evenless/xbuf.c
+index 9e283ec22a1..86c244f4670 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evenless/xbuf.c
+@@ -20,7 +20,7 @@
+ #include <evenless/lock.h>
+ #include <evenless/factory.h>
+ #include <evenless/sched.h>
+-#include <evenless/poller.h>
++#include <evenless/poll.h>
+ #include <evenless/flag.h>
+ #include <uapi/evenless/xbuf.h>
+ 
+-- 
+2.16.4
+

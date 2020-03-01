@@ -1,0 +1,868 @@
+From b9bd90e39e702d137ef331e8a0fc7951dc92879d Mon Sep 17 00:00:00 2001
+From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
+Date: Sat, 23 Jul 2016 14:36:14 +0200
+Subject: [PATCH] ARM: VDSO: use mmio clocksources
+
+---
+ arch/arm/include/asm/clocksource.h   |  20 ++
+ arch/arm/include/asm/vdso_datapage.h |   3 +-
+ arch/arm/kernel/vdso.c               | 177 ++++-------------
+ arch/arm/mm/Kconfig                  |   2 +-
+ arch/arm/vdso/vgettimeofday.c        | 369 +++++++++++++++++++++++++++++------
+ drivers/clocksource/Kconfig          |   5 +
+ drivers/clocksource/mmio.c           |   4 +
+ 7 files changed, 380 insertions(+), 200 deletions(-)
+
+diff --git a/arch/arm/include/asm/clocksource.h b/arch/arm/include/asm/clocksource.h
+index 0b350a7e26f..58bcd93e673 100644
+--- a/arch/arm/include/asm/clocksource.h
++++ b/arch/arm/include/asm/clocksource.h
+@@ -1,8 +1,28 @@
+ #ifndef _ASM_CLOCKSOURCE_H
+ #define _ASM_CLOCKSOURCE_H
+ 
++enum arch_clock_uaccess_type {
++	ARM_CLOCK_NONE = 0,
++	ARM_CLOCK_ARCH_TIMER,
++
++	ARM_CLOCK_USER_MMIO_BASE, /* Must remain last */
++};
++
+ struct arch_clocksource_data {
+ 	bool vdso_direct;	/* Usable for direct VDSO access? */
++	enum arch_clock_uaccess_type clock_type;
+ };
+ 
++#ifdef CONFIG_VDSO
++
++#define arch_clocksource_arch_timer_init \
++	arch_clocksource_arch_timer_init
++void arch_clocksource_arch_timer_init(struct clocksource *cs);
++
++#define arch_clocksource_user_mmio_init \
++	arch_clocksource_user_mmio_init
++void arch_clocksource_user_mmio_init(struct clocksource *cs, unsigned id);
++
++#endif /* CONFIG_VDSO */
++
+ #endif
+diff --git a/arch/arm/include/asm/vdso_datapage.h b/arch/arm/include/asm/vdso_datapage.h
+index 9be259442fc..90b016969b4 100644
+--- a/arch/arm/include/asm/vdso_datapage.h
++++ b/arch/arm/include/asm/vdso_datapage.h
+@@ -30,7 +30,7 @@
+  */
+ struct vdso_data {
+ 	u32 seq_count;		/* sequence count - odd during updates */
+-	u16 tk_is_cntvct;	/* fall back to syscall if false */
++	u32 cs_type_and_seq;	/* clocksource type and change count */
+ 	u16 cs_shift;		/* clocksource shift */
+ 	u32 xtime_coarse_sec;	/* coarse time */
+ 	u32 xtime_coarse_nsec;
+@@ -46,6 +46,7 @@ struct vdso_data {
+ 	u64 xtime_clock_snsec;	/* CLOCK_REALTIME sub-ns base */
+ 	u32 tz_minuteswest;	/* timezone info for gettimeofday(2) */
+ 	u32 tz_dsttime;
++	unsigned char mmio_dev_name[64];
+ };
+ 
+ union vdso_data_store {
+diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
+index 064661a38c9..fa66f687a7b 100644
+--- a/arch/arm/kernel/vdso.c
++++ b/arch/arm/kernel/vdso.c
+@@ -35,8 +35,6 @@
+ #include <asm/vdso_datapage.h>
+ #include <clocksource/arm_arch_timer.h>
+ 
+-#define MAX_SYMNAME	64
+-
+ static struct page **vdso_text_pagelist;
+ 
+ extern char vdso_start[], vdso_end[];
+@@ -81,122 +79,6 @@ static struct vm_special_mapping vdso_text_mapping __ro_after_init = {
+ 	.mremap = vdso_mremap,
+ };
+ 
+-struct elfinfo {
+-	Elf32_Ehdr	*hdr;		/* ptr to ELF */
+-	Elf32_Sym	*dynsym;	/* ptr to .dynsym section */
+-	unsigned long	dynsymsize;	/* size of .dynsym section */
+-	char		*dynstr;	/* ptr to .dynstr section */
+-};
+-
+-/* Cached result of boot-time check for whether the arch timer exists,
+- * and if so, whether the virtual counter is useable.
+- */
+-static bool cntvct_ok __ro_after_init;
+-
+-static bool __init cntvct_functional(void)
+-{
+-	struct device_node *np;
+-	bool ret = false;
+-
+-	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
+-		goto out;
+-
+-	/* The arm_arch_timer core should export
+-	 * arch_timer_use_virtual or similar so we don't have to do
+-	 * this.
+-	 */
+-	np = of_find_compatible_node(NULL, NULL, "arm,armv7-timer");
+-	if (!np)
+-		goto out_put;
+-
+-	if (of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+-		goto out_put;
+-
+-	ret = true;
+-
+-out_put:
+-	of_node_put(np);
+-out:
+-	return ret;
+-}
+-
+-static void * __init find_section(Elf32_Ehdr *ehdr, const char *name,
+-				  unsigned long *size)
+-{
+-	Elf32_Shdr *sechdrs;
+-	unsigned int i;
+-	char *secnames;
+-
+-	/* Grab section headers and strings so we can tell who is who */
+-	sechdrs = (void *)ehdr + ehdr->e_shoff;
+-	secnames = (void *)ehdr + sechdrs[ehdr->e_shstrndx].sh_offset;
+-
+-	/* Find the section they want */
+-	for (i = 1; i < ehdr->e_shnum; i++) {
+-		if (strcmp(secnames + sechdrs[i].sh_name, name) == 0) {
+-			if (size)
+-				*size = sechdrs[i].sh_size;
+-			return (void *)ehdr + sechdrs[i].sh_offset;
+-		}
+-	}
+-
+-	if (size)
+-		*size = 0;
+-	return NULL;
+-}
+-
+-static Elf32_Sym * __init find_symbol(struct elfinfo *lib, const char *symname)
+-{
+-	unsigned int i;
+-
+-	for (i = 0; i < (lib->dynsymsize / sizeof(Elf32_Sym)); i++) {
+-		char name[MAX_SYMNAME], *c;
+-
+-		if (lib->dynsym[i].st_name == 0)
+-			continue;
+-		strlcpy(name, lib->dynstr + lib->dynsym[i].st_name,
+-			MAX_SYMNAME);
+-		c = strchr(name, '@');
+-		if (c)
+-			*c = 0;
+-		if (strcmp(symname, name) == 0)
+-			return &lib->dynsym[i];
+-	}
+-	return NULL;
+-}
+-
+-static void __init vdso_nullpatch_one(struct elfinfo *lib, const char *symname)
+-{
+-	Elf32_Sym *sym;
+-
+-	sym = find_symbol(lib, symname);
+-	if (!sym)
+-		return;
+-
+-	sym->st_name = 0;
+-}
+-
+-static void __init patch_vdso(void *ehdr)
+-{
+-	struct elfinfo einfo;
+-
+-	einfo = (struct elfinfo) {
+-		.hdr = ehdr,
+-	};
+-
+-	einfo.dynsym = find_section(einfo.hdr, ".dynsym", &einfo.dynsymsize);
+-	einfo.dynstr = find_section(einfo.hdr, ".dynstr", NULL);
+-
+-	/* If the virtual counter is absent or non-functional we don't
+-	 * want programs to incur the slight additional overhead of
+-	 * dispatching through the VDSO only to fall back to syscalls.
+-	 */
+-	if (!cntvct_ok) {
+-		vdso_nullpatch_one(&einfo, "__vdso_gettimeofday");
+-		vdso_nullpatch_one(&einfo, "__vdso_clock_gettime");
+-	}
+-}
+-
+ static int __init vdso_init(void)
+ {
+ 	unsigned int text_pages;
+@@ -232,9 +114,7 @@ static int __init vdso_init(void)
+ 	vdso_total_pages = 2; /* for the data/vvar and vpriv pages */
+ 	vdso_total_pages += text_pages;
+ 
+-	cntvct_ok = cntvct_functional();
+-
+-	patch_vdso(vdso_start);
++	vdso_data->cs_type_and_seq = ARM_CLOCK_NONE << 16 | 1;
+ 
+ 	return 0;
+ }
+@@ -257,6 +137,9 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+ 	if (IS_ERR(vma))
+ 		return PTR_ERR(vma);
+ 
++	if (cache_is_vivt())
++		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
++
+ 	return vma->vm_start != addr ? -EINVAL : 0;
+ }
+ 
+@@ -309,15 +192,9 @@ static void vdso_write_end(struct vdso_data *vdata)
+ 	++vdso_data->seq_count;
+ }
+ 
+-static bool tk_is_cntvct(const struct timekeeper *tk)
++static const struct arch_clocksource_data *tk_get_cd(const struct timekeeper *tk)
+ {
+-	if (!IS_ENABLED(CONFIG_ARM_ARCH_TIMER))
+-		return false;
+-
+-	if (!tk->tkr_mono.clock->archdata.vdso_direct)
+-		return false;
+-
+-	return true;
++	return &tk->tkr_mono.clock->archdata;
+ }
+ 
+ /**
+@@ -341,24 +218,36 @@ static bool tk_is_cntvct(const struct timekeeper *tk)
+ void update_vsyscall(struct timekeeper *tk)
+ {
+ 	struct timespec64 *wtm = &tk->wall_to_monotonic;
++	const struct arch_clocksource_data *cd = tk_get_cd(tk);
++
++	vdso_write_begin(vdso_data);
++
++	if (cd->clock_type != (vdso_data->cs_type_and_seq >> 16)) {
++		u32 type = cd->clock_type;
++		u16 seq = vdso_data->cs_type_and_seq;
+ 
+-	if (!cntvct_ok) {
+-		/* The entry points have been zeroed, so there is no
+-		 * point in updating the data page.
++		if (++seq == 0)
++			seq = 1;
++		vdso_data->cs_type_and_seq	= type << 16 | seq;
++
++		/*
++		 * vdso does not have printf, so, prepare the device name for
++		 * it.
+ 		 */
+-		return;
++		if (cd->clock_type >= ARM_CLOCK_USER_MMIO_BASE)
++			snprintf(vdso_data->mmio_dev_name,
++				sizeof(vdso_data->mmio_dev_name),
++				"/dev/user_mmio_clksrc/%u",
++				cd->clock_type - ARM_CLOCK_USER_MMIO_BASE);
+ 	}
+ 
+-	vdso_write_begin(vdso_data);
+-
+-	vdso_data->tk_is_cntvct			= tk_is_cntvct(tk);
+ 	vdso_data->xtime_coarse_sec		= tk->xtime_sec;
+ 	vdso_data->xtime_coarse_nsec		= (u32)(tk->tkr_mono.xtime_nsec >>
+ 							tk->tkr_mono.shift);
+ 	vdso_data->wtm_clock_sec		= wtm->tv_sec;
+ 	vdso_data->wtm_clock_nsec		= wtm->tv_nsec;
+ 
+-	if (vdso_data->tk_is_cntvct) {
++	if (cd->clock_type != ARM_CLOCK_NONE) {
+ 		vdso_data->cs_cycle_last	= tk->tkr_mono.cycle_last;
+ 		vdso_data->xtime_clock_sec	= tk->xtime_sec;
+ 		vdso_data->xtime_clock_snsec	= tk->tkr_mono.xtime_nsec;
+@@ -378,3 +267,17 @@ void update_vsyscall_tz(void)
+ 	vdso_data->tz_dsttime		= sys_tz.tz_dsttime;
+ 	flush_dcache_page(virt_to_page(vdso_data));
+ }
++
++void arch_clocksource_user_mmio_init(struct clocksource *cs, unsigned id)
++{
++	struct arch_clocksource_data *d = &cs->archdata;
++
++	d->clock_type = ARM_CLOCK_USER_MMIO_BASE + id;
++}
++
++void arch_clocksource_arch_timer_init(struct clocksource *cs)
++{
++	struct arch_clocksource_data *d = &cs->archdata;
++
++	d->clock_type = ARM_CLOCK_ARCH_TIMER;
++}
+diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
+index b169e580bf8..22612ca5a73 100644
+--- a/arch/arm/mm/Kconfig
++++ b/arch/arm/mm/Kconfig
+@@ -885,7 +885,7 @@ config KUSER_HELPERS
+ 
+ config VDSO
+ 	bool "Enable VDSO for acceleration of some system calls"
+-	depends on AEABI && MMU && CPU_V7
++	depends on AEABI && MMU
+ 	default y if ARM_ARCH_TIMER
+ 	select GENERIC_TIME_VSYSCALL
+ 	help
+diff --git a/arch/arm/vdso/vgettimeofday.c b/arch/arm/vdso/vgettimeofday.c
+index a9dd619c6c2..6f254d04f6d 100644
+--- a/arch/arm/vdso/vgettimeofday.c
++++ b/arch/arm/vdso/vgettimeofday.c
+@@ -18,6 +18,13 @@
+ #include <linux/compiler.h>
+ #include <linux/hrtimer.h>
+ #include <linux/time.h>
++#include <linux/io.h>
++#include <linux/fcntl.h>
++#include <linux/err.h>
++#include <linux/mman.h>
++#include <linux/compiler.h>
++#include <linux/ioctl.h>
++#include <linux/clocksource.h>
+ #include <asm/arch_timer.h>
+ #include <asm/barrier.h>
+ #include <asm/bug.h>
+@@ -31,6 +38,181 @@
+ 
+ extern struct vdso_data *__get_datapage(void);
+ 
++struct clksrc_info;
++
++typedef u64 vdso_read_cycles_fn(const struct clksrc_info *info);
++
++struct clksrc_info {
++	vdso_read_cycles_fn *read_cycles;
++	struct clksrc_user_mmio_info mmio;
++};
++
++struct vdso_priv {
++	u32 current_cs_type_and_seq;
++	struct clksrc_info clksrc_info[ARM_CLOCK_USER_MMIO_BASE + CLKSRC_USER_MMIO_MAX];
++};
++extern struct vdso_priv *__get_privpage(void);
++
++#define syscall3(nr, a0, a1, a2)			\
++	_syscall3((u32)a0, (u32)a1, (u32)a2, nr)
++
++#define syscall2(nr, a0, a1) \
++	_syscall2((u32)a0, (u32)a1, nr)
++
++#define syscall1(nr, a0) \
++	syscall2(nr, a0, 0)
++
++#define sys_open(filename, flags) \
++	syscall2(__NR_open, filename, flags)
++
++#define sys_ioctl(fd, cmd, ptr)			\
++	syscall3(__NR_ioctl, fd, cmd, ptr)
++
++#define sys_close(fd) \
++	syscall1(__NR_close, fd)
++
++#define sys_clock_gettime(id, ts) \
++	syscall2(__NR_clock_gettime, id, ts)
++
++#define sys_gettimeofday(tv, tz) \
++	syscall2(__NR_gettimeofday, tv, tz)
++
++static notrace u64 read_none(const struct clksrc_info *info)
++{
++	return 0;
++}
++
++static notrace u64 read_arch_timer(const struct clksrc_info *info)
++{
++#ifdef CONFIG_ARM_ARCH_TIMER
++	return arch_counter_get_cntvct();
++#else
++	return 0;
++#endif
++}
++
++static notrace u64 readl_mmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return readl_relaxed(info->reg_lower);
++}
++
++static notrace u64 readl_mmio_down(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return ~(u64)readl_relaxed(info->reg_lower) & info->mask_lower;
++}
++
++static notrace u64 readw_mmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return readw_relaxed(info->reg_lower);
++}
++
++static notrace u64 readw_mmio_down(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	return ~(u64)readl_relaxed(info->reg_lower) & info->mask_lower;
++}
++
++static notrace u64 readl_dmmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	void __iomem *reg_lower, *reg_upper;
++	u32 upper, old_upper, lower;
++
++	reg_lower = info->reg_lower;
++	reg_upper = info->reg_upper;
++
++	upper = readl_relaxed(reg_upper);
++	do {
++		old_upper = upper;
++		lower = readl_relaxed(reg_lower);
++		upper = readl_relaxed(reg_upper);
++	} while (upper != old_upper);
++
++	return (((u64)upper) << info->bits_lower) | lower;
++}
++
++static notrace u64 readw_dmmio_up(const struct clksrc_info *vinfo)
++{
++	const struct clksrc_user_mmio_info *info = &vinfo->mmio;
++	void __iomem *reg_lower, *reg_upper;
++	u16 upper, old_upper, lower;
++
++	reg_lower = info->reg_lower;
++	reg_upper = info->reg_upper;
++
++	upper = readw_relaxed(reg_upper);
++	do {
++		old_upper = upper;
++		lower = readw_relaxed(reg_lower);
++		upper = readw_relaxed(reg_upper);
++	} while (upper != old_upper);
++
++	return (((u64)upper) << info->bits_lower) | lower;
++}
++
++static inline notrace u16 to_type(u32 type_and_seq)
++{
++	return type_and_seq >> 16;
++}
++
++static inline notrace u16 to_seq(u32 type_and_seq)
++{
++	return type_and_seq;
++}
++
++static inline notrace u32 to_type_and_seq(u16 type, u16 seq)
++{
++	return (u32)type << 16U | seq;
++}
++
++static inline notrace bool clock_accessible(struct vdso_priv *vpriv)
++{
++	return to_type(vpriv->current_cs_type_and_seq) != ARM_CLOCK_NONE;
++}
++
++static notrace u64 read_cycles(struct vdso_priv *vpriv)
++{
++	const struct clksrc_info *info;
++	unsigned cs;
++
++	cs = to_type(READ_ONCE(vpriv->current_cs_type_and_seq));
++	info = &vpriv->clksrc_info[cs];
++	return info->read_cycles(info);
++}
++
++static notrace __cold vdso_read_cycles_fn *get_nommio_read_cycles(unsigned type)
++{
++	switch (type) {
++	case ARM_CLOCK_ARCH_TIMER:
++		return &read_arch_timer;
++	default:
++		return &read_none;
++	}
++}
++
++static notrace __cold vdso_read_cycles_fn *get_mmio_read_cycles(unsigned type)
++{
++	switch (type) {
++	case CLKSRC_MMIO_L_UP:
++		return &readl_mmio_up;
++	case CLKSRC_MMIO_L_DOWN:
++		return &readl_mmio_down;
++	case CLKSRC_MMIO_W_UP:
++		return &readw_mmio_up;
++	case CLKSRC_MMIO_W_DOWN:
++		return &readw_mmio_down;
++	case CLKSRC_DMMIO_L_UP:
++		return &readl_dmmio_up;
++	case CLKSRC_DMMIO_W_UP:
++		return &readw_dmmio_up;
++	default:
++		return &read_none;
++	}
++}
++
+ static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
+ {
+ 	u32 seq;
+@@ -43,7 +225,7 @@ static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
+ 	return seq;
+ }
+ 
+-static notrace u32 vdso_read_begin(const struct vdso_data *vdata)
++static notrace u32 _vdso_read_begin(const struct vdso_data *vdata)
+ {
+ 	u32 seq;
+ 
+@@ -59,30 +241,119 @@ static notrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
+ 	return vdata->seq_count != start;
+ }
+ 
+-static notrace long clock_gettime_fallback(clockid_t _clkid,
+-					   struct timespec *_ts)
++static notrace long _syscall3(u32 a0, u32 a1, u32 a2, u32 nr)
++{
++	register u32 r0 asm("r0") = a0;
++	register u32 r1 asm("r1") = a1;
++	register u32 r2 asm("r2") = a2;
++	register long ret asm ("r0");
++	register long _nr asm("r7") = nr;
++
++	asm volatile(
++	"	swi #0\n"
++	: "=r" (ret)
++	: "r"(r0), "r"(r1), "r"(r2), "r"(_nr)
++	: "memory");
++
++	return ret;
++}
++
++static notrace long _syscall2(u32 a0, u32 a1, u32 nr)
+ {
+-	register struct timespec *ts asm("r1") = _ts;
+-	register clockid_t clkid asm("r0") = _clkid;
++	register u32 r0 asm("r0") = a0;
++	register u32 r1 asm("r1") = a1;
+ 	register long ret asm ("r0");
+-	register long nr asm("r7") = __NR_clock_gettime;
++	register long _nr asm("r7") = nr;
+ 
+ 	asm volatile(
+ 	"	swi #0\n"
+ 	: "=r" (ret)
+-	: "r" (clkid), "r" (ts), "r" (nr)
++	: "r"(r0), "r"(r1), "r"(_nr)
+ 	: "memory");
+ 
+ 	return ret;
+ }
+ 
++static notrace noinline __cold
++void vdso_map_clock(const struct vdso_data *vdata, struct vdso_priv *vpriv,
++		    u32 seq, u32 new_type_and_seq)
++{
++	vdso_read_cycles_fn *read_cycles;
++	u32 new_cs_seq, new_cs_type;
++	struct clksrc_info *info;
++	int fd, err;
++
++	new_cs_seq = to_seq(new_type_and_seq);
++	new_cs_type = to_type(new_type_and_seq);
++	info = &vpriv->clksrc_info[new_cs_type];
++
++	if (new_cs_type < ARM_CLOCK_USER_MMIO_BASE) {
++		read_cycles = get_nommio_read_cycles(new_cs_type);
++		goto done;
++	}
++
++	err = sys_open(vdata->mmio_dev_name, O_RDONLY);
++	if (err < 0)
++		goto fallback_to_syscall;
++	fd = err;
++
++	if (vdso_read_retry(vdata, seq)) {
++		_vdso_read_begin(vdata);
++		if (to_seq(vdata->cs_type_and_seq) != new_cs_seq) {
++			/*
++			 * mmio_dev_name no longer corresponds to
++			 * vdata->cs_type_and_seq
++			 */
++			sys_close(fd);
++			return;
++		}
++	}
++
++	err = sys_ioctl(fd, CLKSRC_USER_MMIO_MAP, &info->mmio);
++	sys_close(fd);
++	if (err < 0)
++		goto fallback_to_syscall;
++
++	read_cycles = get_mmio_read_cycles(info->mmio.type);
++  done:
++	info->read_cycles = read_cycles;
++	smp_wmb();
++	new_type_and_seq = to_type_and_seq(new_cs_type, new_cs_seq);
++	WRITE_ONCE(vpriv->current_cs_type_and_seq, new_type_and_seq);
++
++	return;
++
++  fallback_to_syscall:
++	new_cs_type = ARM_CLOCK_NONE;
++	info = &vpriv->clksrc_info[new_cs_type];
++	read_cycles = get_nommio_read_cycles(new_cs_type);
++	goto done;
++}
++
++static notrace u32 vdso_read_begin(const struct vdso_data *vdata,
++				   struct vdso_priv *vpriv)
++{
++	u32 seq, cs_type_and_seq;
++
++	for (;;) {
++		seq = _vdso_read_begin(vdata);
++
++		cs_type_and_seq = READ_ONCE(vpriv->current_cs_type_and_seq);
++		if (likely(to_seq(cs_type_and_seq) == to_seq(vdata->cs_type_and_seq)))
++			return seq;
++
++		vdso_map_clock(vdata, vpriv, seq, vdata->cs_type_and_seq);
++	}
++}
++
+ static notrace int do_realtime_coarse(struct timespec *ts,
+-				      struct vdso_data *vdata)
++				      struct vdso_data *vdata,
++				      struct vdso_priv *vpriv)
+ {
+ 	u32 seq;
+ 
+ 	do {
+-		seq = vdso_read_begin(vdata);
++		seq = vdso_read_begin(vdata, vpriv);
+ 
+ 		ts->tv_sec = vdata->xtime_coarse_sec;
+ 		ts->tv_nsec = vdata->xtime_coarse_nsec;
+@@ -93,13 +364,14 @@ static notrace int do_realtime_coarse(struct timespec *ts,
+ }
+ 
+ static notrace int do_monotonic_coarse(struct timespec *ts,
+-				       struct vdso_data *vdata)
++				       struct vdso_data *vdata,
++				       struct vdso_priv *vpriv)
+ {
+ 	struct timespec tomono;
+ 	u32 seq;
+ 
+ 	do {
+-		seq = vdso_read_begin(vdata);
++		seq = vdso_read_begin(vdata, vpriv);
+ 
+ 		ts->tv_sec = vdata->xtime_coarse_sec;
+ 		ts->tv_nsec = vdata->xtime_coarse_nsec;
+@@ -115,15 +387,13 @@ static notrace int do_monotonic_coarse(struct timespec *ts,
+ 	return 0;
+ }
+ 
+-#ifdef CONFIG_ARM_ARCH_TIMER
+-
+-static notrace u64 get_ns(struct vdso_data *vdata)
++static notrace u64 get_ns(struct vdso_data *vdata, struct vdso_priv *vpriv)
+ {
+ 	u64 cycle_delta;
+ 	u64 cycle_now;
+ 	u64 nsec;
+ 
+-	cycle_now = arch_counter_get_cntvct();
++	cycle_now = read_cycles(vpriv);
+ 
+ 	cycle_delta = (cycle_now - vdata->cs_cycle_last) & vdata->cs_mask;
+ 
+@@ -133,19 +403,21 @@ static notrace u64 get_ns(struct vdso_data *vdata)
+ 	return nsec;
+ }
+ 
+-static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
++static notrace int do_realtime(struct timespec *ts,
++			       struct vdso_data *vdata,
++			       struct vdso_priv *vpriv)
+ {
+ 	u64 nsecs;
+ 	u32 seq;
+ 
+ 	do {
+-		seq = vdso_read_begin(vdata);
++		seq = vdso_read_begin(vdata, vpriv);
+ 
+-		if (!vdata->tk_is_cntvct)
++		if (!clock_accessible(vpriv))
+ 			return -1;
+ 
+ 		ts->tv_sec = vdata->xtime_clock_sec;
+-		nsecs = get_ns(vdata);
++		nsecs = get_ns(vdata, vpriv);
+ 
+ 	} while (vdso_read_retry(vdata, seq));
+ 
+@@ -155,20 +427,22 @@ static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
+ 	return 0;
+ }
+ 
+-static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
++static notrace int do_monotonic(struct timespec *ts,
++				struct vdso_data *vdata,
++				struct vdso_priv *vpriv)
+ {
+ 	struct timespec tomono;
+ 	u64 nsecs;
+ 	u32 seq;
+ 
+ 	do {
+-		seq = vdso_read_begin(vdata);
++		seq = vdso_read_begin(vdata, vpriv);
+ 
+-		if (!vdata->tk_is_cntvct)
++		if (!clock_accessible(vpriv))
+ 			return -1;
+ 
+ 		ts->tv_sec = vdata->xtime_clock_sec;
+-		nsecs = get_ns(vdata);
++		nsecs = get_ns(vdata, vpriv);
+ 
+ 		tomono.tv_sec = vdata->wtm_clock_sec;
+ 		tomono.tv_nsec = vdata->wtm_clock_nsec;
+@@ -182,63 +456,34 @@ static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
+ 	return 0;
+ }
+ 
+-#else /* CONFIG_ARM_ARCH_TIMER */
+-
+-static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
+-{
+-	return -1;
+-}
+-
+-static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
+-{
+-	return -1;
+-}
+-
+-#endif /* CONFIG_ARM_ARCH_TIMER */
+-
+ notrace int __vdso_clock_gettime(clockid_t clkid, struct timespec *ts)
+ {
+ 	struct vdso_data *vdata;
++	struct vdso_priv *vpriv;
+ 	int ret = -1;
+ 
+ 	vdata = __get_datapage();
++	vpriv = __get_privpage();
+ 
+ 	switch (clkid) {
+ 	case CLOCK_REALTIME_COARSE:
+-		ret = do_realtime_coarse(ts, vdata);
++		ret = do_realtime_coarse(ts, vdata, vpriv);
+ 		break;
+ 	case CLOCK_MONOTONIC_COARSE:
+-		ret = do_monotonic_coarse(ts, vdata);
++		ret = do_monotonic_coarse(ts, vdata, vpriv);
+ 		break;
+ 	case CLOCK_REALTIME:
+-		ret = do_realtime(ts, vdata);
++		ret = do_realtime(ts, vdata, vpriv);
+ 		break;
+ 	case CLOCK_MONOTONIC:
+-		ret = do_monotonic(ts, vdata);
++		ret = do_monotonic(ts, vdata, vpriv);
+ 		break;
+ 	default:
+ 		break;
+ 	}
+ 
+ 	if (ret)
+-		ret = clock_gettime_fallback(clkid, ts);
+-
+-	return ret;
+-}
+-
+-static notrace long gettimeofday_fallback(struct timeval *_tv,
+-					  struct timezone *_tz)
+-{
+-	register struct timezone *tz asm("r1") = _tz;
+-	register struct timeval *tv asm("r0") = _tv;
+-	register long ret asm ("r0");
+-	register long nr asm("r7") = __NR_gettimeofday;
+-
+-	asm volatile(
+-	"	swi #0\n"
+-	: "=r" (ret)
+-	: "r" (tv), "r" (tz), "r" (nr)
+-	: "memory");
++		ret = sys_clock_gettime(clkid, ts);
+ 
+ 	return ret;
+ }
+@@ -247,13 +492,15 @@ notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
+ {
+ 	struct timespec ts;
+ 	struct vdso_data *vdata;
++	struct vdso_priv *vpriv;
+ 	int ret;
+ 
+ 	vdata = __get_datapage();
++	vpriv = __get_privpage();
+ 
+-	ret = do_realtime(&ts, vdata);
++	ret = do_realtime(&ts, vdata, vpriv);
+ 	if (ret)
+-		return gettimeofday_fallback(tv, tz);
++		return sys_gettimeofday(tv, tz);
+ 
+ 	if (tv) {
+ 		tv->tv_sec = ts.tv_sec;
+diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
+index a9e26f6a81a..24899d57aab 100644
+--- a/drivers/clocksource/Kconfig
++++ b/drivers/clocksource/Kconfig
+@@ -30,6 +30,11 @@ config CLKBLD_I8253
+ config CLKSRC_MMIO
+ 	bool
+ 
++config CLKSRC_VDSO_MAPPED
++        select CLKSRC_MMIO
++	select VDSO
++	bool
++
+ config BCM2835_TIMER
+ 	bool "BCM2835 timer driver" if COMPILE_TEST
+ 	select CLKSRC_MMIO
+diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
+index c1b0aa58b05..b0e88641f00 100644
+--- a/drivers/clocksource/mmio.c
++++ b/drivers/clocksource/mmio.c
+@@ -468,6 +468,10 @@ int __init clocksource_user_dual_mmio_init(
+ 	}
+ 	spin_unlock(&user_clksrcs_lock);
+ 
++#ifdef arch_clocksource_user_mmio_init
++	arch_clocksource_user_mmio_init(&cs->mmio.clksrc, cs->id);
++#endif
++
+ 	if (cs->id >= CLKSRC_USER_MMIO_MAX)
+ 		pr_warn("%s: Too many clocksources\n", name);
+ 
+-- 
+2.16.4
+

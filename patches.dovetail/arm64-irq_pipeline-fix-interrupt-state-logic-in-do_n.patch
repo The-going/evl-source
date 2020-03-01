@@ -1,0 +1,104 @@
+From d80ebb8fd0cac046fa27c80b32e29f7be620e7ae Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 18 Mar 2019 12:48:27 +0100
+Subject: [PATCH] arm64: irq_pipeline: fix interrupt state logic in
+ do_notify_resume()
+
+Once do_notify_resume() has reloaded the the fpsimd state for the
+current task, we must not re-enable hard irqs until we are back to
+running on el0. Otherwise, some OOB thread might preempt us on the
+path to userland, reloading the fpsimd registers with its own state,
+causing current to resume with somebody else's fpsimd state.
+
+IOW, do_notify_resume() is the last opportunity for reloading a task's
+fpstate if _TIF_FOREIGN_FPSTATE is set before it resumes from el0,
+make sure it stays that way including when pipelining interrupts.
+
+At this chance, the way we deal with the interrupt state logic in this
+routine was greatly simplified, which unsurprisingly leads to a saner
+behavior.
+---
+ arch/arm64/kernel/signal.c | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/arch/arm64/kernel/signal.c b/arch/arm64/kernel/signal.c
+index 53ecb51f548..fd1ec457be2 100644
+--- a/arch/arm64/kernel/signal.c
++++ b/arch/arm64/kernel/signal.c
+@@ -22,6 +22,7 @@
+ #include <linux/errno.h>
+ #include <linux/kernel.h>
+ #include <linux/signal.h>
++#include <linux/irq_pipeline.h>
+ #include <linux/personality.h>
+ #include <linux/freezer.h>
+ #include <linux/stddef.h>
+@@ -915,26 +916,28 @@ static void do_signal(struct pt_regs *regs)
+ asmlinkage void do_notify_resume(struct pt_regs *regs,
+ 				 unsigned long thread_flags)
+ {
+-	bool stalled = irqs_disabled();
+-
+-	if (irqs_pipelined())
+-		local_irq_disable();
++	WARN_ON_ONCE(irq_pipeline_debug() &&
++		(irqs_disabled() || running_oob()));
+ 
+ 	/*
+ 	 * The assembly code enters us with IRQs off, but it hasn't
+ 	 * informed the tracing code of that for efficiency reasons.
+ 	 * Update the trace code with the current status.
+ 	 */
+-	trace_hardirqs_off();
++	if (!irqs_pipelined())
++		trace_hardirqs_off();
+ 
+ 	do {
++		if (irqs_pipelined())
++			local_irq_disable();
++
+ 		/* Check valid user FS if needed */
+ 		addr_limit_user_check();
+ 
+ 		if (thread_flags & _TIF_NEED_RESCHED) {
+ 			/* Unmask Debug and SError for the next task */
+-			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+-			hard_cond_local_irq_enable();
++			local_daif_restore(irqs_pipelined() ?
++					DAIF_PROCCTX : DAIF_PROCCTX_NOIRQ);
+ 
+ 			schedule();
+ 		} else {
+@@ -958,20 +961,17 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
+ 				fpsimd_restore_current_state();
+ 		}
+ 
++		/*
++		 * CAUTION: we may have restored the fpsimd state for
++		 * current with no other opportunity to check for
++		 * _TIF_FOREIGN_FPSTATE until we are back running on
++		 * el0, so we must not take any interrupt until then,
++		 * otherwise we may end up resuming with some OOB
++		 * thread's fpsimd state.
++		 */
+ 		local_daif_mask();
+-		if (irqs_pipelined())
+-			local_irq_disable();
+ 		thread_flags = READ_ONCE(current_thread_info()->flags);
+-	} while (thread_flags & _TIF_WORK_MASK);
+-
+-	if (irqs_pipelined()) {
+-		hard_local_irq_enable();
+-		if (!stalled)
+-			local_irq_enable();
+-		if (IS_ENABLED(CONFIG_DEBUG_IRQ_PIPELINE))
+-			WARN_ON_ONCE(user_mode(regs) && irqs_disabled());
+-		hard_local_irq_disable();
+-	}
++	} while (inband_irq_pending() || (thread_flags & _TIF_WORK_MASK));
+ }
+ 
+ unsigned long __ro_after_init signal_minsigstksz;
+-- 
+2.16.4
+

@@ -1,0 +1,97 @@
+From 6000c423c3902fa3646844a35079fc7343d69e01 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 11 Feb 2019 18:11:56 +0100
+Subject: [PATCH] evl/sched: clarify naming for inband tick timer
+
+---
+ include/evenless/sched.h     |  3 +--
+ kernel/evenless/sched/core.c | 10 +++++-----
+ kernel/evenless/tick.c       |  8 ++++----
+ 3 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 9025ca30e76..901e77d0c9d 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -85,8 +85,7 @@ struct evl_rq {
+ 	/* Context of runtime quota scheduling. */
+ 	struct evl_sched_quota quota;
+ #endif
+-	/* Host timer. */
+-	struct evl_timer htimer;
++	struct evl_timer inband_timer;
+ 	/* Round-robin timer. */
+ 	struct evl_timer rrbtimer;
+ 	/* In-band kernel placeholder. */
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index 5163b893b08..4051047d107 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -131,7 +131,7 @@ static void proxy_tick_handler(struct evl_timer *timer) /* hard irqs off */
+ 	 * priority duty: postpone this until the end of the core tick
+ 	 * handler.
+ 	 */
+-	this_rq = container_of(timer, struct evl_rq, htimer);
++	this_rq = container_of(timer, struct evl_rq, inband_timer);
+ 	this_rq->lflags |= RQ_TPROXY;
+ 	this_rq->lflags &= ~RQ_TDEFER;
+ }
+@@ -166,10 +166,10 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 	 * No direct handler here since proxy timer events are handled
+ 	 * specifically by the generic timer code.
+ 	 */
+-	evl_init_timer(&rq->htimer, &evl_mono_clock, proxy_tick_handler,
++	evl_init_timer(&rq->inband_timer, &evl_mono_clock, proxy_tick_handler,
+ 		rq, EVL_TIMER_IGRAVITY);
+-	evl_set_timer_priority(&rq->htimer, EVL_TIMER_LOPRIO);
+-	evl_set_timer_name(&rq->htimer, rq->proxy_timer_name);
++	evl_set_timer_priority(&rq->inband_timer, EVL_TIMER_LOPRIO);
++	evl_set_timer_name(&rq->inband_timer, rq->proxy_timer_name);
+ 	evl_init_timer(&rq->rrbtimer, &evl_mono_clock, roundrobin_handler,
+ 		rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
+@@ -203,7 +203,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 
+ static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
+ {
+-	evl_destroy_timer(&rq->htimer);
++	evl_destroy_timer(&rq->inband_timer);
+ 	evl_destroy_timer(&rq->rrbtimer);
+ 	kfree(rq->proxy_timer_name);
+ 	kfree(rq->rrb_timer_name);
+diff --git a/kernel/evenless/tick.c b/kernel/evenless/tick.c
+index db114f5b563..9e839f5b9a3 100644
+--- a/kernel/evenless/tick.c
++++ b/kernel/evenless/tick.c
+@@ -47,8 +47,8 @@ static int proxy_set_next_ktime(ktime_t expires,
+ 
+ 	flags = hard_local_irq_save(); /* Prevent CPU migration. */
+ 	rq = this_evl_rq();
+-	evl_start_timer(&rq->htimer,
+-			evl_abs_timeout(&rq->htimer, delta),
++	evl_start_timer(&rq->inband_timer,
++			evl_abs_timeout(&rq->inband_timer, delta),
+ 			EVL_INFINITE);
+ 	hard_local_irq_restore(flags);
+ 
+@@ -73,7 +73,7 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *ced)
+ 	flags = hard_local_irq_save();
+ 
+ 	rq = this_evl_rq();
+-	evl_stop_timer(&rq->htimer);
++	evl_stop_timer(&rq->inband_timer);
+ 	rq->lflags |= RQ_TSTOPPED;
+ 
+ 	if (rq->lflags & RQ_IDLE)
+@@ -280,7 +280,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 	 */
+ 	this_rq->lflags &= ~(RQ_TDEFER|RQ_IDLE|RQ_TSTOPPED);
+ 	timer = container_of(tn, struct evl_timer, node);
+-	if (timer == &this_rq->htimer) {
++	if (timer == &this_rq->inband_timer) {
+ 		if (evl_need_resched(this_rq) ||
+ 			!(this_rq->curr->state & T_ROOT)) {
+ 			tn = evl_get_tqueue_next(&tmb->q, tn);
+-- 
+2.16.4
+

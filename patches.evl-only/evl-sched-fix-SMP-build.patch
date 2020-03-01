@@ -1,0 +1,80 @@
+From 9fce2a139c99d12c64ca33252e077aee1b089ee2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 18 Mar 2019 16:11:39 +0100
+Subject: [PATCH] evl/sched: fix SMP build
+
+---
+ include/evl/sched.h | 34 ++++++++++++++++------------------
+ 1 file changed, 16 insertions(+), 18 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 948e1c1aad9..7bb6f6c7010 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -178,18 +178,6 @@ struct evl_sched_class {
+ #define for_each_evl_thread(__thread)				\
+ 	list_for_each_entry(__thread, &evl_thread_list, next)
+ 
+-#ifdef CONFIG_SMP
+-static inline int evl_rq_cpu(struct evl_rq *rq)
+-{
+-	return rq->cpu;
+-}
+-#else /* !CONFIG_SMP */
+-static inline int evl_rq_cpu(struct evl_rq *rq)
+-{
+-	return 0;
+-}
+-#endif /* CONFIG_SMP */
+-
+ static inline struct evl_rq *evl_cpu_rq(int cpu)
+ {
+ 	return &per_cpu(evl_runqueues, cpu);
+@@ -219,13 +207,18 @@ static inline void evl_set_self_resched(struct evl_rq *rq)
+ 	rq->status |= RQ_SCHED;
+ }
+ 
++/* Set resched flag for the given scheduler. */
++#ifdef CONFIG_SMP
++
+ static inline bool is_evl_cpu(int cpu)
+ {
+ 	return !!cpumask_test_cpu(cpu, &evl_oob_cpus);
+ }
+ 
+-/* Set resched flag for the given scheduler. */
+-#ifdef CONFIG_SMP
++static inline int evl_rq_cpu(struct evl_rq *rq)
++{
++	return rq->cpu;
++}
+ 
+ static inline void evl_set_resched(struct evl_rq *rq)
+ {
+@@ -247,14 +240,19 @@ static inline bool is_threading_cpu(int cpu)
+ 
+ #else /* !CONFIG_SMP */
+ 
+-static inline void evl_set_resched(struct evl_rq *rq)
++static inline bool is_evl_cpu(int cpu)
+ {
+-	evl_set_self_resched(rq);
++	return true;
+ }
+ 
+-static inline bool is_evl_cpu(int cpu)
++static inline int evl_rq_cpu(struct evl_rq *rq)
+ {
+-	return true;
++	return 0;
++}
++
++static inline void evl_set_resched(struct evl_rq *rq)
++{
++	evl_set_self_resched(rq);
+ }
+ 
+ static inline bool is_threading_cpu(int cpu)
+-- 
+2.16.4
+

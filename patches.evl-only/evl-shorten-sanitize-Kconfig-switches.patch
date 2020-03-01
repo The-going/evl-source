@@ -1,0 +1,1173 @@
+From 43d26f5dc44a76bbc4962aab74dc0b0bf3870d9a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Mar 2019 13:07:07 +0100
+Subject: [PATCH] evl: shorten, sanitize Kconfig switches
+
+---
+ arch/arm/Kconfig                |   4 +-
+ arch/arm/Makefile               |   2 +-
+ arch/arm64/Kconfig              |   4 +-
+ arch/arm64/Makefile             |   2 +-
+ drivers/Makefile                |   2 +-
+ drivers/evenless/Kconfig        |  10 ++--
+ drivers/evenless/Makefile       |   4 +-
+ include/evenless/assert.h       |   6 +--
+ include/evenless/init.h         |   2 +-
+ include/evenless/mutex.h        |   2 +-
+ include/evenless/sched.h        |  14 ++---
+ include/evenless/sched/param.h  |   2 +-
+ include/evenless/sched/quota.h  |  10 ++--
+ include/evenless/stat.h         |   6 +--
+ include/evenless/thread.h       |   2 +-
+ include/evenless/timer.h        |  10 ++--
+ include/trace/events/evenless.h |   6 +--
+ kernel/Kconfig.evenless         |  18 +++----
+ kernel/Makefile                 |   2 +-
+ kernel/evenless/Kconfig         | 110 +++++++++++++++++-----------------------
+ kernel/evenless/Makefile        |   2 +-
+ kernel/evenless/clock.c         |   8 +--
+ kernel/evenless/control.c       |   6 +--
+ kernel/evenless/init.c          |   6 +--
+ kernel/evenless/memory.c        |   8 +--
+ kernel/evenless/monitor.c       |   2 +-
+ kernel/evenless/mutex.c         |   4 +-
+ kernel/evenless/proxy.c         |   2 +-
+ kernel/evenless/sched/Makefile  |   4 +-
+ kernel/evenless/sched/core.c    |  28 +++++-----
+ kernel/evenless/thread.c        |  10 ++--
+ kernel/evenless/tick.c          |   2 +-
+ kernel/evenless/timer.c         |   6 +--
+ kernel/evenless/wait.c          |   2 +-
+ kernel/evenless/xbuf.c          |   2 +-
+ 35 files changed, 146 insertions(+), 164 deletions(-)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 886ed9491ce..d3fa8b5a985 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -280,7 +280,7 @@ config PGTABLE_LEVELS
+ 	default 3 if ARM_LPAE
+ 	default 2
+ 
+-source "kernel/Kconfig.evenless"
++source "kernel/Kconfig.evl"
+ 
+ menu "System Type"
+ 
+@@ -669,7 +669,7 @@ config ARCH_MULTI_V6_V7
+ 	select MIGHT_HAVE_CACHE_L2X0
+ 	select HAVE_IRQ_PIPELINE
+ 	select HAVE_DOVETAIL
+-	select HAVE_ARCH_EVENLESS
++	select HAVE_ARCH_EVL
+ 	select WARN_CPUFREQ_GOVERNOR if CPU_FREQ && \
+ 	       !(CPU_FREQ_DEFAULT_GOV_PERFORMANCE || \
+ 	        CPU_FREQ_DEFAULT_GOV_POWERSAVE)
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 4c0ed60ae58..25c853d6d77 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -269,7 +269,7 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
+ endif
+ endif
+ 
+-ifeq ($(CONFIG_EVENLESS),y)
++ifeq ($(CONFIG_EVL),y)
+ KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
+ endif
+ 
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 5d735836acd..3536ac5c8f0 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -122,7 +122,7 @@ config ARM64
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+ 	select HAVE_ARCH_VMAP_STACK
+-	select HAVE_ARCH_EVENLESS
++	select HAVE_ARCH_EVL
+ 	select HAVE_ARM_SMCCC
+ 	select HAVE_EBPF_JIT
+ 	select HAVE_C_RECORDMCOUNT
+@@ -1387,7 +1387,7 @@ config STACKPROTECTOR_PER_TASK
+ 
+ endmenu
+ 
+-source "kernel/Kconfig.evenless"
++source "kernel/Kconfig.evl"
+ 
+ menu "Boot options"
+ 
+diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
+index ada574d901c..27d8fe4b401 100644
+--- a/arch/arm64/Makefile
++++ b/arch/arm64/Makefile
+@@ -85,7 +85,7 @@ endif
+ 
+ CHECKFLAGS	+= -D__aarch64__
+ 
+-ifeq ($(CONFIG_EVENLESS),y)
++ifeq ($(CONFIG_EVL),y)
+ KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evenless/include -Iinclude/evenless
+ endif
+ 
+diff --git a/drivers/Makefile b/drivers/Makefile
+index c7c6aa3085c..8a9c321e3f4 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
+ obj-$(CONFIG_RPMSG)		+= rpmsg/
+ obj-$(CONFIG_SOUNDWIRE)		+= soundwire/
+ 
+-obj-$(CONFIG_EVENLESS)		+= evenless/
++obj-$(CONFIG_EVL)		+= evenless/
+ 
+ # Virtualization drivers
+ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
+diff --git a/drivers/evenless/Kconfig b/drivers/evenless/Kconfig
+index a9c4248d868..b80e4635695 100644
+--- a/drivers/evenless/Kconfig
++++ b/drivers/evenless/Kconfig
+@@ -1,13 +1,13 @@
+-menu "Evenless OOB devices"
++menu "Out-of-band device drivers"
+ 
+-config EVENLESS_LATMUS
++config EVL_LATMUS
+ 	bool "Latency calibration and measurement"
+-	depends on EVENLESS
++	depends on EVL
+ 	default y
+ 
+-config EVENLESS_HECTIC
++config EVL_HECTIC
+ 	bool "OOB context switching validator"
+-	depends on EVENLESS
++	depends on EVL
+ 	default y
+ 
+ endmenu
+diff --git a/drivers/evenless/Makefile b/drivers/evenless/Makefile
+index 05cf4f8100a..06d35e90ed2 100644
+--- a/drivers/evenless/Makefile
++++ b/drivers/evenless/Makefile
+@@ -1,2 +1,2 @@
+-obj-$(CONFIG_EVENLESS_LATMUS)	+= latmus.o
+-obj-$(CONFIG_EVENLESS_HECTIC)	+= hectic.o
++obj-$(CONFIG_EVL_LATMUS)	+= latmus.o
++obj-$(CONFIG_EVL_HECTIC)	+= hectic.o
+diff --git a/include/evenless/assert.h b/include/evenless/assert.h
+index 1e861be0853..044678c05f0 100644
+--- a/include/evenless/assert.h
++++ b/include/evenless/assert.h
+@@ -15,7 +15,7 @@
+ #define EVL_ERR		KERN_ERR     "EVL: "
+ 
+ #define EVL_DEBUG(__subsys)				\
+-	IS_ENABLED(CONFIG_EVENLESS_DEBUG_##__subsys)
++	IS_ENABLED(CONFIG_EVL_DEBUG_##__subsys)
+ #define EVL_ASSERT(__subsys, __cond)			\
+ 	(!WARN_ON(EVL_DEBUG(__subsys) && !(__cond)))
+ #define EVL_WARN(__subsys, __cond, __fmt...)		\
+@@ -32,8 +32,8 @@
+ 	do { } while (0)
+ #endif
+ 
+-#define oob_context_only()	EVL_WARN_ON_ONCE(CONTEXT, running_inband())
+-#define inband_context_only()	EVL_WARN_ON_ONCE(CONTEXT, !running_inband())
++#define oob_context_only()	EVL_WARN_ON_ONCE(CORE, running_inband())
++#define inband_context_only()	EVL_WARN_ON_ONCE(CORE, !running_inband())
+ 
+ /* TEMP: needed until we have gotten rid of the infamous nklock. */
+ #define requires_ugly_lock()	WARN_ON_ONCE(!(xnlock_is_owner(&nklock) && hard_irqs_disabled()))
+diff --git a/include/evenless/init.h b/include/evenless/init.h
+index ff319a34006..baf519998ef 100644
+--- a/include/evenless/init.h
++++ b/include/evenless/init.h
+@@ -18,7 +18,7 @@ DECLARE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
+ extern struct cpumask evl_oob_cpus;
+ #endif
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG
++#ifdef CONFIG_EVL_DEBUG
+ void evl_warn_init(const char *fn, int level, int status);
+ #else
+ static inline void evl_warn_init(const char *fn, int level, int status)
+diff --git a/include/evenless/mutex.h b/include/evenless/mutex.h
+index d52fef5cafa..daeb2ee13fa 100644
+--- a/include/evenless/mutex.h
++++ b/include/evenless/mutex.h
+@@ -69,7 +69,7 @@ void evl_flush_mutex(struct evl_mutex *mutex,
+ 
+ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG_MUTEX_INBAND
++#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
+ void evl_detect_boost_drop(struct evl_thread *owner);
+ #else
+ static inline
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 4b5007a8586..65a6c01ef77 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -81,7 +81,7 @@ struct evl_rq {
+ 	struct evl_sched_rt rt;
+ 	/* Context of weak scheduling class. */
+ 	struct evl_sched_weak weak;
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	/* Context of runtime quota scheduling. */
+ 	struct evl_sched_quota quota;
+ #endif
+@@ -92,11 +92,11 @@ struct evl_rq {
+ 	struct evl_thread root_thread;
+ 	char *proxy_timer_name;
+ 	char *rrb_timer_name;
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 	/* Watchdog timer object. */
+ 	struct evl_timer wdtimer;
+ #endif
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 	/* Last account switch date (ticks). */
+ 	ktime_t last_account_switch;
+ 	/* Currently active account */
+@@ -310,7 +310,7 @@ static inline void __evl_enable_preempt(void)
+ 		evl_schedule();
+ }
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG_CORE
++#ifdef CONFIG_EVL_DEBUG_CORE
+ 
+ void evl_disable_preempt(void);
+ void evl_enable_preempt(void);
+@@ -381,11 +381,11 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
+ 
+ 	evl_init_idle_thread(thread);
+ 	evl_init_rt_thread(thread);
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	ret = evl_quota_init_thread(thread);
+ 	if (ret)
+ 		return ret;
+-#endif /* CONFIG_EVENLESS_SCHED_QUOTA */
++#endif /* CONFIG_EVL_SCHED_QUOTA */
+ 
+ 	return ret;
+ }
+@@ -518,7 +518,7 @@ static inline void evl_force_thread(struct evl_thread *thread)
+ }
+ 
+ struct evl_sched_group {
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	struct evl_quota_group quota;
+ #endif
+ 	struct list_head next;
+diff --git a/include/evenless/sched/param.h b/include/evenless/sched/param.h
+index 56355775e8a..d64510abe06 100644
+--- a/include/evenless/sched/param.h
++++ b/include/evenless/sched/param.h
+@@ -29,7 +29,7 @@ union evl_sched_param {
+ 	struct evl_idle_param idle;
+ 	struct evl_rt_param rt;
+ 	struct evl_weak_param weak;
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	struct evl_quota_param quota;
+ #endif
+ };
+diff --git a/include/evenless/sched/quota.h b/include/evenless/sched/quota.h
+index 2eea3555b41..1b8476d196c 100644
+--- a/include/evenless/sched/quota.h
++++ b/include/evenless/sched/quota.h
+@@ -5,14 +5,14 @@
+  * Copyright (C) 2013, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+-#ifndef _EVENLESS_SCHED_QUOTA_H
+-#define _EVENLESS_SCHED_QUOTA_H
++#ifndef _EVL_SCHED_QUOTA_H
++#define _EVL_SCHED_QUOTA_H
+ 
+ #ifndef _EVENLESS_SCHED_H
+ #error "please don't include evenless/sched/quota.h directly"
+ #endif
+ 
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+ #define EVL_QUOTA_MIN_PRIO	1
+ #define EVL_QUOTA_MAX_PRIO	255
+@@ -74,6 +74,6 @@ void evl_set_quota_period(ktime_t period);
+ 
+ ktime_t evl_get_quota_period(void);
+ 
+-#endif /* !CONFIG_EVENLESS_SCHED_QUOTA */
++#endif /* !CONFIG_EVL_SCHED_QUOTA */
+ 
+-#endif /* !_EVENLESS_SCHED_QUOTA_H */
++#endif /* !_EVL_SCHED_QUOTA_H */
+diff --git a/include/evenless/stat.h b/include/evenless/stat.h
+index bded74ef52c..3f083a0adbc 100644
+--- a/include/evenless/stat.h
++++ b/include/evenless/stat.h
+@@ -14,7 +14,7 @@
+ 
+ struct evl_rq;
+ 
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 
+ struct evl_account {
+ 	ktime_t start;   /* Start of execution time accumulation */
+@@ -105,7 +105,7 @@ void evl_set_counter(struct evl_counter *c, unsigned long value)
+ 	c->counter = value;
+ }
+ 
+-#else /* !CONFIG_EVENLESS_STATS */
++#else /* !CONFIG_EVL_RUNSTATS */
+ 
+ struct evl_account {
+ };
+@@ -125,7 +125,7 @@ struct evl_counter {
+ #define evl_get_counter(__c) 	({ 0; })
+ #define evl_set_counter(_c, __value)	do { } while (0)
+ 
+-#endif /* CONFIG_EVENLESS_STATS */
++#endif /* CONFIG_EVL_RUNSTATS */
+ 
+ /*
+  * Account the exectime of the current account until now, switch to
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index ac3d64566eb..81e1eb760c9 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -60,7 +60,7 @@ struct evl_thread {
+ 	struct evl_sched_class *sched_class; /* Current scheduling class */
+ 	struct evl_sched_class *base_class; /* Base scheduling class */
+ 
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	struct evl_quota_group *quota; /* Quota scheduling group. */
+ 	struct list_head quota_expired;
+ 	struct list_head quota_next;
+diff --git a/include/evenless/timer.h b/include/evenless/timer.h
+index 0a0655c54cd..ffb334b0ddb 100644
+--- a/include/evenless/timer.h
++++ b/include/evenless/timer.h
+@@ -164,7 +164,7 @@ struct evl_timer {
+ 	struct evl_timerbase *base;
+ 	/* Timeout handler. */
+ 	void (*handler)(struct evl_timer *timer);
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 	/* Timer name to be displayed. */
+ 	const char *name;
+ 	/* Timer holder in timebase. */
+@@ -173,7 +173,7 @@ struct evl_timer {
+ 	struct evl_counter scheduled;
+ 	/* Number of timer events. */
+ 	struct evl_counter fired;
+-#endif /* CONFIG_EVENLESS_STATS */
++#endif /* CONFIG_EVL_RUNSTATS */
+ };
+ 
+ #define evl_tdate(__timer)	((__timer)->node.date)
+@@ -264,7 +264,7 @@ void __evl_init_timer(struct evl_timer *timer,
+ void evl_set_timer_gravity(struct evl_timer *timer,
+ 			int gravity);
+ 
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 
+ #define evl_init_timer(__timer, __clock, __handler, __rq, __flags)	\
+ 	do {								\
+@@ -297,7 +297,7 @@ void evl_set_timer_name(struct evl_timer *timer, const char *name)
+ 	timer->name = name;
+ }
+ 
+-#else /* !CONFIG_EVENLESS_STATS */
++#else /* !CONFIG_EVL_RUNSTATS */
+ 
+ #define evl_init_timer	__evl_init_timer
+ 
+@@ -313,7 +313,7 @@ void evl_account_timer_fired(struct evl_timer *timer) { }
+ static inline
+ void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
+ 
+-#endif /* !CONFIG_EVENLESS_STATS */
++#endif /* !CONFIG_EVL_RUNSTATS */
+ 
+ #define evl_init_core_timer(__timer, __handler)				\
+ 	evl_init_timer(__timer, &evl_mono_clock, __handler, NULL,	\
+diff --git a/include/trace/events/evenless.h b/include/trace/events/evenless.h
+index decd77dffbd..aad524d86e4 100644
+--- a/include/trace/events/evenless.h
++++ b/include/trace/events/evenless.h
+@@ -615,7 +615,7 @@ TRACE_EVENT(evl_timer_start,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct evl_timer *, timer)
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 		__string(name, timer->name)
+ #endif
+ 		__field(ktime_t, value)
+@@ -623,7 +623,7 @@ TRACE_EVENT(evl_timer_start,
+ 	),
+ 
+ 	TP_fast_assign(
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 		__assign_str(name, timer->name);
+ #endif
+ 		__entry->value = value;
+@@ -631,7 +631,7 @@ TRACE_EVENT(evl_timer_start,
+ 	),
+ 
+ 	TP_printk("timer=%s value=%Lu interval=%Lu",
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 		  __get_str(name),
+ #else
+ 		  "?",
+diff --git a/kernel/Kconfig.evenless b/kernel/Kconfig.evenless
+index 968b5efccd9..6730247e8da 100644
+--- a/kernel/Kconfig.evenless
++++ b/kernel/Kconfig.evenless
+@@ -1,19 +1,19 @@
+ 
+-# Evenless real-time co-kernel
+-config HAVE_ARCH_EVENLESS
++# EVL real-time core
++config HAVE_ARCH_EVL
+ 	bool
+ 
+-menuconfig EVENLESS
+-	bool "Enable the Evenless core"
+-	depends on HAVE_ARCH_EVENLESS
++menuconfig EVL
++	bool "Enable the EVL core"
++	depends on HAVE_ARCH_EVL
+ 	select DOVETAIL
+ 	help
+ 
+-	  The Evenless core is a real-time component of the Linux
+-	  kernel, which exhibits very short interrupt and scheduling
+-	  latency, without affecting the regular kernel services.
++	  The EVL core is a real-time component of the Linux kernel,
++	  which exhibits very short interrupt and scheduling latency,
++	  without affecting the regular kernel services.
+ 
+-if EVENLESS
++if EVL
+ 
+ source "kernel/evenless/Kconfig"
+ 
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 683268a0693..a9ad771b297 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -99,7 +99,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+ obj-$(CONFIG_DOVETAIL) += dovetail.o
+ obj-$(CONFIG_CPU_PM) += cpu_pm.o
+ obj-$(CONFIG_BPF) += bpf/
+-obj-$(CONFIG_EVENLESS) += evenless/
++obj-$(CONFIG_EVL) += evenless/
+ 
+ obj-$(CONFIG_PERF_EVENTS) += events/
+ 
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index d14a709a0e6..a92755e1c1e 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -1,12 +1,12 @@
+ 
+ menu "Core features"
+ 
+-config EVENLESS_SCHED_QUOTA
++config EVL_SCHED_QUOTA
+ 	bool "Thread groups with runtime quota"
+ 	default n
+ 	help
+ 	This option enables the SCHED_QUOTA scheduling policy in the
+-	Evenless kernel.
++	EVL core.
+ 
+ 	This policy enforces a limitation on the CPU consumption of
+ 	threads over a globally defined period, known as the quota
+@@ -16,11 +16,11 @@ config EVENLESS_SCHED_QUOTA
+ 
+ 	If in doubt, say N.
+ 
+-config EVENLESS_STATS
++config EVL_RUNSTATS
+ 	bool "Runtime statistics"
+ 	default y
+ 	help
+-	This option causes the Evenless kernel to collect various
++	This option causes the EVL core to collect various
+ 	per-thread runtime statistics, which are accessible via
+ 	the /sys interface.
+ 
+@@ -28,46 +28,34 @@ endmenu
+ 
+ menu "Sizes and static limits"
+ 
+-config EVENLESS_SYS_HEAPSZ
++config EVL_COREMEM_SIZE
+ 	int "Size of system heap (Kb)"
+ 	default 2048
+ 	help
+ 	The system heap is used for various internal allocations by
+-	the Evenless kernel. The size is expressed in Kilobytes.
++	the EVL core. The size is expressed in Kilobytes.
+ 
+-config EVENLESS_SHARED_HEAPSZ
+-	int "Size of shared heap (Kb)"
+-	default 128
+-	help
+-	The Evenless core implements fast IPC mechanisms between
+-	processes which require a shared kernel memory heap to be
+-	mapped in the address space of all Evenless application
+-	processes. This option can be used to set the size of this
+-	system-wide heap.
+-
+-	64k is considered a large enough size for common use cases.
+-
+-config EVENLESS_NR_THREADS
++config EVL_NR_THREADS
+ 	int "Maximum number of threads"
+ 	range 1 4096
+ 	default 128
+ 	help
+ 
+ 	The maximum number of user-space threads attached to the
+-	Evenless core which can run concurrently in the system.
++	EVL core which can run concurrently in the system.
+ 
+-config EVENLESS_NR_MONITORS
++config EVL_NR_MONITORS
+ 	int "Maximum number of monitors"
+ 	range 1 16384
+ 	default 512
+ 	help
+ 
+ 	The monitor is the fundamental synchronization element
+-	implemented by the Evenless core, which can underpin any other
++	implemented by the EVL core, which can underpin any other
+ 	synchronization mechanism. This value gives the maximum number
+ 	of monitors which can be alive concurrently in the system.
+ 
+-config EVENLESS_NR_CLOCKS
++config EVL_NR_CLOCKS
+ 	int "Maximum number of clocks"
+ 	range 1 16384
+ 	default 8
+@@ -76,7 +64,7 @@ config EVENLESS_NR_CLOCKS
+ 	This value gives the maximum number of semaphores which can be
+ 	alive concurrently in the system for user-space applications.
+ 
+-config EVENLESS_NR_XBUFS
++config EVL_NR_XBUFS
+ 	int "Maximum number of x-buffers"
+ 	range 1 16384
+ 	default 16
+@@ -85,7 +73,7 @@ config EVENLESS_NR_XBUFS
+ 	This value gives the maximum number of x-buffers which can be
+ 	alive concurrently in the system for user-space applications.
+ 
+-config EVENLESS_NR_PROXIES
++config EVL_NR_PROXIES
+ 	int "Maximum number of proxies"
+ 	range 1 16384
+ 	default 64
+@@ -99,26 +87,26 @@ endmenu
+ 
+ menu "Latency settings"
+ 
+-config EVENLESS_TIMING_SCHEDLAT
++config EVL_LATENCY_USER
+ 	int "User scheduling latency (ns)"
+ 	default 0
+ 	help
+ 	The user scheduling latency is the time between the
+ 	termination of an interrupt handler and the execution of the
+-	first instruction of the real-time application thread this
++	first instruction of the application thread this
+ 	handler resumes. A default value of 0 (recommended) will cause
+ 	a pre-calibrated value to be used.
+ 
+-	If the auto-tuner is enabled, this value will be used as the
+-	factory default when running "autotune --reset".
++	If the latmus driver is enabled, this value will be used as the
++	factory default when running "latmus --reset".
+ 
+-config EVENLESS_TIMING_KSCHEDLAT
++config EVL_LATENCY_KERNEL
+ 	int "Intra-kernel scheduling latency (ns)"
+ 	default 0
+ 	help
+ 	The intra-kernel scheduling latency is the time between the
+ 	termination of an interrupt handler and the execution of the
+-	first instruction of the Evenless kernel thread this handler
++	first instruction of the EVL kthread this handler
+ 	resumes. A default value of 0 (recommended) will cause a
+ 	pre-calibrated value to be used.
+ 
+@@ -129,7 +117,7 @@ config EVENLESS_TIMING_KSCHEDLAT
+ 	If the auto-tuner is enabled, this value will be used as the
+ 	factory default when running "autotune --reset".
+ 
+-config EVENLESS_TIMING_IRQLAT
++config EVL_LATENCY_IRQ
+ 	int "Interrupt latency (ns)"
+ 	default 0
+ 	help
+@@ -143,37 +131,30 @@ config EVENLESS_TIMING_IRQLAT
+ 
+ endmenu
+ 
+-menuconfig EVENLESS_DEBUG
++menuconfig EVL_DEBUG
+ 	bool "Debug support"
+ 	help
+ 	  When enabled, various debugging features can be switched
+ 	  on. They can help to find problems in applications, drivers,
+-	  and the Evenless kernel. EVENLESS_DEBUG by itself does not have
++	  and the EVL core. EVL_DEBUG by itself does not have
+ 	  any impact on the generated code.
+ 
+-if EVENLESS_DEBUG
++if EVL_DEBUG
+ 
+-config EVENLESS_DEBUG_CORE
++config EVL_DEBUG_CORE
+ 	bool "Core runtime assertions"
+ 	help
+-	  This option activates various assertions inside the Evenless
++	  This option activates various assertions inside the EVL
+ 	  core. This option has limited overhead.
+ 
+-config EVENLESS_DEBUG_CONTEXT
+-       bool "Check for calling context"
+-       help
+-         This option enables checks for the calling context in the
+-         Evenless kernel, aimed at detecting when regular Linux routines
+-         are entered from a real-time context, and conversely.
+-
+-config EVENLESS_DEBUG_MEMORY
++config EVL_DEBUG_MEMORY
+ 	bool "Memory checks"
+ 	help
+-	  This option enables memory debug checks inside the Evenless
+-	  kernel. This option may induce significant overhead with large
++	  This option enables memory debug checks inside the EVL
++	  core. This option may induce significant overhead with large
+ 	  heaps.
+ 
+-config EVENLESS_DEBUG_USER
++config EVL_DEBUG_USER
+ 	bool "User consistency checks"
+ 	help
+ 	  This option enables a set of consistency checks for
+@@ -181,9 +162,9 @@ config EVENLESS_DEBUG_USER
+ 	  Some of these runtime checks may induce overhead, enable
+ 	  them for debugging purposes only.
+ 
+-if EVENLESS_DEBUG_USER
++if EVL_DEBUG_USER
+ 
+-config EVENLESS_DEBUG_MUTEX_INBAND
++config EVL_DEBUG_MUTEX_INBAND
+        bool "Detect in-band mutex owner"
+        default y
+        help
+@@ -195,7 +176,7 @@ config EVENLESS_DEBUG_MUTEX_INBAND
+ 	 This option may add overhead to out-of-band execution over
+ 	 contented locks.
+ 
+-config EVENLESS_DEBUG_MUTEX_SLEEP
++config EVL_DEBUG_MUTEX_SLEEP
+        bool "Detect sleeping while holding a mutex"
+        default y
+        help
+@@ -205,34 +186,35 @@ config EVENLESS_DEBUG_MUTEX_SLEEP
+          thread, it receives a SIGDEBUG signal right before entering
+ 	 sleep.
+ 
+-	 This option has noticeable overhead in real-time mode as it
+-	 disables the normal fast locking operations from user-space,
+-	 causing a system call for each monitor enter/exit operation.
++	 This option has noticeable overhead for out-of-band threads
++	 as it disables the normal fast locking operations from
++	 user-space, causing a system call for each monitor enter/exit
++	 operation.
+ 
+-endif # EVENLESS_DEBUG_USER
++endif # EVL_DEBUG_USER
+ 
+-config EVENLESS_WATCHDOG
++config EVL_WATCHDOG
+ 	bool "Watchdog support"
+ 	default y
+ 	help
+ 	  This option activates a watchdog aimed at detecting runaway
+-	  Evenless threads. If enabled, the watchdog triggers after a
+-	  given period of uninterrupted real-time activity has elapsed
++	  EVL threads. If enabled, the watchdog triggers after a
++	  given period of uninterrupted out-of-band activity has elapsed
+ 	  without Linux interaction in the meantime.
+ 
+ 	  In such an event, the current thread is moved out the
+-	  real-time domain, receiving a SIGDEBUG signal from the Linux
+-	  kernel immediately after.
++	  out-of-band context, receiving a SIGDEBUG signal from the
++	  Linux kernel immediately after.
+ 
+ 	  The timeout value of the watchdog can be set using the
+-	  EVENLESS_WATCHDOG_TIMEOUT parameter.
++	  EVL_WATCHDOG_TIMEOUT parameter.
+ 
+-config EVENLESS_WATCHDOG_TIMEOUT
+-	depends on EVENLESS_WATCHDOG
++config EVL_WATCHDOG_TIMEOUT
++	depends on EVL_WATCHDOG
+ 	int "Watchdog timeout"
+ 	default 4
+ 	range 1 60
+ 	help
+ 	  Watchdog timeout value (in seconds).
+ 
+-endif # EVENLESS_DEBUG
++endif # EVL_DEBUG
+diff --git a/kernel/evenless/Makefile b/kernel/evenless/Makefile
+index 084a791b014..91b79f28cb1 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evenless/Makefile
+@@ -1,4 +1,4 @@
+-obj-$(CONFIG_EVENLESS) += evenless.o sched/
++obj-$(CONFIG_EVL) += evenless.o sched/
+ 
+ ccflags-y += -Ikernel
+ 
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index 879c729522a..86ac5c12ff7 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -961,7 +961,7 @@ ATTRIBUTE_GROUPS(clock);
+ struct evl_factory evl_clock_factory = {
+ 	.name	=	"clock",
+ 	.fops	=	&clock_fops,
+-	.nrdev	=	CONFIG_EVENLESS_NR_CLOCKS,
++	.nrdev	=	CONFIG_EVL_NR_CLOCKS,
+ 	.attrs	=	clock_groups,
+ 	.dispose =	clock_factory_dispose,
+ };
+@@ -978,12 +978,12 @@ static void get_default_gravity(struct evl_clock_gravity *p)
+ {
+ 	unsigned int ulat = 4000; /* ns */
+ 
+-#if CONFIG_EVENLESS_TIMING_SCHEDLAT != 0
++#if CONFIG_EVL_LATENCY_USER != 0
+ 	ulat = CONFIG_XENO_OPT_TIMING_SCHEDLAT;
+ #endif
+ 	p->user = ulat;
+-	p->kernel = CONFIG_EVENLESS_TIMING_KSCHEDLAT;
+-	p->irq = CONFIG_EVENLESS_TIMING_IRQLAT;
++	p->kernel = CONFIG_EVL_LATENCY_KERNEL;
++	p->irq = CONFIG_EVL_LATENCY_IRQ;
+ }
+ 
+ static void reset_coreclk_gravity(struct evl_clock *clock)
+diff --git a/kernel/evenless/control.c b/kernel/evenless/control.c
+index 687ebc36978..52503c2e7aa 100644
+--- a/kernel/evenless/control.c
++++ b/kernel/evenless/control.c
+@@ -96,7 +96,7 @@ static int stop_services(void)
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+ static int do_quota_control(struct evl_sched_ctlreq *ctl)
+ {
+@@ -257,7 +257,7 @@ static ssize_t abi_show(struct device *dev,
+ }
+ static DEVICE_ATTR_RO(abi);
+ 
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 
+ static ssize_t quota_show(struct device *dev,
+ 			struct device_attribute *attr,
+@@ -296,7 +296,7 @@ static DEVICE_ATTR_RW(quota);
+ static struct attribute *control_attrs[] = {
+ 	&dev_attr_state.attr,
+ 	&dev_attr_abi.attr,
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	&dev_attr_quota.attr,
+ #endif
+ 	NULL,
+diff --git a/kernel/evenless/init.c b/kernel/evenless/init.c
+index 63865f251a0..8a423623d90 100644
+--- a/kernel/evenless/init.c
++++ b/kernel/evenless/init.c
+@@ -30,7 +30,7 @@ EXPORT_SYMBOL_GPL(evl_oob_cpus);
+ DEFINE_PER_CPU(struct evl_machine_cpudata, evl_machine_cpudata);
+ EXPORT_PER_CPU_SYMBOL_GPL(evl_machine_cpudata);
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG
++#ifdef CONFIG_EVL_DEBUG
+ #define boot_debug_notice "[DEBUG]"
+ #else
+ #define boot_debug_notice ""
+@@ -71,7 +71,7 @@ static void __init setup_init_state(void)
+ 	printk(warn_bad_state, init_state_arg);
+ }
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG
++#ifdef CONFIG_EVL_DEBUG
+ 
+ void __init evl_warn_init(const char *fn, int level, int status)
+ {
+@@ -84,7 +84,7 @@ static __init int init_core(void)
+ {
+ 	int ret;
+ 
+-	enable_oob_stage("Evenless");
++	enable_oob_stage("EVL");
+ 
+ 	ret = evl_init_memory();
+ 	if (ret)
+diff --git a/kernel/evenless/memory.c b/kernel/evenless/memory.c
+index 83f3a04cf31..d8ab63b4ac7 100644
+--- a/kernel/evenless/memory.c
++++ b/kernel/evenless/memory.c
+@@ -58,7 +58,7 @@ void *pagenr_to_addr(struct evl_heap *heap, int pg)
+ 	return heap->membase + (pg << EVL_HEAP_PAGE_SHIFT);
+ }
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG_MEMORY
++#ifdef CONFIG_EVL_DEBUG_MEMORY
+ /*
+  * Setting page_cont/page_free in the page map is only required for
+  * enabling full checking of the block address in free requests, which
+@@ -628,9 +628,9 @@ static int init_shared_heap(void)
+ 	void *mem;
+ 	int ret;
+ 
+-	size = CONFIG_EVENLESS_NR_THREADS *
++	size = CONFIG_EVL_NR_THREADS *
+ 		sizeof(struct evl_user_window) +
+-		CONFIG_EVENLESS_NR_MONITORS *
++		CONFIG_EVL_NR_MONITORS *
+ 		sizeof(struct evl_monitor_state);
+ 	size = PAGE_ALIGN(size);
+ 	mem = kzalloc(size, GFP_KERNEL);
+@@ -663,7 +663,7 @@ static int init_system_heap(void)
+ 	int ret;
+ 
+ 	if (size == 0)
+-		size = CONFIG_EVENLESS_SYS_HEAPSZ * 1024;
++		size = CONFIG_EVL_COREMEM_SIZE * 1024;
+ 
+ 	sysmem = vmalloc(size);
+ 	if (sysmem == NULL)
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index 5b698486004..4e4d7fa0a1e 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -726,7 +726,7 @@ struct evl_factory evl_monitor_factory = {
+ 	.fops	=	&monitor_fops,
+ 	.build =	monitor_factory_build,
+ 	.dispose =	monitor_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_MONITORS,
++	.nrdev	=	CONFIG_EVL_NR_MONITORS,
+ 	.attrs	=	monitor_groups,
+ 	.flags	=	EVL_FACTORY_CLONE,
+ };
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index 5b41ed31565..76d6f3d43d4 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -39,7 +39,7 @@ static inline void disable_inband_switch(struct evl_thread *curr)
+ static inline bool enable_inband_switch(struct evl_thread *curr)
+ {
+ 	if ((curr->state & T_WEAK) ||
+-		IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP)) {
++		IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP)) {
+ 		if (unlikely(atomic_dec_return(&curr->inband_disable_count) < 0)) {
+ 			atomic_set(&curr->inband_disable_count, 0);
+ 			if (curr->state & T_WARN)
+@@ -248,7 +248,7 @@ static inline void clear_pp_boost(struct evl_mutex *mutex,
+ 	drop_booster(mutex, owner);
+ }
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG_MUTEX_INBAND
++#ifdef CONFIG_EVL_DEBUG_MUTEX_INBAND
+ 
+ /*
+  * Detect when a thread is about to wait on a mutex currently owned by
+diff --git a/kernel/evenless/proxy.c b/kernel/evenless/proxy.c
+index e42dc06e5ab..ad83b89d2d9 100644
+--- a/kernel/evenless/proxy.c
++++ b/kernel/evenless/proxy.c
+@@ -266,6 +266,6 @@ struct evl_factory evl_proxy_factory = {
+ 	.fops	=	&proxy_fops,
+ 	.build =	proxy_factory_build,
+ 	.dispose =	proxy_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_PROXIES,
++	.nrdev	=	CONFIG_EVL_NR_PROXIES,
+ 	.flags	=	EVL_FACTORY_CLONE,
+ };
+diff --git a/kernel/evenless/sched/Makefile b/kernel/evenless/sched/Makefile
+index a54f368cfa9..351b9fcca9e 100644
+--- a/kernel/evenless/sched/Makefile
++++ b/kernel/evenless/sched/Makefile
+@@ -1,4 +1,4 @@
+-obj-$(CONFIG_EVENLESS) += evenless.o
++obj-$(CONFIG_EVL) += evenless.o
+ 
+ ccflags-y += -Ikernel
+ 
+@@ -8,4 +8,4 @@ evenless-y :=	\
+ 	idle.o	\
+ 	weak.o
+ 
+-evenless-$(CONFIG_EVENLESS_SCHED_QUOTA) += quota.o
++evenless-$(CONFIG_EVL_SCHED_QUOTA) += quota.o
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index a3f4aa2dd23..52503ae2d91 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -57,15 +57,15 @@ static void register_classes(void)
+ {
+ 	register_one_class(&evl_sched_idle);
+ 	register_one_class(&evl_sched_weak);
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	register_one_class(&evl_sched_quota);
+ #endif
+ 	register_one_class(&evl_sched_rt);
+ }
+ 
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 
+-static unsigned long wd_timeout_arg = CONFIG_EVENLESS_WATCHDOG_TIMEOUT;
++static unsigned long wd_timeout_arg = CONFIG_EVL_WATCHDOG_TIMEOUT;
+ module_param_named(watchdog_timeout, wd_timeout_arg, ulong, 0644);
+ 
+ static inline ktime_t get_watchdog_timeout(void)
+@@ -110,7 +110,7 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
+ 	}
+ }
+ 
+-#endif /* CONFIG_EVENLESS_WATCHDOG */
++#endif /* CONFIG_EVL_WATCHDOG */
+ 
+ static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
+ {
+@@ -174,12 +174,12 @@ static void init_rq(struct evl_rq *rq, int cpu)
+ 		rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&rq->rrbtimer, rq->rrb_timer_name);
+ 	evl_set_timer_priority(&rq->rrbtimer, EVL_TIMER_LOPRIO);
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 	evl_init_timer(&rq->wdtimer, &evl_mono_clock, watchdog_handler,
+ 		rq, EVL_TIMER_IGRAVITY);
+ 	evl_set_timer_name(&rq->wdtimer, "[watchdog]");
+ 	evl_set_timer_priority(&rq->wdtimer, EVL_TIMER_LOPRIO);
+-#endif /* CONFIG_EVENLESS_WATCHDOG */
++#endif /* CONFIG_EVL_WATCHDOG */
+ 
+ 	evl_set_current_account(rq, &rq->root_thread.stat.account);
+ 
+@@ -209,9 +209,9 @@ static void destroy_rq(struct evl_rq *rq) /* nklock held, irqs off */
+ 	kfree(rq->rrb_timer_name);
+ 	evl_destroy_timer(&rq->root_thread.ptimer);
+ 	evl_destroy_timer(&rq->root_thread.rtimer);
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 	evl_destroy_timer(&rq->wdtimer);
+-#endif /* CONFIG_EVENLESS_WATCHDOG */
++#endif /* CONFIG_EVL_WATCHDOG */
+ }
+ 
+ static inline void set_thread_running(struct evl_rq *rq,
+@@ -269,7 +269,7 @@ struct evl_thread *evl_pick_thread(struct evl_rq *rq)
+ 	return NULL; /* Never executed because of the idle class. */
+ }
+ 
+-#ifdef CONFIG_EVENLESS_DEBUG_CORE
++#ifdef CONFIG_EVL_DEBUG_CORE
+ 
+ void evl_disable_preempt(void)
+ {
+@@ -285,7 +285,7 @@ void evl_enable_preempt(void)
+ }
+ EXPORT_SYMBOL(evl_enable_preempt);
+ 
+-#endif /* CONFIG_EVENLESS_DEBUG_CORE */
++#endif /* CONFIG_EVL_DEBUG_CORE */
+ 
+ /* nklock locked, interrupts off. */
+ void evl_putback_thread(struct evl_thread *thread)
+@@ -671,7 +671,7 @@ static inline int test_resched(struct evl_rq *rq)
+ 
+ static inline void enter_root(struct evl_thread *root)
+ {
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 	evl_stop_timer(&evl_thread_rq(root)->wdtimer);
+ #endif
+ }
+@@ -680,7 +680,7 @@ static inline void leave_root(struct evl_thread *root)
+ {
+ 	dovetail_resume_oob(&root->altsched);
+ 
+-#ifdef CONFIG_EVENLESS_WATCHDOG
++#ifdef CONFIG_EVL_WATCHDOG
+ 	evl_start_timer(&evl_thread_rq(root)->wdtimer,
+ 			evl_abs_timeout(&evl_thread_rq(root)->wdtimer,
+ 					get_watchdog_timeout()),
+@@ -829,7 +829,7 @@ evl_find_sched_class(union evl_sched_param *param,
+ 		if (prio < EVL_CORE_MIN_PRIO || prio > EVL_CORE_MAX_PRIO)
+ 			return NULL;
+ 		break;
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	case SCHED_QUOTA:
+ 		param->quota.prio = attrs->sched_priority;
+ 		param->quota.tgid = attrs->sched_quota_group;
+@@ -915,7 +915,7 @@ int __init evl_init_sched(void)
+ 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
+ 					reschedule_interrupt,
+ 					IRQF_OOB,
+-					"Evenless reschedule",
++					"EVL reschedule",
+ 					&evl_machine_cpudata);
+ 		if (ret)
+ 			goto cleanup_rq;
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index e02de1143fd..37ebd5db5bd 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -146,7 +146,7 @@ int evl_init_thread(struct evl_thread *thread,
+ 	 * state, to speed up branch taking in user-space wherever
+ 	 * this needs to be tested.
+ 	 */
+-	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP))
++	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP))
+ 		flags |= T_DEBUG;
+ 
+ 	cpumask_and(&thread->affinity, &iattr->affinity, &evl_cpu_affinity);
+@@ -1256,7 +1256,7 @@ void __evl_test_cancel(struct evl_thread *curr)
+ 
+ 	do_exit(0);
+ 	/* ... won't return ... */
+-	EVL_WARN_ON(EVENLESS, 1);
++	EVL_WARN_ON(CORE, 1);
+ }
+ EXPORT_SYMBOL_GPL(__evl_test_cancel);
+ 
+@@ -1644,7 +1644,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 	curr = evl_current();
+ 	trace_evl_thread_fault(trapnr, regs);
+ 
+-#if defined(CONFIG_EVENLESS_DEBUG_CORE) || defined(CONFIG_EVENLESS_DEBUG_USER)
++#if defined(CONFIG_EVL_DEBUG_CORE) || defined(CONFIG_EVL_DEBUG_USER)
+ 	if (xnarch_fault_notify(trapnr))
+ 		printk(EVL_WARNING
+ 			"%s switching in-band [pid=%d, excpt=%#x, %spc=%#lx]\n",
+@@ -2031,7 +2031,7 @@ static void __get_sched_attrs(struct evl_sched_class *sched_class,
+ 		goto out;
+ 	}
+ 
+-#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++#ifdef CONFIG_EVL_SCHED_QUOTA
+ 	if (sched_class == &evl_sched_quota) {
+ 		attrs->sched_quota_group = thread->quota->tgid;
+ 		goto out;
+@@ -2487,7 +2487,7 @@ struct evl_factory evl_thread_factory = {
+ 	.fops	=	&thread_fops,
+ 	.build	=	thread_factory_build,
+ 	.dispose =	thread_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_THREADS,
++	.nrdev	=	CONFIG_EVL_NR_THREADS,
+ 	.attrs	=	thread_groups,
+ 	.flags	=	EVL_FACTORY_CLONE,
+ };
+diff --git a/kernel/evenless/tick.c b/kernel/evenless/tick.c
+index 9e839f5b9a3..ba8c825ac80 100644
+--- a/kernel/evenless/tick.c
++++ b/kernel/evenless/tick.c
+@@ -183,7 +183,7 @@ int evl_enable_tick(void)
+ #ifdef CONFIG_SMP
+ 	ret = __request_percpu_irq(TIMER_OOB_IPI,
+ 				clock_ipi_handler,
+-				IRQF_OOB, "Evenless timer IPI",
++				IRQF_OOB, "EVL timer IPI",
+ 				&evl_machine_cpudata);
+ 	if (ret)
+ 		return ret;
+diff --git a/kernel/evenless/timer.c b/kernel/evenless/timer.c
+index 9995da24652..0cec520856c 100644
+--- a/kernel/evenless/timer.c
++++ b/kernel/evenless/timer.c
+@@ -325,10 +325,10 @@ void __evl_init_timer(struct evl_timer *timer,
+ 	timer->base = evl_percpu_timers(clock, evl_rq_cpu(rq));
+ 	timer->clock = clock;
+ 
+-#ifdef CONFIG_EVENLESS_STATS
++#ifdef CONFIG_EVL_RUNSTATS
+ 	timer->name = "anon";
+ 	evl_reset_timer_stats(timer);
+-#endif /* CONFIG_EVENLESS_STATS */
++#endif /* CONFIG_EVL_RUNSTATS */
+ }
+ EXPORT_SYMBOL_GPL(__evl_init_timer);
+ 
+@@ -380,7 +380,7 @@ void evl_bolt_timer(struct evl_timer *timer, /* nklocked, IRQs off */
+ 	 * since clock ticks would never happen on that CPU.
+ 	 */
+ 	cpu = evl_rq_cpu(rq);
+-	if (EVL_WARN_ON_SMP(EVENLESS,
++	if (EVL_WARN_ON_SMP(CORE,
+ 			!cpumask_empty(&master->affinity) &&
+ 			!cpumask_test_cpu(cpu, &master->affinity)))
+ 		return;
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 41ad07b3154..085b8315caf 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -39,7 +39,7 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+ 
+ 	trace_evl_wait(wq);
+ 
+-	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP) &&
++	if (IS_ENABLED(CONFIG_EVL_DEBUG_MUTEX_SLEEP) &&
+ 		atomic_read(&curr->inband_disable_count) &&
+ 		(curr->state & T_WARN))
+ 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
+diff --git a/kernel/evenless/xbuf.c b/kernel/evenless/xbuf.c
+index 86c244f4670..0ffce3a1d15 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evenless/xbuf.c
+@@ -780,7 +780,7 @@ struct evl_factory evl_xbuf_factory = {
+ 	.fops	=	&xbuf_fops,
+ 	.build =	xbuf_factory_build,
+ 	.dispose =	xbuf_factory_dispose,
+-	.nrdev	=	CONFIG_EVENLESS_NR_XBUFS,
++	.nrdev	=	CONFIG_EVL_NR_XBUFS,
+ 	.attrs	=	xbuf_groups,
+ 	.flags	=	EVL_FACTORY_CLONE,
+ };
+-- 
+2.16.4
+

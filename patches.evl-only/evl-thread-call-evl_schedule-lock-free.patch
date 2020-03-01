@@ -1,0 +1,40 @@
+From 57e2adb8300e082d92ece7d0b12d473149048134 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 10:59:57 +0100
+Subject: [PATCH] evl/thread: call evl_schedule() lock-free
+
+---
+ kernel/evenless/thread.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index b857a3865c9..a64b3eafc88 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -436,9 +436,10 @@ void evl_start_thread(struct evl_thread *thread)
+ 
+ 	trace_evl_thread_start(thread);
+ 	evl_release_thread(thread, T_DORMANT);
+-	evl_schedule();
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
++
++	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_start_thread);
+ 
+@@ -1940,9 +1941,9 @@ static void handle_sigwake_event(struct task_struct *p)
+ 	 */
+ 	__evl_kick_thread(thread);
+ 
+-	evl_schedule();
+-
+ 	xnlock_put_irqrestore(&nklock, flags);
++
++	evl_schedule();
+ }
+ 
+ static void handle_cleanup_event(struct mm_struct *mm)
+-- 
+2.16.4
+

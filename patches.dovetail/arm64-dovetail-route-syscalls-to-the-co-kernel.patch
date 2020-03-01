@@ -1,0 +1,70 @@
+From 4ee46d755d270e81aed9054b74951a1745a99c4d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 14 Sep 2018 10:50:46 +0200
+Subject: [PATCH] arm64: dovetail: route syscalls to the co-kernel
+
+---
+ arch/arm64/include/asm/daifflags.h |  2 +-
+ arch/arm64/kernel/syscall.c        | 21 ++++++++++++++++++++-
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/include/asm/daifflags.h b/arch/arm64/include/asm/daifflags.h
+index aacaed615ea..ac56afb3ada 100644
+--- a/arch/arm64/include/asm/daifflags.h
++++ b/arch/arm64/include/asm/daifflags.h
+@@ -20,7 +20,7 @@
+ 
+ /*
+  * IRQ_PIPELINE: DAIF masking is only used in contexts where hard
+- * interrupt masking applies, so no need to virtualize for the root
++ * interrupt masking applies, so no need to virtualize for the inband
+  * stage here (the pipeline core does assume this).
+  */
+ 
+diff --git a/arch/arm64/kernel/syscall.c b/arch/arm64/kernel/syscall.c
+index 5610ac01c1e..58597f20d9b 100644
+--- a/arch/arm64/kernel/syscall.c
++++ b/arch/arm64/kernel/syscall.c
+@@ -63,12 +63,29 @@ void syscall_trace_exit(struct pt_regs *regs);
+ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+ 			   const syscall_fn_t syscall_table[])
+ {
+-	unsigned long flags = current_thread_info()->flags;
++	bool stalled = irqs_pipelined() && running_inband() && irqs_disabled();
++	struct thread_info *ti = current_thread_info();
++	unsigned long flags = ti->flags;
++	int ret;
+ 
+ 	regs->orig_x0 = regs->regs[0];
+ 	regs->syscallno = scno;
+ 
+ 	local_daif_restore(DAIF_PROCCTX);
++
++	if (stalled)
++		local_irq_enable();
++
++	ret = pipeline_syscall(ti, scno, regs);
++	if (ret) {
++		if (stalled)
++			local_irq_disable();
++		local_daif_mask();
++		if (ret > 0 || !has_syscall_work(flags))
++			trace_hardirqs_on();
++		return;
++	}
++
+ 	user_exit();
+ 
+ 	if (has_syscall_work(flags)) {
+@@ -91,6 +108,8 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
+ 		local_daif_mask();
+ 		flags = current_thread_info()->flags;
+ 		if (!has_syscall_work(flags)) {
++			if (stalled)
++				local_irq_disable();
+ 			/*
+ 			 * We're off to userspace, where interrupts are
+ 			 * always enabled after we restore the flags from
+-- 
+2.16.4
+

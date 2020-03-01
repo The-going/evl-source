@@ -1,0 +1,532 @@
+From 1849e3bee4a4bdade6618b82facfd660af48217b Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 8 Feb 2019 19:27:43 +0100
+Subject: [PATCH] evl: rename sfilp to efilp
+
+For consistency with the base type being referred to (struct
+evl_file).
+---
+ include/evenless/file.h   | 18 ++++++++--------
+ include/evenless/xbuf.h   |  4 ++--
+ kernel/evenless/clock.c   | 10 ++++-----
+ kernel/evenless/file.c    | 52 +++++++++++++++++++++++------------------------
+ kernel/evenless/monitor.c | 28 ++++++++++++-------------
+ kernel/evenless/poller.c  | 20 +++++++++---------
+ kernel/evenless/syscall.c | 24 +++++++++++-----------
+ kernel/evenless/xbuf.c    | 14 ++++++-------
+ 8 files changed, 85 insertions(+), 85 deletions(-)
+
+diff --git a/include/evenless/file.h b/include/evenless/file.h
+index 265a67e8302..674bcddf24c 100644
+--- a/include/evenless/file.h
++++ b/include/evenless/file.h
+@@ -26,7 +26,7 @@ struct evl_file {
+ 
+ struct evl_fd {
+ 	unsigned int fd;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 	struct files_struct *files;
+ 	struct rb_node rb;
+ };
+@@ -36,26 +36,26 @@ struct evl_file_binding {
+ 	struct evl_element *element;
+ };
+ 
+-int evl_open_file(struct evl_file *sfilp,
++int evl_open_file(struct evl_file *efilp,
+ 		struct file *filp);
+ 
+-void evl_release_file(struct evl_file *sfilp);
++void evl_release_file(struct evl_file *efilp);
+ 
+ static inline
+-void evl_get_fileref(struct evl_file *sfilp)
++void evl_get_fileref(struct evl_file *efilp)
+ {
+-	atomic_inc(&sfilp->oob_refs);
++	atomic_inc(&efilp->oob_refs);
+ }
+ 
+ struct evl_file *evl_get_file(unsigned int fd);
+ 
+-void __evl_put_file(struct evl_file *sfilp);
++void __evl_put_file(struct evl_file *efilp);
+ 
+ static inline
+-void evl_put_file(struct evl_file *sfilp) /* OOB */
++void evl_put_file(struct evl_file *efilp) /* OOB */
+ {
+-	if (atomic_dec_return(&sfilp->oob_refs) == 0)
+-		__evl_put_file(sfilp);
++	if (atomic_dec_return(&efilp->oob_refs) == 0)
++		__evl_put_file(efilp);
+ }
+ 
+ int evl_init_files(void);
+diff --git a/include/evenless/xbuf.h b/include/evenless/xbuf.h
+index 2097508ff28..6006addc081 100644
+--- a/include/evenless/xbuf.h
++++ b/include/evenless/xbuf.h
+@@ -13,9 +13,9 @@ struct evl_file;
+ struct evl_xbuf;
+ 
+ struct evl_xbuf *evl_get_xbuf(int efd,
+-			struct evl_file **sfilpp);
++			struct evl_file **efilpp);
+ 
+-void evl_put_xbuf(struct evl_file *sfilp);
++void evl_put_xbuf(struct evl_file *efilp);
+ 
+ ssize_t evl_read_xbuf(struct evl_xbuf *xbuf,
+ 		void *buf, size_t count,
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index e7d5e19cdcc..7d33811fd5b 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(evl_unregister_clock);
+ struct evl_clock *evl_get_clock_by_fd(int efd)
+ {
+ 	struct evl_clock *clock = NULL;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 
+ 	switch (efd) {
+ 	case EVL_CLOCK_MONOTONIC:
+@@ -407,11 +407,11 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
+ 		evl_get_element(&clock->element);
+ 		break;
+ 	default:
+-		sfilp = evl_get_file(efd);
+-		if (sfilp && sfilp->filp->f_op == &clock_fops) {
+-			clock = element_of(sfilp->filp, struct evl_clock);
++		efilp = evl_get_file(efd);
++		if (efilp && efilp->filp->f_op == &clock_fops) {
++			clock = element_of(efilp->filp, struct evl_clock);
+ 			evl_get_element(&clock->element);
+-			evl_put_file(sfilp);
++			evl_put_file(efilp);
+ 		}
+ 	}
+ 
+diff --git a/kernel/evenless/file.c b/kernel/evenless/file.c
+index 9627287f2a2..0f916f537b2 100644
+--- a/kernel/evenless/file.c
++++ b/kernel/evenless/file.c
+@@ -117,7 +117,7 @@ void install_inband_fd(unsigned int fd, struct file *filp,
+ 	if (sfd) {
+ 		sfd->fd = fd;
+ 		sfd->files = files;
+-		sfd->sfilp = filp->oob_data;
++		sfd->efilp = filp->oob_data;
+ 		raw_spin_lock_irqsave(&fdt_lock, flags);
+ 		ret = index_sfd(sfd, filp);
+ 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
+@@ -156,7 +156,7 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
+ 
+ 	sfd = lookup_sfd(fd, files);
+ 	if (sfd) {
+-		sfd->sfilp = filp->oob_data;
++		sfd->efilp = filp->oob_data;
+ 		raw_spin_unlock_irqrestore(&fdt_lock, flags);
+ 		return;
+ 	}
+@@ -168,47 +168,47 @@ void replace_inband_fd(unsigned int fd, struct file *filp,
+ 
+ struct evl_file *evl_get_file(unsigned int fd) /* OOB */
+ {
+-	struct evl_file *sfilp = NULL;
++	struct evl_file *efilp = NULL;
+ 	struct evl_fd *sfd;
+ 	unsigned long flags;
+ 
+ 	raw_spin_lock_irqsave(&fdt_lock, flags);
+ 	sfd = lookup_sfd(fd, current->files);
+ 	if (sfd) {
+-		sfilp = sfd->sfilp;
+-		evl_get_fileref(sfilp);
++		efilp = sfd->efilp;
++		evl_get_fileref(efilp);
+ 	}
+ 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+ 
+-	return sfilp;
++	return efilp;
+ }
+ 
+ static void release_oob_ref(struct irq_work *work)
+ {
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 
+-	sfilp = container_of(work, struct evl_file, oob_work);
+-	complete(&sfilp->oob_done);
++	efilp = container_of(work, struct evl_file, oob_work);
++	complete(&efilp->oob_done);
+ }
+ 
+-void __evl_put_file(struct evl_file *sfilp)
++void __evl_put_file(struct evl_file *efilp)
+ {
+-	init_irq_work(&sfilp->oob_work, release_oob_ref);
+-	irq_work_queue(&sfilp->oob_work);
++	init_irq_work(&efilp->oob_work, release_oob_ref);
++	irq_work_queue(&efilp->oob_work);
+ }
+ 
+ /**
+  * evl_open_file - Open new file with OOB capabilities
+  *
+- * Called by chrdev with OOB capabilities when a new @sfilp is
+- * opened. @sfilp is paired with the in-band file struct at @filp.
++ * Called by chrdev with OOB capabilities when a new @efilp is
++ * opened. @efilp is paired with the in-band file struct at @filp.
+  */
+-int evl_open_file(struct evl_file *sfilp, struct file *filp)
++int evl_open_file(struct evl_file *efilp, struct file *filp)
+ {
+-	sfilp->filp = filp;
+-	filp->oob_data = sfilp;	/* mark filp as OOB-capable. */
+-	atomic_set(&sfilp->oob_refs, 1);
+-	init_completion(&sfilp->oob_done);
++	efilp->filp = filp;
++	filp->oob_data = efilp;	/* mark filp as OOB-capable. */
++	atomic_set(&efilp->oob_refs, 1);
++	init_completion(&efilp->oob_done);
+ 
+ 	return 0;
+ }
+@@ -216,26 +216,26 @@ int evl_open_file(struct evl_file *sfilp, struct file *filp)
+ /**
+  * evl_release_file - Drop an OOB-capable file
+  *
+- * Called by chrdev with OOB capabilities when @sfilp is about to be
++ * Called by chrdev with OOB capabilities when @efilp is about to be
+  * released. Must be called from a fops->release() handler, and paired
+  * with a previous call to evl_open_file() from the fops->open()
+  * handler.
+  */
+-void evl_release_file(struct evl_file *sfilp)
++void evl_release_file(struct evl_file *efilp)
+ {
+ 	/*
+-	 * Release the original reference on @sfilp. If OOB references
++	 * Release the original reference on @efilp. If OOB references
+ 	 * are still pending (e.g. some thread is still blocked in
+ 	 * fops->oob_read()), we must wait for them to be dropped
+-	 * before allowing the in-band code to dismantle @sfilp->filp.
++	 * before allowing the in-band code to dismantle @efilp->filp.
+ 	 *
+ 	 * NOTE: In-band and OOB fds are working together in lockstep
+ 	 * mode via dovetail_install/uninstall_fd() calls.  Therefore,
+-	 * we can't livelock with evl_get_file() as @sfilp was
++	 * we can't livelock with evl_get_file() as @efilp was
+ 	 * removed from the fd tree before fops->release() called us.
+ 	 */
+-	if (atomic_dec_return(&sfilp->oob_refs) > 0)
+-		wait_for_completion(&sfilp->oob_done);
++	if (atomic_dec_return(&efilp->oob_refs) > 0)
++		wait_for_completion(&efilp->oob_done);
+ }
+ 
+ void evl_cleanup_files(void)
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index 01a4760bcaf..b53aba0f4fe 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -41,13 +41,13 @@ struct evl_monitor {
+ 
+ static const struct file_operations monitor_fops;
+ 
+-struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **sfilpp)
++struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **efilpp)
+ {
+-	struct evl_file *sfilp = evl_get_file(efd);
++	struct evl_file *efilp = evl_get_file(efd);
+ 
+-	if (sfilp && sfilp->filp->f_op == &monitor_fops) {
+-		*sfilpp = sfilp;
+-		return element_of(sfilp->filp, struct evl_monitor);
++	if (efilp && efilp->filp->f_op == &monitor_fops) {
++		*efilpp = efilp;
++		return element_of(efilp->filp, struct evl_monitor);
+ 	}
+ 
+ 	return NULL;
+@@ -56,11 +56,11 @@ struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **sfilpp)
+ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
+ {
+ 	struct evl_monitor *event;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 	unsigned long flags;
+ 	int ret = -EAGAIN;
+ 
+-	event = get_monitor_by_fd(monfd, &sfilp);
++	event = get_monitor_by_fd(monfd, &efilp);
+ 	if (event == NULL)
+ 		return -EINVAL;
+ 
+@@ -84,7 +84,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+ out:
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ 
+ 	return ret;
+ }
+@@ -279,7 +279,7 @@ static int wait_monitor(struct evl_monitor *event,
+ 	struct evl_thread *curr = evl_current();
+ 	int ret = 0, op_ret = 0, info;
+ 	struct evl_monitor *gate;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 	enum evl_tmode tmode;
+ 	unsigned long flags;
+ 	ktime_t timeout;
+@@ -295,7 +295,7 @@ static int wait_monitor(struct evl_monitor *event,
+ 	}
+ 
+ 	/* Find the gate monitor protecting us. */
+-	gate = get_monitor_by_fd(req->gatefd, &sfilp);
++	gate = get_monitor_by_fd(req->gatefd, &efilp);
+ 	if (gate == NULL) {
+ 		op_ret = -EINVAL;
+ 		goto out;
+@@ -358,7 +358,7 @@ static int wait_monitor(struct evl_monitor *event,
+ unlock:
+ 	xnlock_put_irqrestore(&nklock, flags);
+ put:
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ out:
+ 	*r_op_ret = op_ret;
+ 
+@@ -369,7 +369,7 @@ static int unwait_monitor(struct evl_monitor *event,
+ 			struct evl_monitor_unwaitreq *req)
+ {
+ 	struct evl_monitor *gate;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 	unsigned long flags;
+ 	int ret;
+ 
+@@ -377,7 +377,7 @@ static int unwait_monitor(struct evl_monitor *event,
+ 		return -EINVAL;
+ 
+ 	/* Find the gate monitor we need to re-acquire. */
+-	gate = get_monitor_by_fd(req->gatefd, &sfilp);
++	gate = get_monitor_by_fd(req->gatefd, &efilp);
+ 	if (gate == NULL)
+ 		return -EINVAL;
+ 
+@@ -388,7 +388,7 @@ static int unwait_monitor(struct evl_monitor *event,
+ 		xnlock_put_irqrestore(&nklock, flags);
+ 	}
+ 
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ 
+ 	return ret;
+ }
+diff --git a/kernel/evenless/poller.c b/kernel/evenless/poller.c
+index 5130b93c306..3c0ededcafd 100644
+--- a/kernel/evenless/poller.c
++++ b/kernel/evenless/poller.c
+@@ -32,7 +32,7 @@ struct event_poller {
+ 
+ struct poll_node {
+ 	unsigned int fd;
+-	struct evl_file *sfilp;
++	struct evl_file *efilp;
+ 	int events_polled;
+ 	struct event_poller *poller;
+ 	struct rb_node rb;	/* in poller->node_index */
+@@ -155,8 +155,8 @@ static int add_node(struct event_poller *poller,
+ 	node->fd = creq->fd;
+ 	node->events_polled = creq->events;
+ 
+-	node->sfilp = evl_get_file(creq->fd);
+-	if (node->sfilp == NULL) {
++	node->efilp = evl_get_file(creq->fd);
++	if (node->efilp == NULL) {
+ 		ret = -EBADF;
+ 		goto fail_get;
+ 	}
+@@ -178,7 +178,7 @@ static int add_node(struct event_poller *poller,
+ 
+ fail_add:
+ 	raw_spin_unlock_irqrestore(&poller->lock, flags);
+-	evl_put_file(node->sfilp);
++	evl_put_file(node->efilp);
+ fail_get:
+ 	evl_free(node);
+ 
+@@ -207,7 +207,7 @@ lookup_node(struct rb_root *root, unsigned int fd)
+ 
+ static void __del_node(struct poll_node *node)
+ {
+-	evl_put_file(node->sfilp);
++	evl_put_file(node->efilp);
+ 	evl_free(node);
+ }
+ 
+@@ -334,7 +334,7 @@ static int collect_events(struct event_poller *poller,
+ 
+ 	wpt = table;
+ 	list_for_each_entry(node, &poller->node_list, next) {
+-		evl_get_fileref(node->sfilp);
++		evl_get_fileref(node->efilp);
+ 		wpt->node = *node;
+ 		wpt++;
+ 	}
+@@ -344,15 +344,15 @@ static int collect_events(struct event_poller *poller,
+ 
+ 	/*
+ 	 * Provided that each f_op->release of the OOB drivers maintaining
+-	 * wpt->node.sfilp is properly calling evl_release_file()
++	 * wpt->node.efilp is properly calling evl_release_file()
+ 	 * before it dismantles the file, having a reference on
+-	 * wpt->sfilp guarantees us that wpt->sfilp->filp is stable
++	 * wpt->efilp guarantees us that wpt->efilp->filp is stable
+ 	 * until the last ref. is dropped via evl_put_file().
+ 	 */
+ 	for (n = 0, wpt = table; n < nr; n++, wpt++) {
+ 		if (do_poll) {
+ 			ready = POLLIN|POLLOUT|POLLRDNORM|POLLWRNORM; /* Default. */
+-			filp = wpt->node.sfilp->filp;
++			filp = wpt->node.efilp->filp;
+ 			if (filp->f_op->oob_poll)
+ 				ready = filp->f_op->oob_poll(filp, &wpt->wait);
+ 		} else
+@@ -390,7 +390,7 @@ static inline void clear_wait(void)
+ 		raw_spin_lock_irqsave(&wpt->head->lock, flags);
+ 		list_del(&wpt->wait.next);
+ 		raw_spin_unlock_irqrestore(&wpt->head->lock, flags);
+-		evl_put_file(wpt->node.sfilp);
++		evl_put_file(wpt->node.efilp);
+ 	}
+ }
+ 
+diff --git a/kernel/evenless/syscall.c b/kernel/evenless/syscall.c
+index 2b6b786ebe4..865eeb381b6 100644
+--- a/kernel/evenless/syscall.c
++++ b/kernel/evenless/syscall.c
+@@ -242,14 +242,14 @@ int handle_oob_syscall(struct pt_regs *regs)
+ 
+ static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
+ {
+-	struct evl_file *sfilp = evl_get_file(fd);
++	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+ 	ssize_t ret;
+ 
+-	if (sfilp == NULL)
++	if (efilp == NULL)
+ 		return -EBADF;
+ 
+-	filp = sfilp->filp;
++	filp = efilp->filp;
+ 	if (!(filp->f_mode & FMODE_READ)) {
+ 		ret = -EBADF;
+ 		goto out;
+@@ -262,21 +262,21 @@ static EVENLESS_SYSCALL(read, (int fd, char __user *u_buf, size_t size))
+ 
+ 	ret = filp->f_op->oob_read(filp, u_buf, size);
+ out:
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ 
+ 	return ret;
+ }
+ 
+ static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+ {
+-	struct evl_file *sfilp = evl_get_file(fd);
++	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+ 	ssize_t ret;
+ 
+-	if (sfilp == NULL)
++	if (efilp == NULL)
+ 		return -EBADF;
+ 
+-	filp = sfilp->filp;
++	filp = efilp->filp;
+ 	if (!(filp->f_mode & FMODE_WRITE)) {
+ 		ret = -EBADF;
+ 		goto out;
+@@ -289,7 +289,7 @@ static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+ 
+ 	ret = filp->f_op->oob_write(filp, u_buf, size);
+ out:
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ 
+ 	return ret;
+ }
+@@ -297,14 +297,14 @@ static EVENLESS_SYSCALL(write, (int fd, const char __user *u_buf, size_t size))
+ static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
+ 				unsigned long arg))
+ {
+-	struct evl_file *sfilp = evl_get_file(fd);
++	struct evl_file *efilp = evl_get_file(fd);
+ 	struct file *filp;
+ 	long ret;
+ 
+-	if (sfilp == NULL)
++	if (efilp == NULL)
+ 		return -EBADF;
+ 
+-	filp = sfilp->filp;
++	filp = efilp->filp;
+ 	if (filp->f_op->oob_ioctl) {
+ 		ret = filp->f_op->oob_ioctl(filp, request, arg);
+ 		if (ret == -ENOIOCTLCMD)
+@@ -312,7 +312,7 @@ static EVENLESS_SYSCALL(ioctl, (int fd, unsigned int request,
+ 	} else
+ 		ret = -ENOTTY;
+ 
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ 
+ 	return ret;
+ }
+diff --git a/kernel/evenless/xbuf.c b/kernel/evenless/xbuf.c
+index ae0cf9ee9ca..c9442ee2107 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evenless/xbuf.c
+@@ -584,22 +584,22 @@ static const struct file_operations xbuf_fops = {
+ 	.oob_poll	= xbuf_oob_poll,
+ };
+ 
+-struct evl_xbuf *evl_get_xbuf(int efd, struct evl_file **sfilpp)
++struct evl_xbuf *evl_get_xbuf(int efd, struct evl_file **efilpp)
+ {
+-	struct evl_file *sfilp = evl_get_file(efd);
++	struct evl_file *efilp = evl_get_file(efd);
+ 
+-	if (sfilp && sfilp->filp->f_op == &xbuf_fops) {
+-		*sfilpp = sfilp;
+-		return element_of(sfilp->filp, struct evl_xbuf);
++	if (efilp && efilp->filp->f_op == &xbuf_fops) {
++		*efilpp = efilp;
++		return element_of(efilp->filp, struct evl_xbuf);
+ 	}
+ 
+ 	return NULL;
+ }
+ EXPORT_SYMBOL_GPL(evl_get_xbuf);
+ 
+-void evl_put_xbuf(struct evl_file *sfilp)
++void evl_put_xbuf(struct evl_file *efilp)
+ {
+-	evl_put_file(sfilp);
++	evl_put_file(efilp);
+ }
+ EXPORT_SYMBOL_GPL(evl_put_xbuf);
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,125 @@
+From c3074608e78c4b8cc240c2d64f6f29a40b50fced Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 7 Dec 2015 11:49:50 +0100
+Subject: [PATCH] ARM: introduce raw console device
+
+---
+ arch/arm/kernel/Makefile     |  3 +++
+ arch/arm/kernel/raw_printk.c | 30 ++++++++++++++++++++++++++++++
+ include/linux/printk.h       |  3 +++
+ kernel/printk/printk.c       | 21 ++++++++++++++-------
+ 4 files changed, 50 insertions(+), 7 deletions(-)
+ create mode 100644 arch/arm/kernel/raw_printk.c
+
+diff --git a/arch/arm/kernel/Makefile b/arch/arm/kernel/Makefile
+index 8cad59465af..9ab239f7388 100644
+--- a/arch/arm/kernel/Makefile
++++ b/arch/arm/kernel/Makefile
+@@ -88,6 +88,9 @@ obj-$(CONFIG_PARAVIRT)	+= paravirt.o
+ head-y			:= head$(MMUEXT).o
+ obj-$(CONFIG_DEBUG_LL)	+= debug.o
+ obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
++ifeq ($(CONFIG_DEBUG_LL),y)
++obj-$(CONFIG_RAW_PRINTK)	+= raw_printk.o
++endif
+ 
+ # This is executed very early using a temporary stack when no memory allocator
+ # nor global data is available. Everything has to be allocated on the stack.
+diff --git a/arch/arm/kernel/raw_printk.c b/arch/arm/kernel/raw_printk.c
+new file mode 100644
+index 00000000000..9024b772fca
+--- /dev/null
++++ b/arch/arm/kernel/raw_printk.c
+@@ -0,0 +1,30 @@
++#include <linux/kernel.h>
++#include <linux/console.h>
++#include <linux/init.h>
++
++/*
++ * If both CONFIG_DEBUG_LL and CONFIG_RAW_PRINTK are set, create a
++ * console device sending the raw output to printascii().
++ */
++void printascii(const char *s);
++
++static void raw_console_write(struct console *co,
++			      const char *s, unsigned count)
++{
++	printascii(s);
++}
++
++static struct console raw_console = {
++	.name		= "rawcon",
++	.write_raw	= raw_console_write,
++	.flags		= CON_PRINTBUFFER | CON_ENABLED,
++	.index		= -1,
++};
++
++static int __init raw_console_init(void)
++{
++	register_console(&raw_console);
++
++	return 0;
++}
++console_initcall(raw_console_init);
+diff --git a/include/linux/printk.h b/include/linux/printk.h
+index 25844df4573..6f6f0fd979d 100644
+--- a/include/linux/printk.h
++++ b/include/linux/printk.h
+@@ -158,11 +158,14 @@ static inline void printk_nmi_direct_exit(void) { }
+ #endif /* PRINTK_NMI */
+ 
+ #ifdef CONFIG_RAW_PRINTK
++void raw_puts(const char *s, size_t len);
+ void raw_vprintk(const char *fmt, va_list ap);
+ asmlinkage __printf(1, 2)
+ void raw_printk(const char *fmt, ...);
+ #else
+ static inline __cold
++void raw_puts(const char *s, size_t len) { }
++static inline __cold
+ void raw_vprintk(const char *s, va_list ap) { }
+ static inline __printf(1, 2) __cold
+ void raw_printk(const char *s, ...) { }
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 3243b850f76..dc4e97f12e0 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -2053,21 +2053,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+ static struct console *raw_console;
+ static DEFINE_RAW_SPINLOCK(raw_console_lock);
+ 
+-void raw_vprintk(const char *fmt, va_list ap)
++void raw_puts(const char *s, size_t len)
+ {
+ 	unsigned long flags;
++
++	raw_spin_lock_irqsave(&raw_console_lock, flags);
++	if (raw_console)
++		raw_console->write_raw(raw_console, s, len);
++	raw_spin_unlock_irqrestore(&raw_console_lock, flags);
++}
++EXPORT_SYMBOL(raw_puts);
++
++void raw_vprintk(const char *fmt, va_list ap)
++{
+ 	char buf[256];
+-	int n;
++	size_t n;
+ 
+ 	if (raw_console == NULL || console_suspended)
+ 		return;
+ 
+-	n = vscnprintf(buf, sizeof(buf), fmt, ap);
+         touch_nmi_watchdog();
+-	raw_spin_lock_irqsave(&raw_console_lock, flags);
+-	if (raw_console)
+-		raw_console->write_raw(raw_console, buf, n);
+-	raw_spin_unlock_irqrestore(&raw_console_lock, flags);
++	n = vscnprintf(buf, sizeof(buf), fmt, ap);
++	raw_puts(buf, n);
+ }
+ EXPORT_SYMBOL(raw_vprintk);
+ 
+-- 
+2.16.4
+

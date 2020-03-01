@@ -1,0 +1,411 @@
+From fce96597b0c1ffe15a772580274b88ee405a719a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 8 Mar 2019 18:10:20 +0100
+Subject: [PATCH] evl/sched: quota: handle control request
+
+---
+ include/evenless/sched.h        |   3 ++
+ include/uapi/evenless/control.h |   3 ++
+ include/uapi/evenless/sched.h   |  45 ++++++++++++++++
+ kernel/evenless/control.c       |  82 +++++++++++++++++++++++++++++-
+ kernel/evenless/sched/core.c    |   2 +-
+ kernel/evenless/sched/quota.c   | 110 +++++++++++++++++++++++++++++++++-------
+ 6 files changed, 225 insertions(+), 20 deletions(-)
+
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 76cc0d86894..47a73542b37 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -113,6 +113,7 @@ extern struct list_head evl_thread_list;
+ extern int evl_nrthreads;
+ 
+ union evl_sched_param;
++struct evl_sched_config;
+ 
+ struct evl_sched_class {
+ 	void (*sched_init)(struct evl_rq *rq);
+@@ -163,6 +164,8 @@ struct evl_sched_class {
+ 	void (*sched_kick)(struct evl_thread *thread);
+ 	ssize_t (*sched_show)(struct evl_thread *thread,
+ 			      char *buf, ssize_t count);
++	int (*sched_control)(int cpu, union evl_sched_ctlparam *ctlp,
++			union evl_sched_ctlinfo *infp);
+ 	int nthreads;
+ 	struct evl_sched_class *next;
+ 	int weight;
+diff --git a/include/uapi/evenless/control.h b/include/uapi/evenless/control.h
+index e0715014d95..7a1535e8cc5 100644
+--- a/include/uapi/evenless/control.h
++++ b/include/uapi/evenless/control.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVENLESS_UAPI_CONTROL_H
+ #define _EVENLESS_UAPI_CONTROL_H
+ 
++#include <uapi/evenless/sched.h>
++
+ struct evl_core_info {
+ 	__u32 abi_level;
+ 	__u32 fpu_features;
+@@ -16,5 +18,6 @@ struct evl_core_info {
+ #define EVL_CONTROL_IOCBASE	'C'
+ 
+ #define EVL_CTLIOC_GET_COREINFO		_IOR(EVL_CONTROL_IOCBASE, 0, struct evl_core_info)
++#define EVL_CTLIOC_SCHEDCTL		_IOWR(EVL_CONTROL_IOCBASE, 1, struct evl_sched_ctlreq)
+ 
+ #endif /* !_EVENLESS_UAPI_CONTROL_H */
+diff --git a/include/uapi/evenless/sched.h b/include/uapi/evenless/sched.h
+index 38a0e05a1bc..3ab7191cb3e 100644
+--- a/include/uapi/evenless/sched.h
++++ b/include/uapi/evenless/sched.h
+@@ -33,4 +33,49 @@ struct evl_sched_attrs {
+ 	} sched_u;
+ };
+ 
++struct evl_quota_ctlparam {
++	enum {
++		evl_quota_add,
++		evl_quota_remove,
++		evl_quota_force_remove,
++		evl_quota_set,
++		evl_quota_get,
++	} op;
++	union {
++		struct {
++			int tgid;
++		} remove;
++		struct {
++			int tgid;
++			int quota;
++			int quota_peak;
++		} set;
++		struct {
++			int tgid;
++		} get;
++	} u;
++};
++
++union evl_sched_ctlparam {
++	struct evl_quota_ctlparam quota;
++};
++
++struct evl_quota_ctlinfo {
++	int tgid;
++	int quota;
++	int quota_peak;
++	int quota_sum;
++};
++
++union evl_sched_ctlinfo {
++	struct evl_quota_ctlinfo quota;
++};
++
++struct evl_sched_ctlreq {
++	int policy;
++	int cpu;
++	union evl_sched_ctlparam *param;
++	union evl_sched_ctlinfo *info;
++};
++
+ #endif /* !_EVENLESS_UAPI_SCHED_H */
+diff --git a/kernel/evenless/control.c b/kernel/evenless/control.c
+index 59fe713e2ec..228338da7cc 100644
+--- a/kernel/evenless/control.c
++++ b/kernel/evenless/control.c
+@@ -10,6 +10,7 @@
+ #include <evenless/thread.h>
+ #include <evenless/factory.h>
+ #include <evenless/tick.h>
++#include <evenless/sched.h>
+ #include <evenless/control.h>
+ #include <asm/evenless/syscall.h>
+ #include <asm/evenless/fptest.h>
+@@ -95,6 +96,84 @@ static int stop_services(void)
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_EVENLESS_SCHED_QUOTA
++
++static int do_quota_control(struct evl_sched_ctlreq *ctl)
++{
++	union evl_sched_ctlparam param, __user *u_ctlp;
++	union evl_sched_ctlinfo info, __user *u_infp;
++	int ret;
++
++	u_ctlp = (typeof(u_ctlp))ctl->param;
++	ret = raw_copy_from_user(&param.quota, &u_ctlp->quota,
++				sizeof(param.quota));
++	if (ret)
++		return -EFAULT;
++
++	ret = evl_sched_quota.sched_control(ctl->cpu, &param, &info);
++	if (ret || ctl->info == NULL)
++		return ret;
++
++	u_infp = (typeof(u_infp))ctl->info;
++	ret = raw_copy_to_user(&u_infp->quota, &info.quota,
++			sizeof(info.quota));
++	if (ret)
++		return -EFAULT;
++
++	return 0;
++}
++
++#else
++
++static int do_quota_control(struct evl_sched_ctlreq *ctl)
++{
++	return -EINVAL;
++}
++
++#endif
++
++static int do_sched_control(struct evl_sched_ctlreq *ctl)
++{
++	int ret;
++
++	switch (ctl->policy) {
++	case SCHED_QUOTA:
++		ret = do_quota_control(ctl);
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	return ret;
++}
++
++static long control_common_ioctl(struct file *filp, unsigned int cmd,
++			unsigned long arg)
++{
++	struct evl_sched_ctlreq ctl, __user *u_ctl;
++	long ret;
++
++	switch (cmd) {
++	case EVL_CTLIOC_SCHEDCTL:
++		u_ctl = (typeof(u_ctl))arg;
++		ret = raw_copy_from_user(&ctl, u_ctl, sizeof(ctl));
++		if (ret)
++			return -EFAULT;
++		ret = do_sched_control(&ctl);
++		break;
++	default:
++		ret = -ENOTTY;
++	}
++
++	return ret;
++}
++
++static long control_oob_ioctl(struct file *filp, unsigned int cmd,
++			unsigned long arg)
++{
++	return control_common_ioctl(filp, cmd, arg);
++}
++
+ static long control_ioctl(struct file *filp, unsigned int cmd,
+ 			unsigned long arg)
+ {
+@@ -110,7 +189,7 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
+ 				&info, sizeof(info)) ? -EFAULT : 0;
+ 		break;
+ 	default:
+-		ret = -ENOTTY;
++		ret = control_common_ioctl(filp, cmd, arg);
+ 	}
+ 
+ 	return ret;
+@@ -129,6 +208,7 @@ static int control_mmap(struct file *filp, struct vm_area_struct *vma)
+ }
+ 
+ static const struct file_operations control_fops = {
++	.oob_ioctl	=	control_oob_ioctl,
+ 	.unlocked_ioctl	=	control_ioctl,
+ 	.mmap		=	control_mmap,
+ };
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index 4051047d107..77ed93f8555 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -2,7 +2,7 @@
+  * SPDX-License-Identifier: GPL-2.0
+  *
+  * Derived from Xenomai Cobalt (http://git.xenomai.org/xenomai-3.git/)
+- * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
++ * Copyright (C) 2001, 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
+  */
+ 
+ #include <linux/types.h>
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evenless/sched/quota.c
+index 0207d92320a..237201a52d5 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evenless/sched/quota.c
+@@ -54,6 +54,8 @@
+  */
+ static DECLARE_BITMAP(group_map, CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS);
+ 
++static LIST_HEAD(group_list);
++
+ static inline int group_is_active(struct evl_quota_group *tg)
+ {
+ 	struct evl_thread *curr = tg->rq->curr;
+@@ -468,7 +470,7 @@ static ssize_t quota_show(struct evl_thread *thread,
+ 			thread->quota->tgid);
+ }
+ 
+-int evl_quota_create_group(struct evl_quota_group *tg,
++static int quota_create_group(struct evl_quota_group *tg,
+ 			struct evl_rq *rq,
+ 			int *quota_sum_r)
+ {
+@@ -479,7 +481,7 @@ int evl_quota_create_group(struct evl_quota_group *tg,
+ 
+ 	tgid = find_first_zero_bit(group_map, nr_groups);
+ 	if (tgid >= nr_groups)
+-		return -ENOSPC;
++		return -EAGAIN;
+ 
+ 	__set_bit(tgid, group_map);
+ 	tg->tgid = tgid;
+@@ -505,10 +507,9 @@ int evl_quota_create_group(struct evl_quota_group *tg,
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(evl_quota_create_group);
+ 
+-int evl_quota_destroy_group(struct evl_quota_group *tg,
+-			int force, int *quota_sum_r)
++static int quota_destroy_group(struct evl_quota_group *tg,
++			bool force, int *quota_sum_r)
+ {
+ 	struct evl_sched_quota *qs = &tg->rq->quota;
+ 	struct evl_thread *thread, *tmp;
+@@ -536,9 +537,8 @@ int evl_quota_destroy_group(struct evl_quota_group *tg,
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(evl_quota_destroy_group);
+ 
+-void evl_quota_set_limit(struct evl_quota_group *tg,
++static void quota_set_limit(struct evl_quota_group *tg,
+ 			int quota_percent, int quota_peak_percent,
+ 			int *quota_sum_r)
+ {
+@@ -607,7 +607,90 @@ void evl_quota_set_limit(struct evl_quota_group *tg,
+ 	evl_set_resched(tg->rq);
+ 	evl_schedule();
+ }
+-EXPORT_SYMBOL_GPL(evl_quota_set_limit);
++
++static int quota_control(int cpu, union evl_sched_ctlparam *ctlp,
++			union evl_sched_ctlinfo *infp)
++{
++	struct evl_quota_ctlparam *pq = &ctlp->quota;
++	struct evl_quota_ctlinfo *iq = &infp->quota;
++	struct evl_sched_group *group;
++	struct evl_quota_group *tg;
++	unsigned long flags;
++	int ret, quota_sum;
++	struct evl_rq *rq;
++
++	if (cpu < 0 || !cpu_present(cpu) || !is_threading_cpu(cpu))
++		return -EINVAL;
++
++	switch (pq->op) {
++	case evl_quota_add:
++		group = evl_alloc(sizeof(*group));
++		if (group == NULL)
++			return -ENOMEM;
++		tg = &group->quota;
++		xnlock_get_irqsave(&nklock, flags);
++		rq = evl_cpu_rq(cpu);
++		ret = quota_create_group(tg, rq, &quota_sum);
++		if (ret) {
++			xnlock_put_irqrestore(&nklock, flags);
++			evl_free(group);
++			return ret;
++		}
++		list_add(&group->next, &group_list);
++		break;
++	case evl_quota_remove:
++	case evl_quota_force_remove:
++		xnlock_get_irqsave(&nklock, flags);
++		rq = evl_cpu_rq(cpu);
++		tg = evl_quota_find_group(rq, pq->u.remove.tgid);
++		if (tg == NULL)
++			goto bad_tgid;
++		group = container_of(tg, struct evl_sched_group, quota);
++		ret = quota_destroy_group(tg,
++					pq->op == evl_quota_force_remove,
++					&quota_sum);
++		if (ret) {
++			xnlock_put_irqrestore(&nklock, flags);
++			return ret;
++		}
++		list_del(&group->next);
++		xnlock_put_irqrestore(&nklock, flags);
++		evl_free(group);
++		return 0;
++	case evl_quota_set:
++		xnlock_get_irqsave(&nklock, flags);
++		rq = evl_cpu_rq(cpu);
++		tg = evl_quota_find_group(rq, pq->u.set.tgid);
++		if (tg == NULL)
++			goto bad_tgid;
++		group = container_of(tg, struct evl_sched_group, quota);
++		quota_set_limit(tg, pq->u.set.quota, pq->u.set.quota_peak,
++				&quota_sum);
++		break;
++	case evl_quota_get:
++		xnlock_get_irqsave(&nklock, flags);
++		rq = evl_cpu_rq(cpu);
++		tg = evl_quota_find_group(rq, pq->u.get.tgid);
++		if (tg == NULL)
++			goto bad_tgid;
++		quota_sum = quota_sum_all(&rq->quota);
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	iq->tgid = tg->tgid;
++	iq->quota = tg->quota_percent;
++	iq->quota_peak = tg->quota_peak_percent;
++	xnlock_put_irqrestore(&nklock, flags);
++	iq->quota_sum = quota_sum;
++
++	return 0;
++bad_tgid:
++	xnlock_put_irqrestore(&nklock, flags);
++
++	return -EINVAL;
++}
+ 
+ struct evl_quota_group *
+ evl_quota_find_group(struct evl_rq *rq, int tgid)
+@@ -628,16 +711,6 @@ evl_quota_find_group(struct evl_rq *rq, int tgid)
+ }
+ EXPORT_SYMBOL_GPL(evl_quota_find_group);
+ 
+-int evl_quota_sum_all(struct evl_rq *rq)
+-{
+-	struct evl_sched_quota *qs = &rq->quota;
+-
+-	requires_ugly_lock();
+-
+-	return quota_sum_all(qs);
+-}
+-EXPORT_SYMBOL_GPL(evl_quota_sum_all);
+-
+ struct evl_sched_class evl_sched_quota = {
+ 	.sched_init		=	quota_init,
+ 	.sched_enqueue		=	quota_enqueue,
+@@ -653,6 +726,7 @@ struct evl_sched_class evl_sched_quota = {
+ 	.sched_forget		=	quota_forget,
+ 	.sched_kick		=	quota_kick,
+ 	.sched_show		=	quota_show,
++	.sched_control		=	quota_control,
+ 	.weight			=	EVL_CLASS_WEIGHT(2),
+ 	.policy			=	SCHED_QUOTA,
+ 	.name			=	"quota"
+-- 
+2.16.4
+

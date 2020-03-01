@@ -1,0 +1,25 @@
+From a707dd889df312534b763d9bca827d7ce0e03228 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 8 Feb 2019 19:41:10 +0100
+Subject: [PATCH] evl/clock: add missing fops to builtin clocks
+
+---
+ kernel/evenless/clock.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index 7d33811fd5b..e88d77a0e16 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -587,6 +587,8 @@ static long clock_ioctl(struct file *filp, unsigned int cmd,
+ }
+ 
+ static const struct file_operations clock_fops = {
++	.open		= evl_open_element,
++	.release	= evl_close_element,
+ 	.unlocked_ioctl	= clock_ioctl,
+ 	.oob_ioctl	= clock_oob_ioctl,
+ };
+-- 
+2.16.4
+

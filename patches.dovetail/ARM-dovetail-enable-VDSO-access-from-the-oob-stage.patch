@@ -1,0 +1,49 @@
+From c3932e27928891cf265b34caa8f13a92078aa5c6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 31 Jul 2017 16:28:51 +0200
+Subject: [PATCH] ARM: dovetail: enable VDSO access from the oob stage
+
+Co-kernel threads running in user-space may want to access the VDSO
+page from the head stage, e.g. to call clock-related fast services. In
+such a case, relying on the sequence count exclusively to order R/W
+accesses is unsafe, in case update_vsyscall() is preempted by such
+thread on the same CPU via an OOB interrupt.
+
+i.e. there would be no way for the update sequence running over the
+in-band stage to finish, causing the thread to loop indefinitely over
+the oob stage.
+
+To make it safe, update_vsyscall() must disable hard irqs while
+updating the VDSO page, in order to exclude any preemption. The
+sequence count is still relevant to inform remote CPUs that an update
+is in progress though.
+---
+ arch/arm/kernel/vdso.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
+index fa66f687a7b..0685f3c5833 100644
+--- a/arch/arm/kernel/vdso.c
++++ b/arch/arm/kernel/vdso.c
+@@ -219,6 +219,9 @@ void update_vsyscall(struct timekeeper *tk)
+ {
+ 	struct timespec64 *wtm = &tk->wall_to_monotonic;
+ 	const struct arch_clocksource_data *cd = tk_get_cd(tk);
++	unsigned long flags;
++
++	flags = hard_cond_local_irq_save();
+ 
+ 	vdso_write_begin(vdso_data);
+ 
+@@ -258,6 +261,8 @@ void update_vsyscall(struct timekeeper *tk)
+ 
+ 	vdso_write_end(vdso_data);
+ 
++	hard_cond_local_irq_restore(flags);
++
+ 	flush_dcache_page(virt_to_page(vdso_data));
+ }
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,332 @@
+From 526ca6e20a612522c5768db31b60f1c7888a359f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 08:36:53 +0200
+Subject: [PATCH] tracing: irq_pipeline: enable tracing from oob stage
+
+---
+ kernel/trace/ftrace.c                | 18 +++++++++++++-----
+ kernel/trace/ring_buffer.c           | 17 ++++++++++++++---
+ kernel/trace/trace.c                 | 12 ++++++------
+ kernel/trace/trace_branch.c          |  4 ++--
+ kernel/trace/trace_clock.c           |  4 ++--
+ kernel/trace/trace_functions.c       |  4 ++--
+ kernel/trace/trace_functions_graph.c |  8 ++++----
+ kernel/trace/trace_irqsoff.c         |  6 +++---
+ kernel/trace/trace_sched_wakeup.c    |  2 ++
+ kernel/trace/trace_stack.c           |  5 +++--
+ 10 files changed, 51 insertions(+), 29 deletions(-)
+
+diff --git a/kernel/trace/ftrace.c b/kernel/trace/ftrace.c
+index aac7847c021..63554ae7fae 100644
+--- a/kernel/trace/ftrace.c
++++ b/kernel/trace/ftrace.c
+@@ -5574,10 +5574,10 @@ static int ftrace_process_locs(struct module *mod,
+ 	 * reason to cause large interrupt latencies while we do it.
+ 	 */
+ 	if (!mod)
+-		local_irq_save(flags);
++		flags = hard_local_irq_save();
+ 	ftrace_update_code(mod, start_pg);
+ 	if (!mod)
+-		local_irq_restore(flags);
++		hard_local_irq_restore(flags);
+ 	ret = 0;
+  out:
+ 	mutex_unlock(&ftrace_lock);
+@@ -6119,9 +6119,9 @@ void __init ftrace_init(void)
+ 	unsigned long count, flags;
+ 	int ret;
+ 
+-	local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	ret = ftrace_dyn_arch_init();
+-	local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ 	if (ret)
+ 		goto failed;
+ 
+@@ -6253,7 +6253,15 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
+ 		}
+ 	} while_for_each_ftrace_op(op);
+ out:
+-	preempt_enable_notrace();
++	if (irqs_pipelined() && (hard_irqs_disabled() || !running_inband()))
++		/*
++		 * Nothing urgent to schedule here. At latest the
++		 * timer tick will pick up whatever the tracing
++		 * functions kicked off.
++		 */
++		preempt_enable_no_resched_notrace();
++	else
++		preempt_enable_notrace();
+ 	trace_clear_recursion(bit);
+ }
+ 
+diff --git a/kernel/trace/ring_buffer.c b/kernel/trace/ring_buffer.c
+index 06e864a334b..76b428f0f30 100644
+--- a/kernel/trace/ring_buffer.c
++++ b/kernel/trace/ring_buffer.c
+@@ -2713,8 +2713,8 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
+ static __always_inline int
+ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
+ {
+-	unsigned int val = cpu_buffer->current_context;
+-	unsigned long pc = preempt_count();
++	unsigned int val;
++	unsigned long pc = preempt_count(), flags;
+ 	int bit;
+ 
+ 	if (!(pc & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET)))
+@@ -2723,20 +2723,31 @@ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
+ 		bit = pc & NMI_MASK ? RB_CTX_NMI :
+ 			pc & HARDIRQ_MASK ? RB_CTX_IRQ : RB_CTX_SOFTIRQ;
+ 
+-	if (unlikely(val & (1 << (bit + cpu_buffer->nest))))
++	flags = hard_local_irq_save();
++
++	val = cpu_buffer->current_context;
++	if (unlikely(val & (1 << (bit + cpu_buffer->nest)))) {
++		hard_local_irq_restore(flags);
+ 		return 1;
++	}
+ 
+ 	val |= (1 << (bit + cpu_buffer->nest));
+ 	cpu_buffer->current_context = val;
+ 
++	hard_local_irq_restore(flags);
++
+ 	return 0;
+ }
+ 
+ static __always_inline void
+ trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
+ {
++	unsigned long flags;
++
++	flags = hard_local_irq_save();
+ 	cpu_buffer->current_context &=
+ 		cpu_buffer->current_context - (1 << cpu_buffer->nest);
++	hard_local_irq_restore(flags);
+ }
+ 
+ /* The recursive locking above uses 4 bits */
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index 8ea9f652028..3c60c759e2f 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -919,9 +919,9 @@ void tracing_snapshot_instance(struct trace_array *tr)
+ 		return;
+ 	}
+ 
+-	local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	update_max_tr(tr, current, smp_processor_id());
+-	local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ }
+ 
+ /**
+@@ -1364,7 +1364,7 @@ update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
+ 	if (tr->stop_count)
+ 		return;
+ 
+-	WARN_ON_ONCE(!irqs_disabled());
++	WARN_ON_ONCE(!hard_irqs_disabled());
+ 
+ 	if (!tr->allocated_snapshot) {
+ 		/* Only the nop tracer should hit this when disabling */
+@@ -1402,7 +1402,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
+ 	if (tr->stop_count)
+ 		return;
+ 
+-	WARN_ON_ONCE(!irqs_disabled());
++	WARN_ON_ONCE(!hard_irqs_disabled());
+ 	if (!tr->allocated_snapshot) {
+ 		/* Only the nop tracer should hit this when disabling */
+ 		WARN_ON_ONCE(tr->current_trace != &nop_trace);
+@@ -6494,13 +6494,13 @@ tracing_snapshot_write(struct file *filp, const char __user *ubuf, size_t cnt,
+ 			if (ret < 0)
+ 				break;
+ 		}
+-		local_irq_disable();
++		hard_local_irq_disable();
+ 		/* Now, we're going to swap */
+ 		if (iter->cpu_file == RING_BUFFER_ALL_CPUS)
+ 			update_max_tr(tr, current, smp_processor_id());
+ 		else
+ 			update_max_tr_single(tr, current, iter->cpu_file);
+-		local_irq_enable();
++		hard_local_irq_enable();
+ 		break;
+ 	default:
+ 		if (tr->allocated_snapshot) {
+diff --git a/kernel/trace/trace_branch.c b/kernel/trace/trace_branch.c
+index 4ad967453b6..254f1ec1c9b 100644
+--- a/kernel/trace/trace_branch.c
++++ b/kernel/trace/trace_branch.c
+@@ -53,7 +53,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+ 	if (unlikely(!tr))
+ 		return;
+ 
+-	raw_local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	current->trace_recursion |= TRACE_BRANCH_BIT;
+ 	data = this_cpu_ptr(tr->trace_buffer.data);
+ 	if (atomic_read(&data->disabled))
+@@ -87,7 +87,7 @@ probe_likely_condition(struct ftrace_likely_data *f, int val, int expect)
+ 
+  out:
+ 	current->trace_recursion &= ~TRACE_BRANCH_BIT;
+-	raw_local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ }
+ 
+ static inline
+diff --git a/kernel/trace/trace_clock.c b/kernel/trace/trace_clock.c
+index aaf6793eded..9903dc66e70 100644
+--- a/kernel/trace/trace_clock.c
++++ b/kernel/trace/trace_clock.c
+@@ -97,7 +97,7 @@ u64 notrace trace_clock_global(void)
+ 	int this_cpu;
+ 	u64 now;
+ 
+-	raw_local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 
+ 	this_cpu = raw_smp_processor_id();
+ 	now = sched_clock_cpu(this_cpu);
+@@ -123,7 +123,7 @@ u64 notrace trace_clock_global(void)
+ 	arch_spin_unlock(&trace_clock_struct.lock);
+ 
+  out:
+-	raw_local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ 
+ 	return now;
+ }
+diff --git a/kernel/trace/trace_functions.c b/kernel/trace/trace_functions.c
+index b611cd36e22..57c1fc375b3 100644
+--- a/kernel/trace/trace_functions.c
++++ b/kernel/trace/trace_functions.c
+@@ -190,7 +190,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
+ 	 * Need to use raw, since this must be called before the
+ 	 * recursive protection is performed.
+ 	 */
+-	local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	cpu = raw_smp_processor_id();
+ 	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+ 	disabled = atomic_inc_return(&data->disabled);
+@@ -202,7 +202,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
+ 	}
+ 
+ 	atomic_dec(&data->disabled);
+-	local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ }
+ 
+ static struct tracer_opt func_opts[] = {
+diff --git a/kernel/trace/trace_functions_graph.c b/kernel/trace/trace_functions_graph.c
+index c2af1560e85..2af5aa49da9 100644
+--- a/kernel/trace/trace_functions_graph.c
++++ b/kernel/trace/trace_functions_graph.c
+@@ -172,7 +172,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
+ 	if (tracing_thresh)
+ 		return 1;
+ 
+-	local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	cpu = raw_smp_processor_id();
+ 	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+ 	disabled = atomic_inc_return(&data->disabled);
+@@ -184,7 +184,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
+ 	}
+ 
+ 	atomic_dec(&data->disabled);
+-	local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ 
+ 	return ret;
+ }
+@@ -253,7 +253,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
+ 		return;
+ 	}
+ 
+-	local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	cpu = raw_smp_processor_id();
+ 	data = per_cpu_ptr(tr->trace_buffer.data, cpu);
+ 	disabled = atomic_inc_return(&data->disabled);
+@@ -262,7 +262,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
+ 		__trace_graph_return(tr, trace, flags, pc);
+ 	}
+ 	atomic_dec(&data->disabled);
+-	local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ }
+ 
+ void set_graph_array(struct trace_array *tr)
+diff --git a/kernel/trace/trace_irqsoff.c b/kernel/trace/trace_irqsoff.c
+index bad7794c25e..dd6b7e5ea9a 100644
+--- a/kernel/trace/trace_irqsoff.c
++++ b/kernel/trace/trace_irqsoff.c
+@@ -25,7 +25,7 @@ static int				tracer_enabled __read_mostly;
+ 
+ static DEFINE_PER_CPU(int, tracing_cpu);
+ 
+-static DEFINE_RAW_SPINLOCK(max_trace_lock);
++static DEFINE_HARD_SPINLOCK(max_trace_lock);
+ 
+ enum {
+ 	TRACER_IRQS_OFF		= (1 << 1),
+@@ -54,7 +54,7 @@ static inline int
+ irq_trace(void)
+ {
+ 	return ((trace_type & TRACER_IRQS_OFF) &&
+-		running_inband() && irqs_disabled());
++		(hard_irqs_disabled() || (running_inband() && irqs_disabled())));
+ }
+ #else
+ # define irq_trace() (0)
+@@ -392,7 +392,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
+ 	data->preempt_timestamp = ftrace_now(cpu);
+ 	data->critical_start = parent_ip ? : ip;
+ 
+-	local_save_flags(flags);
++	stage_save_flags(flags);
+ 
+ 	__trace_function(tr, ip, parent_ip, flags, pc);
+ 
+diff --git a/kernel/trace/trace_sched_wakeup.c b/kernel/trace/trace_sched_wakeup.c
+index 4ea7e6845ef..c7be8011f32 100644
+--- a/kernel/trace/trace_sched_wakeup.c
++++ b/kernel/trace/trace_sched_wakeup.c
+@@ -482,7 +482,9 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
+ 
+ 	if (likely(!is_tracing_stopped())) {
+ 		wakeup_trace->max_latency = delta;
++		hard_local_irq_disable();
+ 		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
++		hard_local_irq_enable();
+ 	}
+ 
+ out_unlock:
+diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
+index eec648a0d67..b97f776abf5 100644
+--- a/kernel/trace/trace_stack.c
++++ b/kernel/trace/trace_stack.c
+@@ -93,8 +93,9 @@ check_stack(unsigned long ip, unsigned long *stack)
+ 	if (!object_is_on_stack(stack))
+ 		return;
+ 
+-	/* Can't do this from NMI context (can cause deadlocks) */
+-	if (in_nmi())
++	/* Can't do this from NMI or oob stage contexts (can cause
++	   deadlocks) */
++	if (in_nmi() || !running_inband())
+ 		return;
+ 
+ 	local_irq_save(flags);
+-- 
+2.16.4
+

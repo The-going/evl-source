@@ -1,0 +1,167 @@
+From 53edfc5d6864ad2877d81d09d32ca4d63285f41d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 10 Feb 2019 16:31:42 +0100
+Subject: [PATCH] evl/factory: use evl_release_element() for consistency
+
+---
+ include/evenless/factory.h | 4 ++--
+ kernel/evenless/clock.c    | 2 +-
+ kernel/evenless/factory.c  | 2 +-
+ kernel/evenless/logger.c   | 2 +-
+ kernel/evenless/mapper.c   | 2 +-
+ kernel/evenless/monitor.c  | 2 +-
+ kernel/evenless/poller.c   | 2 +-
+ kernel/evenless/sem.c      | 2 +-
+ kernel/evenless/thread.c   | 2 +-
+ kernel/evenless/timerfd.c  | 2 +-
+ kernel/evenless/xbuf.c     | 2 +-
+ 11 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/include/evenless/factory.h b/include/evenless/factory.h
+index 956fbd92441..b5f4b7bef37 100644
+--- a/include/evenless/factory.h
++++ b/include/evenless/factory.h
+@@ -113,8 +113,8 @@ void evl_put_element(struct evl_element *e);
+ int evl_open_element(struct inode *inode,
+ 		struct file *filp);
+ 
+-int evl_close_element(struct inode *inode,
+-		struct file *filp);
++int evl_release_element(struct inode *inode,
++			struct file *filp);
+ 
+ int evl_create_element_device(struct evl_element *e,
+ 			struct evl_factory *fac,
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index e88d77a0e16..6fafa5d656a 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -588,7 +588,7 @@ static long clock_ioctl(struct file *filp, unsigned int cmd,
+ 
+ static const struct file_operations clock_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.unlocked_ioctl	= clock_ioctl,
+ 	.oob_ioctl	= clock_oob_ioctl,
+ };
+diff --git a/kernel/evenless/factory.c b/kernel/evenless/factory.c
+index f8ae829be1b..522acee2abe 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evenless/factory.c
+@@ -227,7 +227,7 @@ void evl_put_element(struct evl_element *e) /* in-band or OOB */
+ 		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+ }
+ 
+-int evl_close_element(struct inode *inode, struct file *filp)
++int evl_release_element(struct inode *inode, struct file *filp)
+ {
+ 	struct evl_file_binding *fbind = filp->private_data;
+ 	struct evl_element *e = fbind->element;
+diff --git a/kernel/evenless/logger.c b/kernel/evenless/logger.c
+index 0a91331c82c..873c4cb2238 100644
+--- a/kernel/evenless/logger.c
++++ b/kernel/evenless/logger.c
+@@ -143,7 +143,7 @@ static ssize_t logger_write(struct file *filp, const char __user *u_buf,
+ 
+ static const struct file_operations logger_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.oob_write	= logger_oob_write,
+ 	.write		= logger_write,
+ };
+diff --git a/kernel/evenless/mapper.c b/kernel/evenless/mapper.c
+index 1f036872646..b32318784cc 100644
+--- a/kernel/evenless/mapper.c
++++ b/kernel/evenless/mapper.c
+@@ -40,7 +40,7 @@ static int mapper_mmap(struct file *filp, struct vm_area_struct *vma)
+ 
+ static const struct file_operations mapper_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.mmap		= mapper_mmap,
+ };
+ 
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index f6914e7d33f..1565f0eb0cb 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -478,7 +478,7 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
+ 
+ static const struct file_operations monitor_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.unlocked_ioctl	= monitor_ioctl,
+ 	.oob_ioctl	= monitor_oob_ioctl,
+ };
+diff --git a/kernel/evenless/poller.c b/kernel/evenless/poller.c
+index 23a2fc33e7e..cf02d2c7c82 100644
+--- a/kernel/evenless/poller.c
++++ b/kernel/evenless/poller.c
+@@ -520,7 +520,7 @@ static long poller_oob_ioctl(struct file *filp, unsigned int cmd,
+ 
+ static const struct file_operations poller_fops = {
+ 	.open		= poller_open,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.oob_ioctl	= poller_oob_ioctl,
+ };
+ 
+diff --git a/kernel/evenless/sem.c b/kernel/evenless/sem.c
+index 819d8a7e3ff..0bf2f62f052 100644
+--- a/kernel/evenless/sem.c
++++ b/kernel/evenless/sem.c
+@@ -136,7 +136,7 @@ static long sem_ioctl(struct file *filp, unsigned int cmd,
+ 
+ static const struct file_operations sem_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.unlocked_ioctl	= sem_ioctl,
+ 	.oob_ioctl	= sem_oob_ioctl,
+ };
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index b9bea659f2f..e38e68c81f0 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -2175,7 +2175,7 @@ static long thread_ioctl(struct file *filp, unsigned int cmd,
+ 
+ static const struct file_operations thread_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.unlocked_ioctl	= thread_ioctl,
+ 	.oob_ioctl	= thread_oob_ioctl,
+ };
+diff --git a/kernel/evenless/timerfd.c b/kernel/evenless/timerfd.c
+index 2341d462af7..3ffa960fc38 100644
+--- a/kernel/evenless/timerfd.c
++++ b/kernel/evenless/timerfd.c
+@@ -174,7 +174,7 @@ static __poll_t timerfd_oob_poll(struct file *filp,
+ 
+ static const struct file_operations timerfd_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.oob_ioctl	= timerfd_oob_ioctl,
+ 	.oob_read	= timerfd_oob_read,
+ 	.oob_poll	= timerfd_oob_poll,
+diff --git a/kernel/evenless/xbuf.c b/kernel/evenless/xbuf.c
+index c9442ee2107..1b9faaadf79 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evenless/xbuf.c
+@@ -573,7 +573,7 @@ static __poll_t xbuf_oob_poll(struct file *filp,
+ 
+ static const struct file_operations xbuf_fops = {
+ 	.open		= evl_open_element,
+-	.release	= evl_close_element,
++	.release	= evl_release_element,
+ 	.unlocked_ioctl	= xbuf_ioctl,
+ 	.read		= xbuf_read,
+ 	.write		= xbuf_write,
+-- 
+2.16.4
+

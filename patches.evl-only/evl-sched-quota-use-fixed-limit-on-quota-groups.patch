@@ -1,0 +1,70 @@
+From c5375b4f49fe69372f0e9b9c374cf29f2e2e6fa8 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 8 Mar 2019 19:02:34 +0100
+Subject: [PATCH] evl/sched: quota: use fixed limit on quota groups
+
+The limit on the number of quota groups is very unlikely to ever
+change, but even if it does, there is really no point in making this a
+user-visible configuration tunable.
+---
+ kernel/evenless/Kconfig       | 9 ---------
+ kernel/evenless/sched/quota.c | 9 ++++++---
+ 2 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index 4454e7a69b9..4e832e2dd6e 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -30,15 +30,6 @@ config EVENLESS_SCHED_QUOTA_PERIOD
+ 	help
+ 	The global period thread groups can get a share of.
+ 
+-config EVENLESS_SCHED_QUOTA_NR_GROUPS
+-	int "Number of thread groups"
+-	default 32
+-	range 1 1024
+-	depends on EVENLESS_SCHED_QUOTA
+-	help
+-	The overall number of thread groups which may be defined
+-	across all CPUs.
+-
+ config EVENLESS_STATS
+ 	bool "Runtime statistics"
+ 	default y
+diff --git a/kernel/evenless/sched/quota.c b/kernel/evenless/sched/quota.c
+index 237201a52d5..db85432cef9 100644
+--- a/kernel/evenless/sched/quota.c
++++ b/kernel/evenless/sched/quota.c
+@@ -52,7 +52,10 @@
+  * core. This only means that the SCHED_QUOTA policy won't pick them
+  * until the corresponding budget is replenished.
+  */
+-static DECLARE_BITMAP(group_map, CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS);
++
++#define MAX_QUOTA_GROUPS  32
++
++static DECLARE_BITMAP(group_map, MAX_QUOTA_GROUPS);
+ 
+ static LIST_HEAD(group_list);
+ 
+@@ -293,7 +296,7 @@ static int quota_chkparam(struct evl_thread *thread,
+ 		return -EINVAL;
+ 
+ 	tgid = p->quota.tgid;
+-	if (tgid < 0 || tgid >= CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS)
++	if (tgid < 0 || tgid >= MAX_QUOTA_GROUPS)
+ 		return -EINVAL;
+ 
+ 	/*
+@@ -474,7 +477,7 @@ static int quota_create_group(struct evl_quota_group *tg,
+ 			struct evl_rq *rq,
+ 			int *quota_sum_r)
+ {
+-	int tgid, nr_groups = CONFIG_EVENLESS_SCHED_QUOTA_NR_GROUPS;
++	int tgid, nr_groups = MAX_QUOTA_GROUPS;
+ 	struct evl_sched_quota *qs = &rq->quota;
+ 
+ 	requires_ugly_lock();
+-- 
+2.16.4
+

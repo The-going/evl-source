@@ -1,0 +1,116 @@
+From 64bfdfe227eb1c9cbaf2be5a318d8e6b08ab8211 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 27 Jan 2019 14:42:09 +0100
+Subject: [PATCH] evl/thread: explicitly check for rescheduling following
+ evl_suspend_thread()
+
+We want to get rid of automatic rescheduling in evl_suspend_thread()
+when the caller is current.
+
+We need this change to later introduce resource-based locking instead
+of relying on the ugly global nklock, which is the first step towards
+its elimination.
+
+i.e. on the waiter side:
+
+== current way:
+
+xnlock_get_irqsave(&nklock, flags)
+
+if (!condition)
+    evl_suspend_thread(curr, T_PEND, ...);
+
+xnlock_put_irqrestore(&nklock, flags)
+
+== future way:
+
+  lock_irqsave(condition->lock);
+  if (!condition) {
+      add_to_wait_q(curr, condition->queue);
+      do {
+             evl_suspend_thread()/evl_sleep_on_syn();
+      	     unlock_irqrestore(condition->lock);
+             evl_schedule();
+      	     lock_irqsave(condition->lock);
+      } while (!condition);
+  }
+  unlock_irqrestore(condition->lock);
+---
+ kernel/evenless/sched/core.c | 13 +------------
+ kernel/evenless/synch.c      |  8 ++++++--
+ kernel/evenless/thread.c     |  2 ++
+ 3 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index c16271acb1c..83e6e985cd7 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -102,7 +102,7 @@ static void watchdog_handler(struct evl_timer *timer) /* hard irqs off */
+ 		 * thread. Therefore we manually raise T_KICKED to
+ 		 * cause the next call to evl_suspend_thread() to
+ 		 * return early in T_BREAK condition, and T_CANCELD so
+-		 * that @thread exits next time it invokes
++		 * that @curr exits next time it invokes
+ 		 * evl_test_cancel().
+ 		 */
+ 		xnlock_get(&nklock);
+@@ -786,17 +786,6 @@ bool ___evl_schedule(struct evl_rq *this_rq)
+ 	evl_inc_counter(&next->stat.csw);
+ 	dovetail_context_switch(&prev->altsched, &next->altsched);
+ 
+-	/*
+-	 * Hard interrupts must be disabled here (has to be done on
+-	 * entry of the host kernel's switch_to() function), but it is
+-	 * what callers expect, particularly the reschedule of an IRQ
+-	 * handler that hit before we call evl_schedule() from
+-	 * evl_suspend_thread() when switching a thread to in-band
+-	 * context.
+-	 */
+-	if (EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled()))
+-		hard_irqs_disabled();
+-
+ 	/*
+ 	 * Refresh the current rq and thread pointers, this is
+ 	 * required to cope with in-band<->oob stage transitions.
+diff --git a/kernel/evenless/synch.c b/kernel/evenless/synch.c
+index a67753f9e6e..ee99ed8b674 100644
+--- a/kernel/evenless/synch.c
++++ b/kernel/evenless/synch.c
+@@ -100,8 +100,12 @@ int block_thread_timed(ktime_t timeout, enum evl_tmode timeout_mode,
+ {
+ 	struct evl_thread *curr = evl_current_thread();
+ 
+-	evl_suspend_thread(curr, T_PEND, timeout,
+-			   timeout_mode, clock, wchan);
++	evl_suspend_thread(curr, T_PEND, timeout, timeout_mode, clock, wchan);
++	/*
++	 * FIXME: bypass sched_lock test until the situation is fixed
++	 * for evl_enable/disable_preempt().
++	 */
++	__evl_schedule(curr->rq);
+ 
+ 	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
+ }
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 7a386d523d7..e237c40724d 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -735,6 +735,7 @@ void evl_stop_thread(struct evl_thread *thread, int mask)
+ {
+ 	evl_suspend_thread(thread, mask, EVL_INFINITE,
+ 			   EVL_REL, NULL, NULL);
++	evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_stop_thread);
+ 
+@@ -805,6 +806,7 @@ ktime_t evl_delay_thread(ktime_t timeout, enum evl_tmode timeout_mode,
+ 
+ 	evl_suspend_thread(curr, T_DELAY, timeout,
+ 			   timeout_mode, clock, NULL);
++	evl_schedule();
+ 
+ 	if (curr->info & T_BREAK) {
+ 		xnlock_get_irqsave(&nklock, flags);
+-- 
+2.16.4
+

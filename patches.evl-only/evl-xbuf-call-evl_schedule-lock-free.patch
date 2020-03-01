@@ -1,0 +1,50 @@
+From 7e619345106b893515a8a3395ba3df440ae17e99 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 11:01:22 +0100
+Subject: [PATCH] evl/xbuf: call evl_schedule() lock-free
+
+---
+ kernel/evenless/xbuf.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/evenless/xbuf.c b/kernel/evenless/xbuf.c
+index cc3be3f1270..ae0cf9ee9ca 100644
+--- a/kernel/evenless/xbuf.c
++++ b/kernel/evenless/xbuf.c
+@@ -190,7 +190,6 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ 		 * we freed enough room to post its message.
+ 		 */
+ 		ring->unblock_output(ring);
+-		evl_schedule();
+ 		goto out;
+ 	wait:
+ 		if (len > ring->bufsz)
+@@ -218,6 +217,8 @@ static ssize_t do_xbuf_read(struct xbuf_ring *ring,
+ out:
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
++	evl_schedule();
++
+ 	return ret;
+ }
+ 
+@@ -295,7 +296,6 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ 			ring->clear_pollable(ring, POLLOUT|POLLWRNORM);
+ 
+ 		ring->signal_input(ring);
+-		evl_schedule();
+ 		goto out;
+ 	wait:
+ 		if (f_flags & O_NONBLOCK) {
+@@ -314,6 +314,8 @@ static ssize_t do_xbuf_write(struct xbuf_ring *ring,
+ out:
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
++	evl_schedule();
++
+ 	return ret;
+ }
+ 
+-- 
+2.16.4
+

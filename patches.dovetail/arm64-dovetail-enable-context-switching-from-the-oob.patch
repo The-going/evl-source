@@ -1,0 +1,164 @@
+From 2bb914692aaf44a8004ca5193e534367d37f223a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 14 Sep 2018 09:57:59 +0200
+Subject: [PATCH] arm64: dovetail: enable context switching from the oob stage
+
+---
+ arch/arm64/include/asm/efi.h         |  6 ++++++
+ arch/arm64/include/asm/mmu_context.h | 22 ++++++++++++++++++++--
+ arch/arm64/kernel/entry.S            | 22 ++++++++++++++++++++++
+ arch/arm64/kernel/irq_pipeline.c     |  3 +++
+ arch/arm64/mm/context.c              |  4 +++-
+ 5 files changed, 54 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/include/asm/efi.h b/arch/arm64/include/asm/efi.h
+index 7ed320895d1..a9b3bb9b1ba 100644
+--- a/arch/arm64/include/asm/efi.h
++++ b/arch/arm64/include/asm/efi.h
+@@ -120,6 +120,10 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
+ 
+ static inline void efi_set_pgd(struct mm_struct *mm)
+ {
++	unsigned long flags;
++
++	protect_inband_mm(flags);
++
+ 	__switch_mm(mm);
+ 
+ 	if (system_uses_ttbr0_pan()) {
+@@ -144,6 +148,8 @@ static inline void efi_set_pgd(struct mm_struct *mm)
+ 			update_saved_ttbr0(current, current->active_mm);
+ 		}
+ 	}
++
++	unprotect_inband_mm(flags);
+ }
+ 
+ void efi_virtmap_load(void);
+diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
+index 70f093af141..e9d4b05b86a 100644
+--- a/arch/arm64/include/asm/mmu_context.h
++++ b/arch/arm64/include/asm/mmu_context.h
+@@ -249,7 +249,7 @@ static inline void __switch_mm(struct mm_struct *next)
+ }
+ 
+ static inline void
+-switch_mm(struct mm_struct *prev, struct mm_struct *next,
++do_switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	  struct task_struct *tsk)
+ {
+ 	if (prev != next)
+@@ -264,8 +264,26 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	update_saved_ttbr0(tsk, next);
+ }
+ 
++static inline void
++switch_mm(struct mm_struct *prev, struct mm_struct *next,
++	  struct task_struct *tsk)
++{
++	unsigned long flags;
++
++	protect_inband_mm(flags);
++	do_switch_mm(prev, next, tsk);
++	unprotect_inband_mm(flags);
++}
++
+ #define deactivate_mm(tsk,mm)	do { } while (0)
+-#define activate_mm(prev,next)	switch_mm(prev, next, current)
++#define activate_mm(prev,next)	do_switch_mm(prev, next, current)
++
++static inline void
++switch_oob_mm(struct mm_struct *prev, struct mm_struct *next,
++	      struct task_struct *tsk)
++{
++	do_switch_mm(prev, next, tsk);
++}
+ 
+ void verify_cpu_asid_bits(void);
+ void post_ttbr_update_workaround(void);
+diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
+index 3349b04bcc6..e3b9c621ed7 100644
+--- a/arch/arm64/kernel/entry.S
++++ b/arch/arm64/kernel/entry.S
+@@ -365,6 +365,21 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+ 	.macro	irq_stack_entry
+ 	mov	x19, sp			// preserve the original sp
+ 
++#ifdef CONFIG_DOVETAIL
++	/*
++	 * When the pipeline is enabled, context switches over the irq
++	 * stack are allowed (for the co-kernel), and more interrupts
++	 * can be taken over sibling stack contexts. So we need a not so
++	 * subtle way of figuring out whether the irq stack was actually
++	 * exited, which cannot depend on the current task pointer.
++	 */
++	adr_this_cpu x25, irq_nesting, x26
++	ldr	w26, [x25]
++	cmp	w26, #0
++	add	w26, w26, #1
++	str	w26, [x25]
++	b.ne	9998f
++#else
+ 	/*
+ 	 * Compare sp with the base of the task stack.
+ 	 * If the top ~(THREAD_SIZE - 1) bits match, we are on a task stack,
+@@ -374,6 +389,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+ 	eor	x25, x25, x19
+ 	and	x25, x25, #~(THREAD_SIZE - 1)
+ 	cbnz	x25, 9998f
++#endif
+ 
+ 	ldr_this_cpu x25, irq_stack_ptr, x26
+ 	mov	x26, #IRQ_STACK_SIZE
+@@ -391,6 +407,12 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+ 	 */
+ 	.macro	irq_stack_exit
+ 	mov	sp, x19
++#ifdef CONFIG_DOVETAIL
++	adr_this_cpu x1, irq_nesting, x2
++	ldr	w2, [x1]
++	add	w2, w2, #-1
++	str	w2, [x1]
++#endif
+ 	.endm
+ 
+ /* GPRs used by entry code */
+diff --git a/arch/arm64/kernel/irq_pipeline.c b/arch/arm64/kernel/irq_pipeline.c
+index b41b5ff52ac..5afe8cca043 100644
+--- a/arch/arm64/kernel/irq_pipeline.c
++++ b/arch/arm64/kernel/irq_pipeline.c
+@@ -8,6 +8,9 @@
+ #include <linux/irq.h>
+ #include <linux/irq_pipeline.h>
+ 
++/* irq_nesting tracks the interrupt nesting level for a CPU. */
++DEFINE_PER_CPU(int, irq_nesting);
++
+ #ifdef CONFIG_SMP
+ 
+ static struct irq_domain *sipic_domain;
+diff --git a/arch/arm64/mm/context.c b/arch/arm64/mm/context.c
+index 1f0ea2facf2..98cf22554d2 100644
+--- a/arch/arm64/mm/context.c
++++ b/arch/arm64/mm/context.c
+@@ -28,7 +28,7 @@
+ #include <asm/tlbflush.h>
+ 
+ static u32 asid_bits;
+-static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
++static DEFINE_HARD_SPINLOCK(cpu_asid_lock);
+ 
+ static atomic64_t asid_generation;
+ static unsigned long *asid_map;
+@@ -196,6 +196,8 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
+ 	unsigned long flags;
+ 	u64 asid, old_active_asid;
+ 
++	WARN_ON_ONCE(dovetail_debug() && !hard_irqs_disabled());
++
+ 	if (system_supports_cnp())
+ 		cpu_set_reserved_ttbr0();
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,50 @@
+From 3081b9e135c979b1a3a804439ba2165aac40a0b4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 10:53:20 +0100
+Subject: [PATCH] evl/monitor: call evl_schedule() lock-free at gate exit
+
+---
+ kernel/evenless/monitor.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index b16d4af9ebb..83ef0b2c892 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -233,7 +233,6 @@ static int exit_monitor(struct evl_monitor *gate)
+ 	}
+ 
+ 	__exit_monitor(gate, curr);
+-	evl_schedule();
+ 
+ 	return 0;
+ }
+@@ -408,20 +407,22 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
+ 		return ret;
+ 	}
+ 
+-	xnlock_get_irqsave(&nklock, flags);
+-
+ 	switch (cmd) {
+ 	case EVL_MONIOC_ENTER:
++		xnlock_get_irqsave(&nklock, flags);
+ 		ret = enter_monitor(mon);
++		xnlock_put_irqrestore(&nklock, flags);
+ 		break;
+ 	case EVL_MONIOC_EXIT:
++		xnlock_get_irqsave(&nklock, flags);
+ 		ret = exit_monitor(mon);
++		xnlock_put_irqrestore(&nklock, flags);
++		evl_schedule();
+ 		break;
+ 	default:
+ 		ret = -ENOTTY;
+ 	}
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
+ 
+ 	return ret;
+ }
+-- 
+2.16.4
+

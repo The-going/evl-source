@@ -1,0 +1,135 @@
+From 5d1fdf82fe85f15fd596d8f6be1bf7f869a0d9b6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 16 Feb 2019 11:57:55 +0100
+Subject: [PATCH] evl/file: convert to new locking rules
+
+Dovetails now invokes *inband_fd() notifiers while holding
+files->file_lock in most cases.
+
+Replace the regular kmem_cache for storing evl_fd structs by our core
+heap since we should not call potentially blocking inband services
+anymore.
+---
+ kernel/evenless/file.c | 32 +++++++++-----------------------
+ kernel/evenless/init.c |  8 +-------
+ 2 files changed, 10 insertions(+), 30 deletions(-)
+
+diff --git a/kernel/evenless/file.c b/kernel/evenless/file.c
+index 0f916f537b2..fbdcea66b27 100644
+--- a/kernel/evenless/file.c
++++ b/kernel/evenless/file.c
+@@ -13,11 +13,10 @@
+ #include <linux/completion.h>
+ #include <linux/irq_work.h>
+ #include <evenless/file.h>
++#include <evenless/memory.h>
+ #include <evenless/assert.h>
+ #include <evenless/sched.h>
+ 
+-static struct kmem_cache *fd_cache;
+-
+ static struct rb_root fd_tree = RB_ROOT;
+ 
+ static DEFINE_HARD_SPINLOCK(fdt_lock);
+@@ -103,8 +102,9 @@ struct evl_fd *unindex_sfd(unsigned int fd,
+ 	return sfd;
+ }
+ 
++/* in-band, caller may hold files->file_lock */
+ void install_inband_fd(unsigned int fd, struct file *filp,
+-		struct files_struct *files) /* in-band */
++		struct files_struct *files)
+ {
+ 	struct evl_fd *sfd;
+ 	unsigned long flags;
+@@ -113,7 +113,7 @@ void install_inband_fd(unsigned int fd, struct file *filp,
+ 	if (filp->oob_data == NULL)
+ 		return;
+ 
+-	sfd = kmem_cache_alloc(fd_cache, GFP_KERNEL);
++	sfd = evl_alloc(sizeof(struct evl_fd));
+ 	if (sfd) {
+ 		sfd->fd = fd;
+ 		sfd->files = files;
+@@ -126,8 +126,9 @@ void install_inband_fd(unsigned int fd, struct file *filp,
+ 	EVL_WARN_ON(CORE, ret);
+ }
+ 
++/* in-band, caller holds files->file_lock */
+ void uninstall_inband_fd(unsigned int fd, struct file *filp,
+-			struct files_struct *files) /* in-band */
++			struct files_struct *files)
+ {
+ 	struct evl_fd *sfd;
+ 	unsigned long flags;
+@@ -140,11 +141,12 @@ void uninstall_inband_fd(unsigned int fd, struct file *filp,
+ 	raw_spin_unlock_irqrestore(&fdt_lock, flags);
+ 
+ 	if (sfd)
+-		kmem_cache_free(fd_cache, sfd);
++		evl_free(sfd);
+ }
+ 
++/* in-band, caller holds files->file_lock */
+ void replace_inband_fd(unsigned int fd, struct file *filp,
+-		struct files_struct *files) /* in-band */
++		struct files_struct *files)
+ {
+ 	struct evl_fd *sfd;
+ 	unsigned long flags;
+@@ -237,19 +239,3 @@ void evl_release_file(struct evl_file *efilp)
+ 	if (atomic_dec_return(&efilp->oob_refs) > 0)
+ 		wait_for_completion(&efilp->oob_done);
+ }
+-
+-void evl_cleanup_files(void)
+-{
+-	kmem_cache_destroy(fd_cache);
+-}
+-
+-int __init evl_init_files(void)
+-{
+-	fd_cache = kmem_cache_create("evl_fdcache",
+-				sizeof(struct evl_fd),
+-				0, 0, NULL);
+-	if (fd_cache == NULL)
+-		return -ENOMEM;
+-
+-	return 0;
+-}
+diff --git a/kernel/evenless/init.c b/kernel/evenless/init.c
+index 0ebb751764c..63865f251a0 100644
+--- a/kernel/evenless/init.c
++++ b/kernel/evenless/init.c
+@@ -102,10 +102,6 @@ static __init int init_core(void)
+ 	if (ret)
+ 		goto cleanup_clock;
+ 
+-	ret = evl_init_files();
+-	if (ret)
+-		goto cleanup_sched;
+-
+ 	/*
+ 	 * If starting in stopped mode, do all initializations, but do
+ 	 * not enable the core timer.
+@@ -113,7 +109,7 @@ static __init int init_core(void)
+ 	if (evl_is_warming()) {
+ 		ret = evl_enable_tick();
+ 		if (ret)
+-			goto cleanup_files;
++			goto cleanup_sched;
+ 		set_evl_state(EVL_STATE_RUNNING);
+ 	}
+ 
+@@ -137,8 +133,6 @@ static __init int init_core(void)
+ cleanup_tick:
+ 	if (evl_is_running())
+ 		evl_disable_tick();
+-cleanup_files:
+-	evl_cleanup_files();
+ cleanup_sched:
+ 	evl_cleanup_sched();
+ cleanup_clock:
+-- 
+2.16.4
+

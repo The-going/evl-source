@@ -1,0 +1,300 @@
+From 757383103f0cc5a8a6f50511fe9e5d5f0be5a4ef Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 4 Feb 2019 15:47:16 +0100
+Subject: [PATCH] evl/thread: hide info bits update into evl_wakeup_thread()
+
+Let's benefit from the atomic access to the thread info bits
+evl_wakeup_thread() already guarantees.
+---
+ include/evenless/thread.h       |  7 ++--
+ include/trace/events/evenless.h | 12 ++++---
+ kernel/evenless/mutex.c         | 10 +++---
+ kernel/evenless/thread.c        | 72 ++++++++++++++++++-----------------------
+ kernel/evenless/wait.c          |  8 ++---
+ 5 files changed, 49 insertions(+), 60 deletions(-)
+
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index 39a8c3a49da..56e511fabce 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -221,7 +221,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ 		struct evl_wait_channel *wchan);
+ 
+ void evl_wakeup_thread(struct evl_thread *thread,
+-		int mask);
++		int mask, int info);
+ 
+ void evl_hold_thread(struct evl_thread *thread,
+ 		int mask);
+@@ -229,7 +229,8 @@ void evl_hold_thread(struct evl_thread *thread,
+ void evl_release_thread(struct evl_thread *thread,
+ 			int mask);
+ 
+-int evl_unblock_thread(struct evl_thread *thread);
++bool evl_unblock_thread(struct evl_thread *thread,
++			int reason);
+ 
+ ktime_t evl_delay_thread(ktime_t timeout,
+ 			enum evl_tmode timeout_mode,
+@@ -342,8 +343,6 @@ static inline int evl_kthread_should_stop(void)
+ void evl_set_kthread_priority(struct evl_kthread *thread,
+ 			int priority);
+ 
+-int evl_unblock_kthread(struct evl_kthread *thread);
+-
+ pid_t evl_get_inband_pid(struct evl_thread *thread);
+ 
+ #endif /* !_EVENLESS_THREAD_H */
+diff --git a/include/trace/events/evenless.h b/include/trace/events/evenless.h
+index f6512e1af3e..95f56c53ad2 100644
+--- a/include/trace/events/evenless.h
++++ b/include/trace/events/evenless.h
+@@ -337,13 +337,14 @@ TRACE_EVENT(evl_sleep_on,
+ );
+ 
+ TRACE_EVENT(evl_wakeup_thread,
+-	TP_PROTO(struct evl_thread *thread, unsigned long mask),
+-	TP_ARGS(thread, mask),
++	TP_PROTO(struct evl_thread *thread, int mask, int reason),
++	TP_ARGS(thread, mask, reason),
+ 
+ 	TP_STRUCT__entry(
+ 		__string(name, thread->name)
+ 		__field(pid_t, pid)
+-		__field(unsigned long, mask)
++		__field(int, mask)
++		__field(int, reason)
+ 	),
+ 
+ 	TP_fast_assign(
+@@ -352,8 +353,9 @@ TRACE_EVENT(evl_wakeup_thread,
+ 		__entry->mask = mask;
+ 	),
+ 
+-	TP_printk("name=%s pid=%d mask=%#lx",
+-		  __get_str(name), __entry->pid, __entry->mask)
++	TP_printk("name=%s pid=%d mask=%#x reason=%#x",
++		__get_str(name), __entry->pid,
++		__entry->mask, __entry->reason)
+ );
+ 
+ TRACE_EVENT(evl_hold_thread,
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index ab0969d7e7f..9481e981c55 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -349,10 +349,9 @@ bool evl_destroy_mutex(struct evl_mutex *mutex)
+ 		ret = false;
+ 	} else {
+ 		ret = true;
+-		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next) {
+-			waiter->info |= T_RMID;
+-			evl_wakeup_thread(waiter, T_PEND);
+-		}
++		list_for_each_entry_safe(waiter, tmp, &mutex->wait_list, wait_next)
++			evl_wakeup_thread(waiter, T_PEND, T_RMID);
++
+ 		if (mutex->flags & EVL_MUTEX_CLAIMED)
+ 			clear_pi_boost(mutex, mutex->owner);
+ 	}
+@@ -579,8 +578,7 @@ static void transfer_ownership(struct evl_mutex *mutex,
+ 	list_del(&n_owner->wait_next);
+ 	n_owner->wwake = &mutex->wchan;
+ 	set_current_owner_locked(mutex, n_owner);
+-	n_owner->info |= T_WAKEN;
+-	evl_wakeup_thread(n_owner, T_PEND);
++	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
+ 
+ 	if (mutex->flags & EVL_MUTEX_CLAIMED)
+ 		clear_pi_boost(mutex, lastowner);
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 28f7fbe8b5d..227594580d3 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -47,7 +47,7 @@ static void timeout_handler(struct evl_timer *timer) /* hard irqs off */
+ {
+ 	struct evl_thread *thread = container_of(timer, struct evl_thread, rtimer);
+ 
+-	evl_wakeup_thread(thread, T_DELAY|T_PEND);
++	evl_wakeup_thread(thread, T_DELAY|T_PEND, T_TIMEO);
+ }
+ 
+ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+@@ -55,7 +55,7 @@ static void periodic_handler(struct evl_timer *timer) /* hard irqs off */
+ 	struct evl_thread *thread =
+ 		container_of(timer, struct evl_thread, ptimer);
+ 
+-	evl_wakeup_thread(thread, T_WAIT);
++	evl_wakeup_thread(thread, T_WAIT, T_TIMEO);
+ 	xnlock_get(&nklock);
+ 	evl_set_timer_rq(&thread->ptimer, evl_thread_rq(thread));
+ 	xnlock_put(&nklock);
+@@ -443,17 +443,14 @@ void evl_start_thread(struct evl_thread *thread)
+ }
+ EXPORT_SYMBOL_GPL(evl_start_thread);
+ 
+-static inline bool abort_wait(struct evl_thread *thread)
++static inline void abort_wait(struct evl_thread *thread)
+ {
+ 	struct evl_wait_channel *wchan = thread->wchan;
+ 
+ 	if (wchan) {
+ 		thread->wchan = NULL;
+ 		wchan->abort_wait(thread, wchan);
+-		return true;
+ 	}
+-
+-	return false;
+ }
+ 
+ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+@@ -523,7 +520,7 @@ void evl_sleep_on(ktime_t timeout, enum evl_tmode timeout_mode,
+ }
+ EXPORT_SYMBOL_GPL(evl_sleep_on);
+ 
+-void evl_wakeup_thread(struct evl_thread *thread, int mask)
++void evl_wakeup_thread(struct evl_thread *thread, int mask, int info)
+ {
+ 	unsigned long oldstate, flags;
+ 	struct evl_rq *rq;
+@@ -533,7 +530,7 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask)
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+-	trace_evl_wakeup_thread(thread, mask);
++	trace_evl_wakeup_thread(thread, mask, info);
+ 
+ 	rq = thread->rq;
+ 	oldstate = thread->state;
+@@ -543,8 +540,10 @@ void evl_wakeup_thread(struct evl_thread *thread, int mask)
+ 		if (mask & (T_DELAY|T_PEND))
+ 			evl_stop_timer(&thread->rtimer);
+ 
+-		if ((mask & T_PEND) && abort_wait(thread) && (mask & T_DELAY))
+-			thread->info |= T_TIMEO;
++		if (mask & T_PEND)
++			abort_wait(thread);
++
++		thread->info |= info;
+ 
+ 		if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
+ 			evl_enqueue_thread(thread);
+@@ -653,20 +652,11 @@ void evl_release_thread(struct evl_thread *thread, int mask)
+ }
+ EXPORT_SYMBOL_GPL(evl_release_thread);
+ 
+-int evl_unblock_thread(struct evl_thread *thread)
++/* nklock held, irqs off */
++static bool unblock_thread(struct evl_thread *thread, int reason)
+ {
+-	unsigned long flags;
+-	int ret = 1;
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-
+ 	trace_evl_unblock_thread(thread);
+ 
+-	if (thread->state & (T_DELAY|T_PEND))
+-		evl_wakeup_thread(thread, T_DELAY|T_PEND);
+-	else
+-		ret = 0;
+-
+ 	/*
+ 	 * We should not clear a previous break state if this service
+ 	 * is called more than once before the target thread actually
+@@ -676,12 +666,24 @@ int evl_unblock_thread(struct evl_thread *thread)
+ 	 * so that downstream code does not get confused by some
+ 	 * "successful but interrupted syscall" condition. IOW, a
+ 	 * break state raised here must always trigger an error code
+-	 * downstream, and an already successful syscall cannot be
+-	 * marked as interrupted.
++	 * downstream, and a wait which went to completion should not
++	 * be marked as interrupted.
+ 	 */
+-	if (ret)
+-		thread->info |= T_BREAK;
++	if (thread->state & (T_DELAY|T_PEND)) {
++		evl_wakeup_thread(thread, T_DELAY|T_PEND, reason|T_BREAK);
++		return true;
++	}
+ 
++	return false;
++}
++
++bool evl_unblock_thread(struct evl_thread *thread, int reason)
++{
++	unsigned long flags;
++	bool ret;
++
++	xnlock_get_irqsave(&nklock, flags);
++	ret = unblock_thread(thread, reason);
+ 	xnlock_put_irqrestore(&nklock, flags);
+ 
+ 	return ret;
+@@ -854,14 +856,6 @@ void evl_set_kthread_priority(struct evl_kthread *kthread, int priority)
+ }
+ EXPORT_SYMBOL_GPL(evl_set_kthread_priority);
+ 
+-int evl_unblock_kthread(struct evl_kthread *kthread)
+-{
+-	int ret = evl_unblock_thread(&kthread->thread);
+-	evl_schedule();
+-	return ret;
+-}
+-EXPORT_SYMBOL_GPL(evl_unblock_kthread);
+-
+ ktime_t evl_get_thread_timeout(struct evl_thread *thread)
+ {
+ 	struct evl_timer *timer;
+@@ -1360,17 +1354,15 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr)
+ 	}
+ }
+ 
+-static int force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
++static bool force_wakeup(struct evl_thread *thread) /* nklock locked, irqs off */
+ {
+-	int ret = 0;
++	bool ret = false;
+ 
+ 	if (thread->info & T_KICKED)
+-		return 1;
++		return true;
+ 
+-	if (evl_unblock_thread(thread)) {
+-		thread->info |= T_KICKED;
+-		ret = 1;
+-	}
++	if (unblock_thread(thread, T_KICKED))
++		ret = true;
+ 
+ 	/*
+ 	 * CAUTION: we must NOT raise T_BREAK when clearing a forcible
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 6fd8434732a..250ad02cd8c 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -71,7 +71,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 		if (waiter == NULL)
+ 			waiter = list_first_entry(&wq->wait_list,
+ 						struct evl_thread, wait_next);
+-		evl_wakeup_thread(waiter, T_PEND);
++		evl_wakeup_thread(waiter, T_PEND, 0);
+ 	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+@@ -91,10 +91,8 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+ 
+ 	if (!list_empty(&wq->wait_list)) {
+ 		list_for_each_entry_safe(waiter, tmp,
+-					&wq->wait_list, wait_next) {
+-			waiter->info |= reason;
+-			evl_wakeup_thread(waiter, T_PEND);
+-		}
++					&wq->wait_list, wait_next)
++			evl_wakeup_thread(waiter, T_PEND, reason);
+ 	}
+ 
+ 	xnlock_put_irqrestore(&nklock, flags);
+-- 
+2.16.4
+

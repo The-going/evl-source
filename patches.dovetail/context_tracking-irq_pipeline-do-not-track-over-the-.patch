@@ -1,0 +1,49 @@
+From 3a386c4a69ae5e2d24aad582486c75fed87b4c78 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 08:53:56 +0200
+Subject: [PATCH] context_tracking: irq_pipeline: do not track over the oob
+ stage
+
+---
+ include/linux/context_tracking.h | 2 +-
+ kernel/context_tracking.c        | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/context_tracking.h b/include/linux/context_tracking.h
+index d05609ad329..2bec38de964 100644
+--- a/include/linux/context_tracking.h
++++ b/include/linux/context_tracking.h
+@@ -108,7 +108,7 @@ static inline void guest_enter_irqoff(void)
+ 	else
+ 		current->flags |= PF_VCPU;
+ 
+-	if (context_tracking_is_enabled())
++	if (running_inband() && context_tracking_is_enabled())
+ 		__context_tracking_enter(CONTEXT_GUEST);
+ 
+ 	/* KVM does not hold any references to rcu protected data when it
+diff --git a/kernel/context_tracking.c b/kernel/context_tracking.c
+index 9ad37b9e44a..5fa5fd03b02 100644
+--- a/kernel/context_tracking.c
++++ b/kernel/context_tracking.c
+@@ -113,7 +113,7 @@ void context_tracking_enter(enum ctx_state state)
+ 	 * helpers are enough to protect RCU uses inside the exception. So
+ 	 * just return immediately if we detect we are in an IRQ.
+ 	 */
+-	if (in_interrupt())
++	if (!running_inband() || in_interrupt())
+ 		return;
+ 
+ 	local_irq_save(flags);
+@@ -169,7 +169,7 @@ void context_tracking_exit(enum ctx_state state)
+ {
+ 	unsigned long flags;
+ 
+-	if (in_interrupt())
++	if (!running_inband() || in_interrupt())
+ 		return;
+ 
+ 	local_irq_save(flags);
+-- 
+2.16.4
+

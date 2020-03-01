@@ -1,0 +1,44 @@
+From 419e8e60fa425ff1d029a0e8de063f70129675da Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 5 Feb 2019 19:02:13 +0100
+Subject: [PATCH] evl/mutex: check consistency of lock/unlock requests
+
+Detect invalid requests such as recursive locking and unlocking of
+free mutex early.
+
+This is prep work before we can drop the nklock entirely, which is
+recursive by design and would somewhat prevent a kernel lockup upon
+invalid request. Once we switch to using per-wchan hard spinlocks, we
+don't want to risk recursive (spin)locking attempts when traversing a
+PI chain.
+---
+ kernel/evenless/mutex.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index 9481e981c55..989d8c2cf4a 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -408,6 +408,9 @@ int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
+ 		return 0;
+ 	}
+ 
++	if (unlikely(evl_get_index(h) == currh))
++		return -EDEADLK;
++
+ 	xnlock_get_irqsave(&nklock, flags);
+ 
+ 	/*
+@@ -604,6 +607,9 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
+ 
+ 	lockp = mutex->fastlock;
+ 	currh = fundle_of(curr);
++	if (evl_get_index(atomic_read(lockp)) != currh)
++		return;
++
+ 	/*
+ 	 * FLCEIL may only be raised by the owner, or when the owner
+ 	 * is blocked waiting for the mutex (ownership transfer). In
+-- 
+2.16.4
+

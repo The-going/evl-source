@@ -1,0 +1,155 @@
+From e1dc0066bbf91a19e04405f660d689e42afdf398 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 22 Jul 2018 16:45:45 +0200
+Subject: [PATCH] ARM: VDSO: add private per-process storage page
+
+The vDSO extension exporting MMIO clocksources to userland needs to
+store per-process data in a private storage.
+
+A writable page is mapped into the address space of each emerging
+process as part of the vDSO installation. __get_privpage() returns the
+address of this area, which is freely usable by the vDSO code for
+storing process-private context data.
+---
+ arch/arm/kernel/asm-offsets.c |  1 +
+ arch/arm/kernel/vdso.c        | 41 ++++++++++++++++++++++++++++++++---------
+ arch/arm/vdso/datapage.S      | 11 +++++++++++
+ 3 files changed, 44 insertions(+), 9 deletions(-)
+
+diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
+index 357ec8ebdc7..a45736271a7 100644
+--- a/arch/arm/kernel/asm-offsets.c
++++ b/arch/arm/kernel/asm-offsets.c
+@@ -181,6 +181,7 @@ int main(void)
+   BLANK();
+ #ifdef CONFIG_VDSO
+   DEFINE(VDSO_DATA_SIZE,	sizeof(union vdso_data_store));
++  DEFINE(VDSO_PRIV_SIZE,	PAGE_SIZE);
+ #endif
+   BLANK();
+ #ifdef CONFIG_ARM_MPU
+diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
+index f4dd7f9663c..064661a38c9 100644
+--- a/arch/arm/kernel/vdso.c
++++ b/arch/arm/kernel/vdso.c
+@@ -41,7 +41,10 @@ static struct page **vdso_text_pagelist;
+ 
+ extern char vdso_start[], vdso_end[];
+ 
+-/* Total number of pages needed for the data and text portions of the VDSO. */
++/*
++ * Total number of pages needed for the data, private and text
++ * portions of the VDSO.
++ */
+ unsigned int vdso_total_pages __ro_after_init;
+ 
+ /*
+@@ -62,8 +65,8 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
+ 	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
+ 	unsigned long vdso_size;
+ 
+-	/* without VVAR page */
+-	vdso_size = (vdso_total_pages - 1) << PAGE_SHIFT;
++	/* without VVAR and VPRIV pages */
++	vdso_size = (vdso_total_pages - 2) << PAGE_SHIFT;
+ 
+ 	if (vdso_size != new_size)
+ 		return -EINVAL;
+@@ -226,7 +229,7 @@ static int __init vdso_init(void)
+ 
+ 	vdso_text_mapping.pages = vdso_text_pagelist;
+ 
+-	vdso_total_pages = 1; /* for the data/vvar page */
++	vdso_total_pages = 2; /* for the data/vvar and vpriv pages */
+ 	vdso_total_pages += text_pages;
+ 
+ 	cntvct_ok = cntvct_functional();
+@@ -237,6 +240,13 @@ static int __init vdso_init(void)
+ }
+ arch_initcall(vdso_init);
+ 
++static int install_vpriv(struct mm_struct *mm, unsigned long addr)
++{
++	return mmap_region(NULL, addr, PAGE_SIZE,
++			  VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE,
++			   0, NULL) != addr ? -EINVAL : 0;
++}
++
+ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+ {
+ 	struct vm_area_struct *vma;
+@@ -244,8 +254,10 @@ static int install_vvar(struct mm_struct *mm, unsigned long addr)
+ 	vma = _install_special_mapping(mm, addr, PAGE_SIZE,
+ 				       VM_READ | VM_MAYREAD,
+ 				       &vdso_data_mapping);
++	if (IS_ERR(vma))
++		return PTR_ERR(vma);
+ 
+-	return PTR_ERR_OR_ZERO(vma);
++	return vma->vm_start != addr ? -EINVAL : 0;
+ }
+ 
+ /* assumes mmap_sem is write-locked */
+@@ -259,18 +271,29 @@ void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
+ 	if (vdso_text_pagelist == NULL)
+ 		return;
+ 
+-	if (install_vvar(mm, addr))
++	if (install_vpriv(mm, addr)) {
++		pr_err("cannot map VPRIV at expected address!\n");
+ 		return;
++	}
++
++	/* Account for the private storage. */
++	addr += PAGE_SIZE;
++	if (install_vvar(mm, addr)) {
++		WARN(1, "cannot map VVAR at expected address!\n");
++		return;
++	}
+ 
+-	/* Account for vvar page. */
++	/* Account for vvar and vpriv pages. */
+ 	addr += PAGE_SIZE;
+-	len = (vdso_total_pages - 1) << PAGE_SHIFT;
++	len = (vdso_total_pages - 2) << PAGE_SHIFT;
+ 
+ 	vma = _install_special_mapping(mm, addr, len,
+ 		VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
+ 		&vdso_text_mapping);
+ 
+-	if (!IS_ERR(vma))
++	if (IS_ERR(vma) || vma->vm_start != addr)
++		WARN(1, "cannot map VDSO at expected address!\n");
++	else
+ 		mm->context.vdso = addr;
+ }
+ 
+diff --git a/arch/arm/vdso/datapage.S b/arch/arm/vdso/datapage.S
+index 9cd73b725d9..9beb76db2ec 100644
+--- a/arch/arm/vdso/datapage.S
++++ b/arch/arm/vdso/datapage.S
+@@ -5,6 +5,8 @@
+ 	.align 2
+ .L_vdso_data_ptr:
+ 	.long	_start - . - VDSO_DATA_SIZE
++.L_vdso_priv_ptr:
++	.long	_start - . - VDSO_DATA_SIZE - VDSO_PRIV_SIZE
+ 
+ ENTRY(__get_datapage)
+ 	.fnstart
+@@ -14,3 +16,12 @@ ENTRY(__get_datapage)
+ 	bx	lr
+ 	.fnend
+ ENDPROC(__get_datapage)
++
++ENTRY(__get_privpage)
++	.fnstart
++	adr	r0, .L_vdso_priv_ptr
++	ldr	r1, [r0]
++	add	r0, r0, r1
++	bx	lr
++	.fnend
++ENDPROC(__get_privpage)
+-- 
+2.16.4
+

@@ -1,0 +1,165 @@
+From 3fc061779eb4f5c4c7614efca1c34199958c9959 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 12:35:00 +0100
+Subject: [PATCH] evl/wait: introduce evl_wait_event_timeout()
+
+---
+ include/evenless/thread.h |  1 +
+ include/evenless/wait.h   | 69 ++++++++++++++++++++++++++++++++++++++++-------
+ kernel/evenless/wait.c    | 19 ++++---------
+ 3 files changed, 66 insertions(+), 23 deletions(-)
+
+diff --git a/include/evenless/thread.h b/include/evenless/thread.h
+index 0a4b32db01a..39a8c3a49da 100644
+--- a/include/evenless/thread.h
++++ b/include/evenless/thread.h
+@@ -27,6 +27,7 @@
+ 
+ #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT)
+ #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED)
++#define EVL_THREAD_WAKE_MASK	(T_RMID|T_TIMEO|T_BREAK)
+ 
+ struct evl_thread;
+ struct evl_rq;
+diff --git a/include/evenless/wait.h b/include/evenless/wait.h
+index b942f47b5bd..d46f1cf6e5e 100644
+--- a/include/evenless/wait.h
++++ b/include/evenless/wait.h
+@@ -9,6 +9,7 @@
+ #define _EVENLESS_WAIT_H
+ 
+ #include <linux/types.h>
++#include <linux/errno.h>
+ #include <linux/spinlock.h>
+ #include <evenless/list.h>
+ #include <evenless/timer.h>
+@@ -47,6 +48,65 @@ struct evl_wait_queue {
+ #define evl_for_each_waiter_safe(__pos, __tmp, __wq)		\
+ 	list_for_each_entry_safe(__pos, __tmp, &(__wq)->wait_list, wait_next)
+ 
++#define evl_wait_timeout(__wq, __timeout, __timeout_mode)		\
++({									\
++	int __ret = 0, __info;						\
++	unsigned long __flags;						\
++									\
++	xnlock_get_irqsave(&nklock, __flags);				\
++	evl_add_wait_queue(__wq, __timeout, __timeout_mode);		\
++	xnlock_put_irqrestore(&nklock, __flags);			\
++	evl_schedule();							\
++	__info = evl_current()->info;					\
++	if (__info & T_BREAK)						\
++		__ret = -EINTR;						\
++	else if (__info & T_TIMEO)					\
++		__ret = -ETIMEDOUT;					\
++	else if (__info & T_RMID)					\
++		__ret = -EIDRM;						\
++	__ret;								\
++})
++
++#define evl_wait(__wq)	evl_wait_timeout(__wq, EVL_INFINITE, EVL_REL)
++
++#define evl_wait_event_timeout(__wq, __timeout, __timeout_mode, __cond)	\
++({									\
++	int __ret = 0, __info = 0;					\
++	unsigned long __flags;						\
++									\
++	xnlock_get_irqsave(&nklock, __flags);				\
++	if (!(__cond)) {						\
++		if (timeout_nonblock(__timeout))			\
++			__ret = -EAGAIN;				\
++		else {							\
++			do {						\
++				evl_add_wait_queue(__wq, __timeout,	\
++						__timeout_mode);	\
++				xnlock_put_irqrestore(&nklock, __flags); \
++				evl_schedule();				\
++				xnlock_get_irqsave(&nklock, __flags);	\
++				__info = evl_current()->info;		\
++				__info &= EVL_THREAD_WAKE_MASK;		\
++			} while (!__info && !(__cond));			\
++		}							\
++	}								\
++	xnlock_put_irqrestore(&nklock, __flags);			\
++	if (__info & T_BREAK)						\
++		__ret = -EINTR;						\
++	else if (__info & T_TIMEO)					\
++		__ret = -ETIMEDOUT;					\
++	else if (__info & T_RMID)					\
++		__ret = -EIDRM;						\
++	__ret;								\
++})
++
++#define evl_wait_event(__wq, __cond)					\
++	evl_wait_event_timeout(__wq, EVL_INFINITE, EVL_REL, __cond)
++
++void evl_add_wait_queue(struct evl_wait_queue *wq,
++			ktime_t timeout,
++			enum evl_tmode timeout_mode);
++
+ static inline bool evl_wait_active(struct evl_wait_queue *wq)
+ {
+ 	return !list_empty(&wq->wait_list);
+@@ -65,15 +125,6 @@ void evl_init_wait(struct evl_wait_queue *wq,
+ 
+ void evl_destroy_wait(struct evl_wait_queue *wq);
+ 
+-int __must_check evl_wait_timeout(struct evl_wait_queue *wq,
+-				ktime_t timeout,
+-				enum evl_tmode timeout_mode);
+-
+-static inline int evl_wait(struct evl_wait_queue *wq)
+-{
+-	return evl_wait_timeout(wq, EVL_INFINITE, EVL_REL);
+-}
+-
+ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 			struct evl_thread *waiter);
+ 
+diff --git a/kernel/evenless/wait.c b/kernel/evenless/wait.c
+index 56e71dfe734..6fd8434732a 100644
+--- a/kernel/evenless/wait.c
++++ b/kernel/evenless/wait.c
+@@ -35,35 +35,26 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
+ }
+ EXPORT_SYMBOL_GPL(evl_destroy_wait);
+ 
+-int evl_wait_timeout(struct evl_wait_queue *wq, ktime_t timeout,
+-		enum evl_tmode timeout_mode)
++void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
++			enum evl_tmode timeout_mode)
+ {
+ 	struct evl_thread *curr = evl_current();
+-	unsigned long flags;
++
++	trace_evl_wait(wq);
+ 
+ 	if (IS_ENABLED(CONFIG_EVENLESS_DEBUG_MUTEX_SLEEP) &&
+ 		atomic_read(&curr->inband_disable_count) &&
+ 		(curr->state & T_WARN))
+ 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_MUTEX_SLEEP);
+ 
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	trace_evl_wait(wq);
+-
+ 	if (!(wq->flags & EVL_WAIT_PRIO))
+ 		list_add_tail(&curr->wait_next, &wq->wait_list);
+ 	else
+ 		list_add_priff(curr, &wq->wait_list, wprio, wait_next);
+ 
+ 	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
+-
+-	xnlock_put_irqrestore(&nklock, flags);
+-
+-	evl_schedule();
+-
+-	return curr->info & (T_RMID|T_TIMEO|T_BREAK);
+ }
+-EXPORT_SYMBOL_GPL(evl_wait_timeout);
++EXPORT_SYMBOL_GPL(evl_add_wait_queue);
+ 
+ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
+ 			struct evl_thread *waiter)
+-- 
+2.16.4
+

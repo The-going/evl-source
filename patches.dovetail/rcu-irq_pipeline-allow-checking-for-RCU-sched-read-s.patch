@@ -1,0 +1,53 @@
+From 2d1b5cbaa7c5461b84dd24eb5331232a04cb9c5a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 8 May 2017 15:31:22 +0200
+Subject: [PATCH] rcu: irq_pipeline: allow checking for RCU-sched read-side
+ from oob stage
+
+Tracepoints check whether the traced code is within RCU-sched read
+critical section. By definition, any code running over the head stage
+can be considered to be in such a section on the current CPU, make
+sure rcu_read_lock_sched_held() returns the right information.
+---
+ include/linux/rcupdate.h | 3 ++-
+ kernel/rcu/update.c      | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
+index 4db8bcacc51..61b82166db6 100644
+--- a/include/linux/rcupdate.h
++++ b/include/linux/rcupdate.h
+@@ -37,6 +37,7 @@
+ #include <linux/compiler.h>
+ #include <linux/atomic.h>
+ #include <linux/irqflags.h>
++#include <linux/irqstage.h>
+ #include <linux/preempt.h>
+ #include <linux/bottom_half.h>
+ #include <linux/lockdep.h>
+@@ -254,7 +255,7 @@ static inline int rcu_read_lock_bh_held(void)
+ 
+ static inline int rcu_read_lock_sched_held(void)
+ {
+-	return !preemptible();
++	return !running_inband() || !preemptible();
+ }
+ #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+ 
+diff --git a/kernel/rcu/update.c b/kernel/rcu/update.c
+index 1971869c407..26c24aafd84 100644
+--- a/kernel/rcu/update.c
++++ b/kernel/rcu/update.c
+@@ -107,6 +107,9 @@ int rcu_read_lock_sched_held(void)
+ {
+ 	int lockdep_opinion = 0;
+ 
++	if (irqs_pipelined() &&
++	    (hard_irqs_disabled() || !running_inband()))
++		return 1;
+ 	if (!debug_lockdep_rcu_enabled())
+ 		return 1;
+ 	if (!rcu_is_watching())
+-- 
+2.16.4
+

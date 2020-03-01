@@ -1,0 +1,62 @@
+From 85d03ed80fab23a5f3980e12fe3b04322a3aaae1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 12:35:28 +0100
+Subject: [PATCH] evl/flag: convert to evl_wait_event_timeout()
+
+---
+ include/evenless/flag.h | 35 ++++++++++++-----------------------
+ 1 file changed, 12 insertions(+), 23 deletions(-)
+
+diff --git a/include/evenless/flag.h b/include/evenless/flag.h
+index 350ea50e2e2..31e11a47641 100644
+--- a/include/evenless/flag.h
++++ b/include/evenless/flag.h
+@@ -32,33 +32,22 @@ static inline void evl_destroy_flag(struct evl_flag *wf)
+ 	evl_destroy_wait(&wf->wait);
+ }
+ 
+-static inline
+-int evl_wait_flag_timeout(struct evl_flag *wf,
+-			ktime_t timeout, enum evl_tmode timeout_mode)
++static inline bool evl_read_flag(struct evl_flag *wf)
+ {
+-	unsigned long flags;
+-	int ret = 0;
+-
+-	xnlock_get_irqsave(&nklock, flags);
+-
+-	while (!wf->signaled) {
+-		ret = evl_wait_timeout(&wf->wait, timeout, timeout_mode);
+-		if (ret & T_BREAK)
+-			ret = -EINTR;
+-		if (ret & T_TIMEO)
+-			ret = -ETIMEDOUT;
+-		if (ret & T_RMID)
+-			ret = -EIDRM;
+-		if (ret)
+-			break;
+-	}
+-
+-	if (ret == 0)
++	if (wf->signaled) {
+ 		wf->signaled = false;
++		return true;
++	}
+ 
+-	xnlock_put_irqrestore(&nklock, flags);
++	return false;
++}
+ 
+-	return ret;
++static inline
++int evl_wait_flag_timeout(struct evl_flag *wf,
++			ktime_t timeout, enum evl_tmode timeout_mode)
++{
++	return evl_wait_event_timeout(&wf->wait, timeout,
++				timeout_mode, evl_read_flag(wf));
+ }
+ 
+ static inline int evl_wait_flag(struct evl_flag *wf)
+-- 
+2.16.4
+

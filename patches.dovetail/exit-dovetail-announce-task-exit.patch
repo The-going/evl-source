@@ -1,0 +1,32 @@
+From 791615229c8b63d55d729e8b5f6c08e5c417862a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 24 Jul 2016 10:05:09 +0200
+Subject: [PATCH] exit: dovetail: announce task exit
+
+---
+ kernel/exit.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 2639a30a8aa..0b1996051d2 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -13,6 +13,7 @@
+ #include <linux/sched/task_stack.h>
+ #include <linux/sched/cputime.h>
+ #include <linux/interrupt.h>
++#include <linux/irq_pipeline.h>
+ #include <linux/module.h>
+ #include <linux/capability.h>
+ #include <linux/completion.h>
+@@ -830,6 +831,7 @@ void __noreturn do_exit(long code)
+ 	 */
+ 	raw_spin_lock_irq(&tsk->pi_lock);
+ 	raw_spin_unlock_irq(&tsk->pi_lock);
++	inband_exit_notify();
+ 
+ 	if (unlikely(in_atomic())) {
+ 		pr_info("note: %s[%d] exited with preempt_count %d\n",
+-- 
+2.16.4
+

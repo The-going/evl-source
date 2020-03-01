@@ -1,0 +1,215 @@
+From 750caf315fc5716a84c66f0a2c1a5918853102e0 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 19 Jan 2019 17:46:59 +0100
+Subject: [PATCH] evl: add mapper element
+
+A file supporting the memory mapping operation can be bound to a
+mapper element, so that mmap() on such element's device is
+transparently handed to the original file implementation.
+
+This is particularly useful for exposing a shared memory file created
+by memfd_create() into the globally visible EVL device namespace, so
+that cooperating processes can find it easily without resorting to fd
+inheritance or socket transmission.
+---
+ include/evenless/factory.h     |   1 +
+ include/uapi/evenless/mapper.h |  14 ++++++
+ kernel/evenless/Kconfig        |   9 ++++
+ kernel/evenless/Makefile       |   1 +
+ kernel/evenless/factory.c      |   1 +
+ kernel/evenless/mapper.c       | 107 +++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 133 insertions(+)
+ create mode 100644 include/uapi/evenless/mapper.h
+ create mode 100644 kernel/evenless/mapper.c
+
+diff --git a/include/evenless/factory.h b/include/evenless/factory.h
+index 3a68a6c2e07..3aa7c56eb4e 100644
+--- a/include/evenless/factory.h
++++ b/include/evenless/factory.h
+@@ -147,5 +147,6 @@ extern struct evl_factory evl_thread_factory;
+ extern struct evl_factory evl_timerfd_factory;
+ extern struct evl_factory evl_trace_factory;
+ extern struct evl_factory evl_xbuf_factory;
++extern struct evl_factory evl_mapper_factory;
+ 
+ #endif /* !_EVENLESS_FACTORY_H */
+diff --git a/include/uapi/evenless/mapper.h b/include/uapi/evenless/mapper.h
+new file mode 100644
+index 00000000000..008e5df9cf0
+--- /dev/null
++++ b/include/uapi/evenless/mapper.h
+@@ -0,0 +1,14 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
++ *
++ * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#ifndef _EVENLESS_UAPI_MAPPER_H
++#define _EVENLESS_UAPI_MAPPER_H
++
++struct evl_mapper_attrs {
++	__u32 fd;
++};
++
++#endif /* !_EVENLESS_UAPI_MAPPER_H */
+diff --git a/kernel/evenless/Kconfig b/kernel/evenless/Kconfig
+index b751624ce19..c950d6945d3 100644
+--- a/kernel/evenless/Kconfig
++++ b/kernel/evenless/Kconfig
+@@ -144,6 +144,15 @@ config EVENLESS_NR_LOGGERS
+ 	This value gives the maximum number of loggers which can be
+ 	alive concurrently in the system for user-space applications.
+ 
++config EVENLESS_NR_MAPPERS
++	int "Maximum number of mappers"
++	range 1 16384
++	default 64
++	help
++
++	This value gives the maximum number of mappers which can be
++	alive concurrently in the system for user-space applications.
++
+ endmenu
+ 
+ menu "Latency settings"
+diff --git a/kernel/evenless/Makefile b/kernel/evenless/Makefile
+index aeb57b9599d..4037a825cb3 100644
+--- a/kernel/evenless/Makefile
++++ b/kernel/evenless/Makefile
+@@ -11,6 +11,7 @@ evenless-y :=		\
+ 	irq.o		\
+ 	lock.o		\
+ 	logger.o	\
++	mapper.o	\
+ 	memory.o	\
+ 	monitor.o	\
+ 	poller.o	\
+diff --git a/kernel/evenless/factory.c b/kernel/evenless/factory.c
+index 2512f2bc896..90b869114e2 100644
+--- a/kernel/evenless/factory.c
++++ b/kernel/evenless/factory.c
+@@ -38,6 +38,7 @@ static struct evl_factory *factories[] = {
+ 	&evl_poller_factory,
+ 	&evl_xbuf_factory,
+ 	&evl_logger_factory,
++	&evl_mapper_factory,
+ #ifdef CONFIG_FTRACE
+ 	&evl_trace_factory,
+ #endif
+diff --git a/kernel/evenless/mapper.c b/kernel/evenless/mapper.c
+new file mode 100644
+index 00000000000..0a3b91c98b1
+--- /dev/null
++++ b/kernel/evenless/mapper.c
+@@ -0,0 +1,107 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0
++ *
++ * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
++ */
++
++#include <linux/types.h>
++#include <linux/slab.h>
++#include <linux/kernel.h>
++#include <linux/uaccess.h>
++#include <linux/file.h>
++#include <linux/fs.h>
++#include <evenless/factory.h>
++#include <uapi/evenless/mapper.h>
++
++struct evl_mapper {
++	struct file *mapfilp;
++	struct evl_element element;
++};
++
++static int mapper_mmap(struct file *filp, struct vm_area_struct *vma)
++{
++	struct evl_mapper *mapper = element_of(filp, struct evl_mapper);
++	struct file *mapfilp = mapper->mapfilp;
++	int ret;
++
++	if (mapfilp->f_op->mmap == NULL)
++		return -ENODEV;
++
++	vma->vm_file = get_file(mapfilp);
++
++	ret = call_mmap(mapfilp, vma);
++	if (ret)
++		fput(mapfilp);
++	else
++		fput(filp);
++
++	return ret;
++}
++
++static const struct file_operations mapper_fops = {
++	.open		= evl_open_element,
++	.release	= evl_close_element,
++	.mmap		= mapper_mmap,
++};
++
++static struct evl_element *
++mapper_factory_build(struct evl_factory *fac, const char *name,
++		     void __user *u_attrs, u32 *state_offp)
++{
++	struct evl_mapper_attrs attrs;
++	struct evl_mapper *mapper;
++	struct file *mapfilp;
++	int ret;
++
++	ret = copy_from_user(&attrs, u_attrs, sizeof(attrs));
++	if (ret)
++		return ERR_PTR(-EFAULT);
++
++	mapfilp = fget(attrs.fd);
++	if (mapfilp == NULL)
++		return ERR_PTR(-EINVAL);
++
++	mapper = kzalloc(sizeof(*mapper), GFP_KERNEL);
++	if (mapper == NULL) {
++		ret = -ENOMEM;
++		goto fail_mapper;
++	}
++
++	ret = evl_init_element(&mapper->element, &evl_mapper_factory);
++	if (ret)
++		goto fail_element;
++
++	mapper->mapfilp = mapfilp;
++	evl_index_element(&mapper->element);
++
++	return &mapper->element;
++
++fail_element:
++	kfree(mapper);
++fail_mapper:
++	fput(mapfilp);
++
++	return ERR_PTR(ret);
++}
++
++static void mapper_factory_dispose(struct evl_element *e)
++{
++	struct evl_mapper *mapper;
++
++	mapper = container_of(e, struct evl_mapper, element);
++
++	evl_unindex_element(&mapper->element);
++	fput(mapper->mapfilp);
++	evl_destroy_element(&mapper->element);
++
++	kfree_rcu(mapper, element.rcu);
++}
++
++struct evl_factory evl_mapper_factory = {
++	.name	=	"mapper",
++	.fops	=	&mapper_fops,
++	.build =	mapper_factory_build,
++	.dispose =	mapper_factory_dispose,
++	.nrdev	=	CONFIG_EVENLESS_NR_MAPPERS,
++	.flags	=	EVL_FACTORY_CLONE,
++};
+-- 
+2.16.4
+

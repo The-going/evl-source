@@ -1,0 +1,38 @@
+From 476077644bf94f68a48faf29bcaa009e1e48ed23 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 27 Jan 2019 10:52:28 +0100
+Subject: [PATCH] evl/poller: fix initializers
+
+---
+ include/evenless/poller.h | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/include/evenless/poller.h b/include/evenless/poller.h
+index 5ca68e9200c..b78910daee0 100644
+--- a/include/evenless/poller.h
++++ b/include/evenless/poller.h
+@@ -16,11 +16,9 @@
+ #include <evenless/factory.h>
+ #include <uapi/evenless/poller.h>
+ 
+-struct oob_poll_wait;
+-
+ #define EVL_POLLHEAD_INITIALIZER(__name) {				\
+ 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
+-		__HARD_SPIN_LOCK_INIT((__name).__lock),			\
++		lock = __HARD_SPIN_LOCK_INITIALIZER(__name),		\
+ 	}
+ 
+ struct evl_poll_head {
+@@ -32,7 +30,7 @@ static inline
+ void evl_init_poll_head(struct evl_poll_head *head)
+ {
+ 	INIT_LIST_HEAD(&head->watchpoints);
+-	raw_spin_lock_init(&head->lock);
++	hard_spin_lock_init(&head->lock);
+ }
+ 
+ void evl_poll_watch(struct evl_poll_head *head,
+-- 
+2.16.4
+

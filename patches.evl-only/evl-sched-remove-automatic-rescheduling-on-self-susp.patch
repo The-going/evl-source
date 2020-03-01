@@ -1,0 +1,70 @@
+From 05f6b294ba33337f0f300e0e3ccfa2468a06ac71 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 27 Jan 2019 16:48:42 +0100
+Subject: [PATCH] evl/sched: remove automatic rescheduling on self-suspension
+
+All callers of evl_suspend_thread() now reschedule explicitly; we
+don't need this to happen in the latter anymore.
+---
+ kernel/evenless/sched/core.c |  3 ++-
+ kernel/evenless/thread.c     | 15 +++++----------
+ 2 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/kernel/evenless/sched/core.c b/kernel/evenless/sched/core.c
+index 83e6e985cd7..73f71c0bd4d 100644
+--- a/kernel/evenless/sched/core.c
++++ b/kernel/evenless/sched/core.c
+@@ -744,7 +744,8 @@ bool ___evl_schedule(struct evl_rq *this_rq)
+ 	 * CAUTION: curr->altsched.task may be unsynced and even stale
+ 	 * if curr == &this_rq->root_thread, since the task logged by
+ 	 * leave_root() may not still be the current one. Use
+-	 * "current" for disambiguating.
++	 * "current" for disambiguating if you need to refer to the
++	 * underlying inband task.
+ 	 */
+ 	if (curr->state & T_USER)
+ 		evl_commit_monitor_ceiling(curr);
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index e237c40724d..14b8300943f 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -531,9 +531,9 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
+ 		thread->wchan = wchan;
+ 
+ 	/*
+-	 * If the thread is current on its CPU, we need to reschedule
+-	 * immediately; __evl_schedule() will trigger a resched IPI to
+-	 * a remote CPU if required.
++	 * If the thread is current on its CPU, we need to raise
++	 * RQ_SCHED on the target runqueue; __evl_schedule() may
++	 * trigger a resched IPI to a remote CPU if required.
+ 	 *
+ 	 * Otherwise, handle the case of suspending a user thread
+ 	 * running in-band which is _not_ current EVL-wise, but could
+@@ -558,10 +558,9 @@ void evl_suspend_thread(struct evl_thread *thread, int mask,
+ 	 * We don't signal threads which are in T_DORMANT state, since
+ 	 * these are suspended by definition.
+ 	 */
+-	if (likely(thread == rq->curr)) {
++	if (likely(thread == rq->curr))
+ 		evl_set_resched(rq);
+-		__evl_schedule(rq);
+-	} else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
++	else if (((oldstate & (EVL_THREAD_BLOCK_BITS|T_USER)) ==
+ 		    (T_INBAND|T_USER)) && (mask & (T_SUSP | T_HALT)))
+ 		evl_signal_thread(thread, SIGSHADOW, SIGSHADOW_ACTION_HOME);
+ 
+@@ -597,10 +596,6 @@ void evl_switch_inband(int cause)
+ 	 * a thread. Basic assumption: we are the current thread on
+ 	 * this CPU running in OOB context.
+ 	 *
+-	 * We introduce an opportunity for interrupt delivery right
+-	 * before switching context, which shortens the
+-	 * uninterruptible code path.
+-	 *
+ 	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
+ 	 * kernel is allowed to take interrupts again, so that
+ 	 * try_to_wake_up() does not block the wake up request for the
+-- 
+2.16.4
+

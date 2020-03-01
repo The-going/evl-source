@@ -1,0 +1,58 @@
+From d6f2543ce5806aab0da206660ebe1a00345f0938 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 6 Feb 2019 11:35:43 +0100
+Subject: [PATCH] evl/clock: map static clock ids to descriptors
+
+---
+ include/uapi/evenless/clock.h |  3 +++
+ kernel/evenless/clock.c       | 19 +++++++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/include/uapi/evenless/clock.h b/include/uapi/evenless/clock.h
+index 7abf84b8ed0..e06ac3a7f97 100644
+--- a/include/uapi/evenless/clock.h
++++ b/include/uapi/evenless/clock.h
+@@ -7,6 +7,9 @@
+ #ifndef _EVENLESS_UAPI_CLOCK_H
+ #define _EVENLESS_UAPI_CLOCK_H
+ 
++#define EVL_CLOCK_MONOTONIC  (-CLOCK_MONOTONIC)
++#define EVL_CLOCK_REALTIME   (-CLOCK_REALTIME)
++
+ #define EVL_CLOCK_IOCBASE	'c'
+ 
+ struct evl_clock_delayreq {
+diff --git a/kernel/evenless/clock.c b/kernel/evenless/clock.c
+index f8308d388b5..7ffb566e076 100644
+--- a/kernel/evenless/clock.c
++++ b/kernel/evenless/clock.c
+@@ -397,11 +397,22 @@ struct evl_clock *evl_get_clock_by_fd(int efd)
+ 	struct evl_clock *clock = NULL;
+ 	struct evl_file *sfilp;
+ 
+-	sfilp = evl_get_file(efd);
+-	if (sfilp && sfilp->filp->f_op == &clock_fops) {
+-		clock = element_of(sfilp->filp, struct evl_clock);
++	switch (efd) {
++	case EVL_CLOCK_MONOTONIC:
++		clock = &evl_mono_clock;
+ 		evl_get_element(&clock->element);
+-		evl_put_file(sfilp);
++		break;
++	case EVL_CLOCK_REALTIME:
++		clock = &evl_realtime_clock;
++		evl_get_element(&clock->element);
++		break;
++	default:
++		sfilp = evl_get_file(efd);
++		if (sfilp && sfilp->filp->f_op == &clock_fops) {
++			clock = element_of(sfilp->filp, struct evl_clock);
++			evl_get_element(&clock->element);
++			evl_put_file(sfilp);
++		}
+ 	}
+ 
+ 	return clock;
+-- 
+2.16.4
+

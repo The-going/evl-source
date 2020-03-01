@@ -1,0 +1,85 @@
+From 98bff815d4e04e96d07448dea10408c2ec0102d2 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 26 Jan 2019 11:40:05 +0100
+Subject: [PATCH] evl/syn: evl_release_syn() can only apply to current
+
+---
+ include/evenless/synch.h  | 2 +-
+ kernel/evenless/monitor.c | 2 +-
+ kernel/evenless/mutex.c   | 4 +---
+ kernel/evenless/synch.c   | 3 ++-
+ kernel/evenless/thread.c  | 2 +-
+ 5 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/include/evenless/synch.h b/include/evenless/synch.h
+index 45255018615..95080e91073 100644
+--- a/include/evenless/synch.h
++++ b/include/evenless/synch.h
+@@ -102,7 +102,7 @@ int __must_check evl_acquire_syn(struct evl_syn *synch,
+ 
+ int __must_check evl_try_acquire_syn(struct evl_syn *synch);
+ 
+-bool evl_release_syn(struct evl_syn *synch, struct evl_thread *thread);
++bool evl_release_syn(struct evl_syn *synch);
+ 
+ bool evl_flush_syn(struct evl_syn *synch, int reason);
+ 
+diff --git a/kernel/evenless/monitor.c b/kernel/evenless/monitor.c
+index ca65075ef40..cf7295618f3 100644
+--- a/kernel/evenless/monitor.c
++++ b/kernel/evenless/monitor.c
+@@ -204,7 +204,7 @@ static void __exit_monitor(struct evl_monitor *gate,
+ 	if (fundle_of(gate) == curr->u_window->pp_pending)
+ 		curr->u_window->pp_pending = EVL_NO_HANDLE;
+ 
+-	evl_release_syn(&gate->lock, curr);
++	evl_release_syn(&gate->lock);
+ }
+ 
+ /* nklock held, irqs off */
+diff --git a/kernel/evenless/mutex.c b/kernel/evenless/mutex.c
+index 9e489c7be49..78f64d6c210 100644
+--- a/kernel/evenless/mutex.c
++++ b/kernel/evenless/mutex.c
+@@ -63,9 +63,7 @@ EXPORT_SYMBOL_GPL(evl_lock);
+ 
+ void evl_unlock(struct evl_mutex *mutex)
+ {
+-	struct evl_thread *curr = evl_current_thread();
+-
+-	if (evl_release_syn(&mutex->wait_queue, curr))
++	if (evl_release_syn(&mutex->wait_queue))
+ 		evl_schedule();
+ }
+ EXPORT_SYMBOL_GPL(evl_unlock);
+diff --git a/kernel/evenless/synch.c b/kernel/evenless/synch.c
+index 28513e2be87..a67753f9e6e 100644
+--- a/kernel/evenless/synch.c
++++ b/kernel/evenless/synch.c
+@@ -731,8 +731,9 @@ static bool transfer_ownership(struct evl_syn *synch,
+ 	return true;
+ }
+ 
+-bool evl_release_syn(struct evl_syn *synch, struct evl_thread *curr)
++bool evl_release_syn(struct evl_syn *synch)
+ {
++	struct evl_thread *curr = evl_current_thread();
+ 	bool need_resched = false;
+ 	unsigned long flags;
+ 	fundle_t currh, h;
+diff --git a/kernel/evenless/thread.c b/kernel/evenless/thread.c
+index 5cc32555ba6..6d9c135597d 100644
+--- a/kernel/evenless/thread.c
++++ b/kernel/evenless/thread.c
+@@ -236,7 +236,7 @@ static inline void release_all_ownerships(struct evl_thread *curr)
+ 	 * interrupts off.
+ 	 */
+ 	for_each_evl_booster_safe(synch, tmp, curr)
+-		evl_release_syn(synch, curr);
++		evl_release_syn(synch);
+ }
+ 
+ static void do_cleanup_current(struct evl_thread *curr)
+-- 
+2.16.4
+

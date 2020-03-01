@@ -1,0 +1,167 @@
+From 4d500f640fe80ed9d57c878f8960b1c609b85b3c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 11 Jan 2019 20:39:32 +0100
+Subject: [PATCH] KVM: dovetail: keep hypervisor state consistent accross stage
+ preemption
+
+We need KVM to know when a co-kernel is about to preempt the in-band
+stage for reinstating an oob task context, so that it may exit guest
+mode. This code is adapted from Jan Kiszka's following contribution to
+the I-pipe layer:
+
+Author: Jan Kiszka <jan.kiszka@siemens.com>
+Date:   Mon Oct 10 13:38:17 2011 +0200
+
+    ipipe: x86: Make KVM I-pipe-aware
+---
+ include/linux/dovetail.h | 25 ++++++++++++++++++++++++-
+ include/linux/irqstage.h |  2 ++
+ include/linux/kvm_host.h | 12 ++++++++++++
+ kernel/dovetail.c        | 16 ++++++++++++++++
+ 4 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 55010e66c3c..b9a48597e90 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -105,10 +105,26 @@ static inline void prepare_inband_switch(struct task_struct *next)
+ 	hard_local_irq_disable();
+ }
+ 
++static inline void inband_enter_guest(struct kvm_oob_notifier *nfy)
++{
++	struct irq_pipeline_data *p = raw_cpu_ptr(&irq_pipeline);
++	p->vcpu_notify = nfy;
++	barrier();
++}
++
++static inline void inband_exit_guest(void)
++{
++	struct irq_pipeline_data *p = raw_cpu_ptr(&irq_pipeline);
++	p->vcpu_notify = NULL;
++	barrier();
++}
++
+ int inband_switch_tail(void);
+ 
+ void oob_trampoline(void);
+ 
++void oob_notify_kvm(void);
++
+ void arch_inband_task_init(struct task_struct *p);
+ 
+ void sync_inband_irqs(void);
+@@ -137,7 +153,7 @@ void dovetail_stop_altsched(void);
+ 
+ __must_check int dovetail_leave_inband(void);
+ 
+-static inline
++static inline			/* hard IRQs off */
+ void dovetail_resume_oob(struct dovetail_altsched_context *outgoing)
+ {
+ 	struct task_struct *tsk = current;
+@@ -148,6 +164,9 @@ void dovetail_resume_oob(struct dovetail_altsched_context *outgoing)
+ 	 */
+ 	outgoing->task = tsk;
+ 	outgoing->active_mm = tsk->active_mm;
++
++	if (IS_ENABLED(CONFIG_KVM))
++		oob_notify_kvm();
+ }
+ 
+ static inline void dovetail_leave_oob(void)
+@@ -211,6 +230,10 @@ static inline void oob_trampoline(void) { }
+ 
+ static inline void prepare_inband_switch(struct task_struct *next) { }
+ 
++#define inband_enter_guest(__nfy)	do { } while (0)
++
++#define inband_exit_guest()		do { } while (0)
++
+ static inline int inband_switch_tail(void)
+ {
+ 	return 0;
+diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
+index 31dceafcd98..88125c1e24c 100644
+--- a/include/linux/irqstage.h
++++ b/include/linux/irqstage.h
+@@ -14,6 +14,7 @@
+ #include <asm/irq_pipeline.h>
+ 
+ struct task_struct;
++struct kvm_oob_notifier;
+ 
+ struct irq_stage {
+ 	int index;
+@@ -52,6 +53,7 @@ struct irq_pipeline_data {
+ #ifdef CONFIG_DOVETAIL
+ 	struct task_struct *task_inflight;
+ 	struct task_struct *rqlock_owner;
++	struct kvm_oob_notifier *vcpu_notify;
+ #endif
+ };
+ 
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index c38cc5eb7e7..9353feb6624 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -215,10 +215,22 @@ struct kvm_mmio_fragment {
+ 	unsigned len;
+ };
+ 
++/*
++ * Called when the host is about to leave the inband stage. Typically
++ * used for switching the current vcpu out of guest mode before a
++ * co-kernel reinstates an oob task context.
++ */
++struct kvm_oob_notifier {
++	void (*handler)(struct kvm_oob_notifier *nfy);
++};
++
+ struct kvm_vcpu {
+ 	struct kvm *kvm;
+ #ifdef CONFIG_PREEMPT_NOTIFIERS
+ 	struct preempt_notifier preempt_notifier;
++#endif
++#ifdef CONFIG_DOVETAIL
++	struct kvm_oob_notifier oob_notifier;
+ #endif
+ 	int cpu;
+ 	int vcpu_id;
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 05ba868cda1..33982457830 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -7,6 +7,7 @@
+ #include <linux/sched/signal.h>
+ #include <linux/irq_pipeline.h>
+ #include <linux/dovetail.h>
++#include <linux/kvm_host.h>
+ #include <asm/unistd.h>
+ #include <asm/syscall.h>
+ 
+@@ -24,6 +25,21 @@ void inband_task_init(struct task_struct *p)
+ 	arch_inband_task_init(p);
+ }
+ 
++#ifdef CONFIG_KVM
++void oob_notify_kvm(void)
++{
++	struct kvm_oob_notifier *nfy;
++	struct irq_pipeline_data *p;
++
++	check_hard_irqs_disabled();
++	p = raw_cpu_ptr(&irq_pipeline);
++	nfy = p->vcpu_notify;
++	if (unlikely(nfy))
++		nfy->handler(nfy);
++}
++EXPORT_SYMBOL_GPL(oob_notify_kvm);
++#endif
++
+ void dovetail_init_altsched(struct dovetail_altsched_context *p)
+ {
+ 	struct task_struct *tsk = current;
+-- 
+2.16.4
+

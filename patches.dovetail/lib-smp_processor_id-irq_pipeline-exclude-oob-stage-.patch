@@ -1,0 +1,50 @@
+From 51dc0fb80b1209142a00a2597fc23e808a81579d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 08:53:52 +0200
+Subject: [PATCH] lib/smp_processor_id: irq_pipeline: exclude oob stage from
+ preemption check
+
+Code running over the oob stage cannot migrate to another CPU, which
+can only happen from the in-band stage. Besides, the oob stage may
+have preempted the host kernel in a migration-unsafe section, which
+would cause the result of the debug checks to wrongly contradict the
+previous rule.
+
+In addition, debug_smp_processor_id() can be called very early during
+the boot process when CONFIG_DEBUG_PREEMPT is enabled, so retrieving
+the current stage pointer may cause a reference to invalid percpu data
+on architectures with late percpu memory fixups of IRQ pipeline
+information.
+
+To prevent this, we may check for hard disabled IRQ state first, which
+obviously denotes a migration-safe context, and always evaluates to
+true during the early boot phase. Then, the current stage is
+considered to branch out immediately if running over the oob stage.
+---
+ lib/smp_processor_id.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/lib/smp_processor_id.c b/lib/smp_processor_id.c
+index 85925aaa4ff..81e366b9fce 100644
+--- a/lib/smp_processor_id.c
++++ b/lib/smp_processor_id.c
+@@ -6,12 +6,16 @@
+  */
+ #include <linux/export.h>
+ #include <linux/sched.h>
++#include <linux/irqstage.h>
+ 
+ notrace static unsigned int check_preemption_disabled(const char *what1,
+ 							const char *what2)
+ {
+ 	int this_cpu = raw_smp_processor_id();
+ 
++	if (hard_irqs_disabled() || !running_inband())
++		goto out;
++
+ 	if (likely(preempt_count()))
+ 		goto out;
+ 
+-- 
+2.16.4
+

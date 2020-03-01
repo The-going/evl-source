@@ -1,0 +1,30 @@
+From f7c8b639dfab2ed21a584c99e14b1d4862752ecf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 3 Feb 2019 10:49:20 +0100
+Subject: [PATCH] evl/flag: call evl_schedule() lock-free
+
+---
+ include/evenless/flag.h | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/include/evenless/flag.h b/include/evenless/flag.h
+index 9e188abc554..350ea50e2e2 100644
+--- a/include/evenless/flag.h
++++ b/include/evenless/flag.h
+@@ -78,12 +78,10 @@ static inline bool evl_raise_flag(struct evl_flag *wf)
+ 	unsigned long flags;
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+-
+ 	wf->signaled = true;
+ 	waiter = evl_wake_up_head(&wf->wait);
+-	evl_schedule();
+-
+ 	xnlock_put_irqrestore(&nklock, flags);
++	evl_schedule();
+ 
+ 	return waiter != NULL;
+ }
+-- 
+2.16.4
+

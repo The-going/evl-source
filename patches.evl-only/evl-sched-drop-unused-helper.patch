@@ -1,0 +1,28 @@
+From 9f69ddfa69b98ad035d3a38fa01202fd0e7a4166 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 11 Feb 2019 18:08:16 +0100
+Subject: [PATCH] evl/sched: drop unused helper
+
+---
+ include/evenless/sched.h | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/include/evenless/sched.h b/include/evenless/sched.h
+index 9bf3f282311..9025ca30e76 100644
+--- a/include/evenless/sched.h
++++ b/include/evenless/sched.h
+@@ -342,11 +342,6 @@ static inline bool evl_cannot_block(void)
+ 	return evl_in_irq() || evl_is_inband();
+ }
+ 
+-static inline int evl_may_block(void)
+-{
+-	return !evl_cannot_block();
+-}
+-
+ bool evl_set_effective_thread_priority(struct evl_thread *thread,
+ 				       int prio);
+ 
+-- 
+2.16.4
+

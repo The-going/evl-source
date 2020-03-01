@@ -1,0 +1,40 @@
+From 9e998e6066275feef536c920a6488e681ca518f3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 09:03:44 +0200
+Subject: [PATCH] PM / hibernate: irq_pipeline: make safe when pipelining
+
+---
+ kernel/power/hibernate.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
+index abef759de7c..a5247319f0a 100644
+--- a/kernel/power/hibernate.c
++++ b/kernel/power/hibernate.c
+@@ -286,6 +286,7 @@ static int create_image(int platform_mode)
+ 		goto Enable_cpus;
+ 
+ 	local_irq_disable();
++	hard_cond_local_irq_disable();
+ 
+ 	system_state = SYSTEM_SUSPEND;
+ 
+@@ -449,6 +450,7 @@ static int resume_target_kernel(bool platform_mode)
+ 
+ 	local_irq_disable();
+ 	system_state = SYSTEM_SUSPEND;
++	hard_cond_local_irq_disable();
+ 
+ 	error = syscore_suspend();
+ 	if (error)
+@@ -570,6 +572,7 @@ int hibernation_platform_enter(void)
+ 
+ 	local_irq_disable();
+ 	system_state = SYSTEM_SUSPEND;
++	hard_cond_local_irq_disable();
+ 	syscore_suspend();
+ 	if (pm_wakeup_pending()) {
+ 		error = -EAGAIN;
+-- 
+2.16.4
+

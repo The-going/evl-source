@@ -1,0 +1,255 @@
+From 80dc0d408dd73189131eb86299a0cc329fa5a2d1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 08:51:32 +0200
+Subject: [PATCH] atomic: irq_pipeline: keep atomic when pipelining
+
+We want the atomic ops to be usable with variables referenced from the
+oob stage. For this, we must keep IRQs hard disabled to protect the
+critical sections when manipulating those variables.
+---
+ include/asm-generic/atomic.h        | 12 ++++++------
+ include/asm-generic/cmpxchg-local.h |  8 ++++----
+ include/asm-generic/cmpxchg.h       | 16 ++++++++--------
+ lib/atomic64.c                      | 24 ++++++++++++------------
+ 4 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/include/asm-generic/atomic.h b/include/asm-generic/atomic.h
+index 13324aa828e..69f7fb072d6 100644
+--- a/include/asm-generic/atomic.h
++++ b/include/asm-generic/atomic.h
+@@ -80,9 +80,9 @@ static inline void atomic_##op(int i, atomic_t *v)			\
+ {									\
+ 	unsigned long flags;						\
+ 									\
+-	raw_local_irq_save(flags);					\
++	flags = hard_local_irq_save();					\
+ 	v->counter = v->counter c_op i;					\
+-	raw_local_irq_restore(flags);					\
++	hard_local_irq_restore(flags);					\
+ }
+ 
+ #define ATOMIC_OP_RETURN(op, c_op)					\
+@@ -91,9 +91,9 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
+ 	unsigned long flags;						\
+ 	int ret;							\
+ 									\
+-	raw_local_irq_save(flags);					\
++	flags = hard_local_irq_save();					\
+ 	ret = (v->counter = v->counter c_op i);				\
+-	raw_local_irq_restore(flags);					\
++	hard_local_irq_restore(flags);					\
+ 									\
+ 	return ret;							\
+ }
+@@ -104,10 +104,10 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+ 	unsigned long flags;						\
+ 	int ret;							\
+ 									\
+-	raw_local_irq_save(flags);					\
++	flags = hard_local_irq_save();					\
+ 	ret = v->counter;						\
+ 	v->counter = v->counter c_op i;					\
+-	raw_local_irq_restore(flags);					\
++	hard_local_irq_restore(flags);					\
+ 									\
+ 	return ret;							\
+ }
+diff --git a/include/asm-generic/cmpxchg-local.h b/include/asm-generic/cmpxchg-local.h
+index f17f14f84d0..67d712ff0f0 100644
+--- a/include/asm-generic/cmpxchg-local.h
++++ b/include/asm-generic/cmpxchg-local.h
+@@ -23,7 +23,7 @@ static inline unsigned long __cmpxchg_local_generic(volatile void *ptr,
+ 	if (size == 8 && sizeof(unsigned long) != 8)
+ 		wrong_size_cmpxchg(ptr);
+ 
+-	raw_local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	switch (size) {
+ 	case 1: prev = *(u8 *)ptr;
+ 		if (prev == old)
+@@ -44,7 +44,7 @@ static inline unsigned long __cmpxchg_local_generic(volatile void *ptr,
+ 	default:
+ 		wrong_size_cmpxchg(ptr);
+ 	}
+-	raw_local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ 	return prev;
+ }
+ 
+@@ -57,11 +57,11 @@ static inline u64 __cmpxchg64_local_generic(volatile void *ptr,
+ 	u64 prev;
+ 	unsigned long flags;
+ 
+-	raw_local_irq_save(flags);
++	flags = hard_local_irq_save();
+ 	prev = *(u64 *)ptr;
+ 	if (prev == old)
+ 		*(u64 *)ptr = new;
+-	raw_local_irq_restore(flags);
++	hard_local_irq_restore(flags);
+ 	return prev;
+ }
+ 
+diff --git a/include/asm-generic/cmpxchg.h b/include/asm-generic/cmpxchg.h
+index 9a24510cd8c..475206bd5c8 100644
+--- a/include/asm-generic/cmpxchg.h
++++ b/include/asm-generic/cmpxchg.h
+@@ -32,10 +32,10 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
+ #ifdef __xchg_u8
+ 		return __xchg_u8(x, ptr);
+ #else
+-		local_irq_save(flags);
++		flags = hard_local_irq_save();
+ 		ret = *(volatile u8 *)ptr;
+ 		*(volatile u8 *)ptr = x;
+-		local_irq_restore(flags);
++		hard_local_irq_restore(flags);
+ 		return ret;
+ #endif /* __xchg_u8 */
+ 
+@@ -43,10 +43,10 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
+ #ifdef __xchg_u16
+ 		return __xchg_u16(x, ptr);
+ #else
+-		local_irq_save(flags);
++		flags = hard_local_irq_save();
+ 		ret = *(volatile u16 *)ptr;
+ 		*(volatile u16 *)ptr = x;
+-		local_irq_restore(flags);
++		hard_local_irq_restore(flags);
+ 		return ret;
+ #endif /* __xchg_u16 */
+ 
+@@ -54,10 +54,10 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
+ #ifdef __xchg_u32
+ 		return __xchg_u32(x, ptr);
+ #else
+-		local_irq_save(flags);
++		flags = hard_local_irq_save();
+ 		ret = *(volatile u32 *)ptr;
+ 		*(volatile u32 *)ptr = x;
+-		local_irq_restore(flags);
++		hard_local_irq_restore(flags);
+ 		return ret;
+ #endif /* __xchg_u32 */
+ 
+@@ -66,10 +66,10 @@ unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
+ #ifdef __xchg_u64
+ 		return __xchg_u64(x, ptr);
+ #else
+-		local_irq_save(flags);
++		flags = hard_local_irq_save();
+ 		ret = *(volatile u64 *)ptr;
+ 		*(volatile u64 *)ptr = x;
+-		local_irq_restore(flags);
++		hard_local_irq_restore(flags);
+ 		return ret;
+ #endif /* __xchg_u64 */
+ #endif /* CONFIG_64BIT */
+diff --git a/lib/atomic64.c b/lib/atomic64.c
+index 1d91e31ecee..c61a07d498d 100644
+--- a/lib/atomic64.c
++++ b/lib/atomic64.c
+@@ -29,15 +29,15 @@
+  * Ensure each lock is in a separate cacheline.
+  */
+ static union {
+-	raw_spinlock_t lock;
++	hard_spinlock_t lock;
+ 	char pad[L1_CACHE_BYTES];
+ } atomic64_lock[NR_LOCKS] __cacheline_aligned_in_smp = {
+ 	[0 ... (NR_LOCKS - 1)] = {
+-		.lock =  __RAW_SPIN_LOCK_UNLOCKED(atomic64_lock.lock),
++		.lock =  __HARD_SPIN_LOCK_INITIALIZER(atomic64_lock.lock),
+ 	},
+ };
+ 
+-static inline raw_spinlock_t *lock_addr(const atomic64_t *v)
++static inline hard_spinlock_t *lock_addr(const atomic64_t *v)
+ {
+ 	unsigned long addr = (unsigned long) v;
+ 
+@@ -49,7 +49,7 @@ static inline raw_spinlock_t *lock_addr(const atomic64_t *v)
+ long long atomic64_read(const atomic64_t *v)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 	long long val;
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+@@ -62,7 +62,7 @@ EXPORT_SYMBOL(atomic64_read);
+ void atomic64_set(atomic64_t *v, long long i)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+ 	v->counter = i;
+@@ -74,7 +74,7 @@ EXPORT_SYMBOL(atomic64_set);
+ void atomic64_##op(long long a, atomic64_t *v)				\
+ {									\
+ 	unsigned long flags;						\
+-	raw_spinlock_t *lock = lock_addr(v);				\
++	hard_spinlock_t *lock = lock_addr(v);				\
+ 									\
+ 	raw_spin_lock_irqsave(lock, flags);				\
+ 	v->counter c_op a;						\
+@@ -86,7 +86,7 @@ EXPORT_SYMBOL(atomic64_##op);
+ long long atomic64_##op##_return(long long a, atomic64_t *v)		\
+ {									\
+ 	unsigned long flags;						\
+-	raw_spinlock_t *lock = lock_addr(v);				\
++	hard_spinlock_t *lock = lock_addr(v);				\
+ 	long long val;							\
+ 									\
+ 	raw_spin_lock_irqsave(lock, flags);				\
+@@ -100,7 +100,7 @@ EXPORT_SYMBOL(atomic64_##op##_return);
+ long long atomic64_fetch_##op(long long a, atomic64_t *v)		\
+ {									\
+ 	unsigned long flags;						\
+-	raw_spinlock_t *lock = lock_addr(v);				\
++	hard_spinlock_t *lock = lock_addr(v);				\
+ 	long long val;							\
+ 									\
+ 	raw_spin_lock_irqsave(lock, flags);				\
+@@ -137,7 +137,7 @@ ATOMIC64_OPS(xor, ^=)
+ long long atomic64_dec_if_positive(atomic64_t *v)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 	long long val;
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+@@ -152,7 +152,7 @@ EXPORT_SYMBOL(atomic64_dec_if_positive);
+ long long atomic64_cmpxchg(atomic64_t *v, long long o, long long n)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 	long long val;
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+@@ -167,7 +167,7 @@ EXPORT_SYMBOL(atomic64_cmpxchg);
+ long long atomic64_xchg(atomic64_t *v, long long new)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 	long long val;
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+@@ -181,7 +181,7 @@ EXPORT_SYMBOL(atomic64_xchg);
+ long long atomic64_fetch_add_unless(atomic64_t *v, long long a, long long u)
+ {
+ 	unsigned long flags;
+-	raw_spinlock_t *lock = lock_addr(v);
++	hard_spinlock_t *lock = lock_addr(v);
+ 	long long val;
+ 
+ 	raw_spin_lock_irqsave(lock, flags);
+-- 
+2.16.4
+

@@ -1,0 +1,25 @@
+From 0320717ec4a44683df9cca8b293a73df6ff0d69f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 17 Mar 2019 15:52:51 +0100
+Subject: [PATCH] evl/kmutex: disambiguate name of static initializer
+
+---
+ include/evl/mutex.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/evl/mutex.h b/include/evl/mutex.h
+index 26423fbd26f..0284f1ea61e 100644
+--- a/include/evl/mutex.h
++++ b/include/evl/mutex.h
+@@ -104,7 +104,7 @@ struct evl_kmutex {
+ 			.fastlock = ATOMIC_INIT(0),			\
+ 	}
+ 
+-#define DEFINE_EVL_MUTEX(__name)					\
++#define DEFINE_EVL_KMUTEX(__name)					\
+ 	struct evl_kmutex __name = EVL_KMUTEX_INITIALIZER(__name)
+ 
+ static inline
+-- 
+2.16.4
+

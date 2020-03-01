@@ -1,0 +1,28 @@
+From 7fa014a4516512118fe815c13b412e9ac53d0870 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 12 Mar 2019 12:23:33 +0100
+Subject: [PATCH] evl/flag: fix wakeup reason in normal raise operation
+
+Since we raise the flag value, we want it to be cleared by the
+resuming side, which won't happen if the reason is non-zero. T_BCAST
+is specific to the pulse mode.
+---
+ include/evl/flag.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/evl/flag.h b/include/evl/flag.h
+index 91d8d2eecde..78699abb25d 100644
+--- a/include/evl/flag.h
++++ b/include/evl/flag.h
+@@ -67,7 +67,7 @@ static inline void evl_raise_flag_nosched(struct evl_flag *wf)
+ 
+ 	xnlock_get_irqsave(&nklock, flags);
+ 	wf->raised = true;
+-	evl_flush_wait_locked(&wf->wait, T_BCAST);
++	evl_flush_wait_locked(&wf->wait, 0);
+ 	xnlock_put_irqrestore(&nklock, flags);
+ }
+ 
+-- 
+2.16.4
+

@@ -1,0 +1,89 @@
+From 4ee01dcfc9ab6df158734483e12ab671d8dd92dd Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Jul 2016 14:54:38 +0200
+Subject: [PATCH] percpu: irq_pipeline: keep migration-safe when pipelining
+
+---
+ include/asm-generic/percpu.h | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/include/asm-generic/percpu.h b/include/asm-generic/percpu.h
+index c2de013b2cf..e8800e5b968 100644
+--- a/include/asm-generic/percpu.h
++++ b/include/asm-generic/percpu.h
+@@ -125,9 +125,9 @@ do {									\
+ ({									\
+ 	typeof(pcp) __ret;						\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	__ret = raw_cpu_generic_read(pcp);				\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ 	__ret;								\
+ })
+ 
+@@ -144,9 +144,9 @@ do {									\
+ #define this_cpu_generic_to_op(pcp, val, op)				\
+ do {									\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	raw_cpu_generic_to_op(pcp, val, op);				\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ } while (0)
+ 
+ 
+@@ -154,9 +154,9 @@ do {									\
+ ({									\
+ 	typeof(pcp) __ret;						\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	__ret = raw_cpu_generic_add_return(pcp, val);			\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ 	__ret;								\
+ })
+ 
+@@ -164,9 +164,9 @@ do {									\
+ ({									\
+ 	typeof(pcp) __ret;						\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	__ret = raw_cpu_generic_xchg(pcp, nval);			\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ 	__ret;								\
+ })
+ 
+@@ -174,9 +174,9 @@ do {									\
+ ({									\
+ 	typeof(pcp) __ret;						\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	__ret = raw_cpu_generic_cmpxchg(pcp, oval, nval);		\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ 	__ret;								\
+ })
+ 
+@@ -184,10 +184,10 @@ do {									\
+ ({									\
+ 	int __ret;							\
+ 	unsigned long __flags;						\
+-	raw_local_irq_save(__flags);					\
++	__flags = hard_local_irq_save();				\
+ 	__ret = raw_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
+ 			oval1, oval2, nval1, nval2);			\
+-	raw_local_irq_restore(__flags);					\
++	hard_local_irq_restore(__flags);				\
+ 	__ret;								\
+ })
+ 
+-- 
+2.16.4
+

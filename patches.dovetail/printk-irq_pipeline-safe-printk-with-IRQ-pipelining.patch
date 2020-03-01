@@ -1,0 +1,113 @@
+From 3e46e1fd3825b329a059bf8f0f7d0020571dc079 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Wed, 27 Jul 2016 21:27:59 +0200
+Subject: [PATCH] printk: irq_pipeline: safe printk with IRQ pipelining
+
+Defer printk output not to wreck the hard interrupt state, cause
+unacceptable latency, or risk a deadlock, if either printk() is called
+from the oob stage or IRQs are hard disabled on entry (which covers
+the case of running over the root stage holding a hard lock).
+
+Deferral is obtained by following the NMI path in vprintk_func() when
+any of the above conditions is true. This relies on the ability for
+the oob stage to submit work requests to the in-band stage using the
+irq_work_queue() interface.
+---
+ include/linux/irq_pipeline.h | 13 +++++++++++++
+ init/Kconfig                 |  2 +-
+ kernel/irq/pipeline.c        |  5 +++++
+ kernel/printk/printk_safe.c  |  4 ++++
+ 4 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/irq_pipeline.h b/include/linux/irq_pipeline.h
+index 6eb44397ba0..cdd7656c96e 100644
+--- a/include/linux/irq_pipeline.h
++++ b/include/linux/irq_pipeline.h
+@@ -53,6 +53,14 @@ bool irq_cpuidle_enter(struct cpuidle_device *dev,
+ 
+ int run_oob_call(int (*fn)(void *arg), void *arg);
+ 
++extern bool irq_pipeline_active;
++
++static inline bool inband_unsafe(void)
++{
++	return running_oob() ||
++		(hard_irqs_disabled() && irq_pipeline_active);
++}
++
+ extern struct irq_domain *synthetic_irq_domain;
+ 
+ #else /* !CONFIG_IRQ_PIPELINE */
+@@ -88,6 +96,11 @@ static inline bool irq_cpuidle_enter(struct cpuidle_device *dev,
+ 	return true;
+ }
+ 
++static inline bool inband_unsafe(void)
++{
++	return false;
++}
++
+ #endif /* !CONFIG_IRQ_PIPELINE */
+ 
+ #endif /* _LINUX_IRQ_PIPELINE_H */
+diff --git a/init/Kconfig b/init/Kconfig
+index b03424ac2f6..3f5bdee10e6 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1298,7 +1298,7 @@ config PRINTK
+ config PRINTK_NMI
+ 	def_bool y
+ 	depends on PRINTK
+-	depends on HAVE_NMI
++	depends on HAVE_NMI || IRQ_PIPELINE
+ 
+ config RAW_PRINTK
+        bool "Enable support for raw printk"
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index efc5596c6ab..f000cdf10d1 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -33,6 +33,9 @@ EXPORT_SYMBOL_GPL(synthetic_irq_domain);
+ bool irq_pipeline_oopsing;
+ EXPORT_SYMBOL_GPL(irq_pipeline_oopsing);
+ 
++bool irq_pipeline_active;
++EXPORT_SYMBOL_GPL(irq_pipeline_active);
++
+ #define IRQ_LOW_MAPSZ	DIV_ROUND_UP(IRQ_BITMAP_BITS, BITS_PER_LONG)
+ 
+ #if IRQ_LOW_MAPSZ > BITS_PER_LONG
+@@ -1479,6 +1482,8 @@ void __init irq_pipeline_init(void)
+ 	 */
+ 	arch_irq_pipeline_init();
+ 
++	irq_pipeline_active = true;
++
+ 	pr_info("IRQ pipeline enabled\n");
+ }
+ 
+diff --git a/kernel/printk/printk_safe.c b/kernel/printk/printk_safe.c
+index 0913b4d385d..f1059b6d997 100644
+--- a/kernel/printk/printk_safe.c
++++ b/kernel/printk/printk_safe.c
+@@ -22,6 +22,7 @@
+ #include <linux/cpumask.h>
+ #include <linux/irq_work.h>
+ #include <linux/printk.h>
++#include <linux/irq_pipeline.h>
+ 
+ #include "internal.h"
+ 
+@@ -372,6 +373,9 @@ void __printk_safe_exit(void)
+ 
+ __printf(1, 0) int vprintk_func(const char *fmt, va_list args)
+ {
++	if (inband_unsafe())
++		return vprintk_nmi(fmt, args);
++
+ 	/*
+ 	 * Try to use the main logbuf even in NMI. But avoid calling console
+ 	 * drivers that might have their own locks.
+-- 
+2.16.4
+
