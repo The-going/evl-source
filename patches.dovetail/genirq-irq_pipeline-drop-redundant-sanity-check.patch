@@ -1,0 +1,29 @@
+From ec550a9a480f4b6db511a313f4aa682a2c3915f0 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 22 Apr 2019 10:22:13 +0200
+Subject: [PATCH] genirq: irq_pipeline: drop redundant sanity check
+
+If the caller of enable_oob_stage() runs out-of-band, then an
+out-of-band stage is already registered, which would beget -EBUSY in
+the next check. Simplify.
+---
+ kernel/irq/pipeline.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 06dfa9a11941..ff2dca8970cc 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -1231,9 +1231,6 @@ int enable_oob_stage(const char *name)
+ 	struct irq_stage_data *p;
+ 	int cpu, ret;
+ 
+-	if (WARN_ON(!running_inband()))
+-		return -EINVAL;
+-
+ 	if (oob_stage_present())
+ 		return -EBUSY;
+ 
+-- 
+2.16.4
+

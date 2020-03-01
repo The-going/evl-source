@@ -1,4 +1,4 @@
-From 6815db3f3eedc003dfc1856311475f268d38847a Mon Sep 17 00:00:00 2001
+From 874930c3fe0383120329d769dbb91adf40d968cc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 25 Aug 2017 18:36:21 +0200
 Subject: [PATCH] ARM64: dts: bcm2837: provide for BT-less variant, re-enabling
@@ -24,12 +24,12 @@ bcm2837-rpi-3-b-nobt.dtb is a fixed up blob doing exactly that.
  create mode 100644 arch/arm64/boot/dts/broadcom/bcm2837-rpi-3-b-nobt.dts
 
 diff --git a/arch/arm64/boot/dts/broadcom/Makefile b/arch/arm64/boot/dts/broadcom/Makefile
-index 667ca989c11..e1bbba3ca85 100644
+index d1d31ccad758..473da7c12853 100644
 --- a/arch/arm64/boot/dts/broadcom/Makefile
 +++ b/arch/arm64/boot/dts/broadcom/Makefile
-@@ -1,6 +1,7 @@
- # SPDX-License-Identifier: GPL-2.0
- dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-b.dtb \
+@@ -2,6 +2,7 @@
+ dtb-$(CONFIG_ARCH_BCM2835) += bcm2837-rpi-3-a-plus.dtb \
+ 			      bcm2837-rpi-3-b.dtb \
  			      bcm2837-rpi-3-b-plus.dtb \
 +			      bcm2837-rpi-3-b-nobt.dtb \
  			      bcm2837-rpi-cm3-io3.dtb
@@ -37,7 +37,7 @@ index 667ca989c11..e1bbba3ca85 100644
  subdir-y	+= northstar2
 diff --git a/arch/arm64/boot/dts/broadcom/bcm2837-rpi-3-b-nobt.dts b/arch/arm64/boot/dts/broadcom/bcm2837-rpi-3-b-nobt.dts
 new file mode 100644
-index 00000000000..43f9d0f665c
+index 000000000000..43f9d0f665cb
 --- /dev/null
 +++ b/arch/arm64/boot/dts/broadcom/bcm2837-rpi-3-b-nobt.dts
 @@ -0,0 +1,12 @@

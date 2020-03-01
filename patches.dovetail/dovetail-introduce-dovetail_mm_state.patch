@@ -1,0 +1,37 @@
+From ea418e656313967d93408f544cbbc9c91bea7724 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 2 Apr 2019 16:14:17 +0200
+Subject: [PATCH] dovetail: introduce dovetail_mm_state()
+
+---
+ include/linux/dovetail.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index d924f4358c08..92bd35349225 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -9,6 +9,7 @@
+ #ifdef CONFIG_DOVETAIL
+ 
+ #include <linux/sched.h>
++#include <linux/mm.h>
+ #include <linux/thread_info.h>
+ #include <asm/dovetail.h>
+ 
+@@ -194,6 +195,12 @@ struct oob_thread_state *dovetail_task_state(struct task_struct *p)
+ 	return &task_thread_info(p)->oob_state;
+ }
+ 
++static inline
++struct oob_mm_state *dovetail_mm_state(void)
++{
++	return &current->mm->oob_state;
++}
++
+ void dovetail_call_mayday(struct thread_info *ti,
+ 			  struct pt_regs *regs);
+ 
+-- 
+2.16.4
+

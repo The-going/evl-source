@@ -1,4 +1,4 @@
-From 475debab9b52c6852b72677ea73d44bb087e0676 Mon Sep 17 00:00:00 2001
+From 293bc9f08ba144c1fafb71876ceea03cfb7394e4 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -196,10 +196,10 @@ Subject: [PATCH] evl: rename evenless/ paths to evl/
  rename kernel/{evenless => evl}/xbuf.c (98%)
 
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 25c853d6d77..b618509b7fe 100644
+index 2d68d8b57242..abe657b99302 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -270,7 +270,7 @@ endif
+@@ -271,7 +271,7 @@ endif
  endif
  
  ifeq ($(CONFIG_EVL),y)
@@ -212,7 +212,7 @@ diff --git a/arch/arm/include/asm/evenless/fptest.h b/arch/arm/include/asm/evl/f
 similarity index 68%
 rename from arch/arm/include/asm/evenless/fptest.h
 rename to arch/arm/include/asm/evl/fptest.h
-index b1fb66f0719..e581304727e 100644
+index b1fb66f07195..e581304727e2 100644
 --- a/arch/arm/include/asm/evenless/fptest.h
 +++ b/arch/arm/include/asm/evl/fptest.h
 @@ -1,9 +1,9 @@
@@ -238,7 +238,7 @@ diff --git a/arch/arm/include/asm/evenless/syscall.h b/arch/arm/include/asm/evl/
 similarity index 90%
 rename from arch/arm/include/asm/evenless/syscall.h
 rename to arch/arm/include/asm/evl/syscall.h
-index 62d9ae76ab2..0c0727dfe87 100644
+index 62d9ae76ab2c..0c0727dfe87f 100644
 --- a/arch/arm/include/asm/evenless/syscall.h
 +++ b/arch/arm/include/asm/evl/syscall.h
 @@ -1,6 +1,6 @@
@@ -260,7 +260,7 @@ diff --git a/arch/arm/include/asm/evenless/thread.h b/arch/arm/include/asm/evl/t
 similarity index 77%
 rename from arch/arm/include/asm/evenless/thread.h
 rename to arch/arm/include/asm/evl/thread.h
-index 235cc80b4e1..423ef75176e 100644
+index 235cc80b4e1c..423ef75176e4 100644
 --- a/arch/arm/include/asm/evenless/thread.h
 +++ b/arch/arm/include/asm/evl/thread.h
 @@ -2,8 +2,8 @@
@@ -281,7 +281,7 @@ index 235cc80b4e1..423ef75176e 100644
 -#endif /* !_EVENLESS_ARM_ASM_THREAD_H */
 +#endif /* !_EVL_ARM_ASM_THREAD_H */
 diff --git a/arch/arm/include/dovetail/thread_info.h b/arch/arm/include/dovetail/thread_info.h
-index 253e15ec959..4253b13fe47 100644
+index 253e15ec959c..4253b13fe47f 100644
 --- a/arch/arm/include/dovetail/thread_info.h
 +++ b/arch/arm/include/dovetail/thread_info.h
 @@ -1,7 +1,7 @@
@@ -300,7 +300,7 @@ diff --git a/arch/arm/include/uapi/asm/evenless/fptest.h b/arch/arm/include/uapi
 similarity index 90%
 rename from arch/arm/include/uapi/asm/evenless/fptest.h
 rename to arch/arm/include/uapi/asm/evl/fptest.h
-index df9f454d7b7..d9771dda64f 100644
+index df9f454d7b7e..d9771dda64f2 100644
 --- a/arch/arm/include/uapi/asm/evenless/fptest.h
 +++ b/arch/arm/include/uapi/asm/evl/fptest.h
 @@ -4,8 +4,8 @@
@@ -321,7 +321,7 @@ index df9f454d7b7..d9771dda64f 100644
 -#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 +#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 27d8fe4b401..2fbbae462bf 100644
+index 27d8fe4b4015..2fbbae462bf5 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
 @@ -86,7 +86,7 @@ endif
@@ -337,7 +337,7 @@ diff --git a/arch/arm64/include/asm/evenless/fptest.h b/arch/arm64/include/asm/e
 similarity index 71%
 rename from arch/arm64/include/asm/evenless/fptest.h
 rename to arch/arm64/include/asm/evl/fptest.h
-index dc4c6501334..a853b1206d2 100644
+index dc4c6501334f..a853b1206d23 100644
 --- a/arch/arm64/include/asm/evenless/fptest.h
 +++ b/arch/arm64/include/asm/evl/fptest.h
 @@ -1,9 +1,9 @@
@@ -363,7 +363,7 @@ diff --git a/arch/arm64/include/asm/evenless/syscall.h b/arch/arm64/include/asm/
 similarity index 74%
 rename from arch/arm64/include/asm/evenless/syscall.h
 rename to arch/arm64/include/asm/evl/syscall.h
-index 29cea6da6ea..52579d00095 100644
+index 29cea6da6ea3..52579d000951 100644
 --- a/arch/arm64/include/asm/evenless/syscall.h
 +++ b/arch/arm64/include/asm/evl/syscall.h
 @@ -1,17 +1,17 @@
@@ -399,7 +399,7 @@ diff --git a/arch/arm64/include/asm/evenless/thread.h b/arch/arm64/include/asm/e
 similarity index 74%
 rename from arch/arm64/include/asm/evenless/thread.h
 rename to arch/arm64/include/asm/evl/thread.h
-index 07157c43d58..4e1938364a8 100644
+index 07157c43d586..4e1938364a80 100644
 --- a/arch/arm64/include/asm/evenless/thread.h
 +++ b/arch/arm64/include/asm/evl/thread.h
 @@ -1,6 +1,6 @@
@@ -418,7 +418,7 @@ index 07157c43d58..4e1938364a8 100644
 -#endif /* !_EVENLESS_ARM64_ASM_THREAD_H */
 +#endif /* !_EVL_ARM64_ASM_THREAD_H */
 diff --git a/arch/arm64/include/dovetail/thread_info.h b/arch/arm64/include/dovetail/thread_info.h
-index 253e15ec959..4253b13fe47 100644
+index 253e15ec959c..4253b13fe47f 100644
 --- a/arch/arm64/include/dovetail/thread_info.h
 +++ b/arch/arm64/include/dovetail/thread_info.h
 @@ -1,7 +1,7 @@
@@ -435,7 +435,7 @@ index 253e15ec959..4253b13fe47 100644
 +#endif /* !_EVL_DOVETAIL_THREAD_INFO_H */
 diff --git a/arch/arm64/include/uapi/asm/evenless/syscall.h b/arch/arm64/include/uapi/asm/evenless/syscall.h
 deleted file mode 100644
-index bc79392559e..00000000000
+index bc79392559e2..000000000000
 --- a/arch/arm64/include/uapi/asm/evenless/syscall.h
 +++ /dev/null
 @@ -1,7 +0,0 @@
@@ -450,7 +450,7 @@ diff --git a/arch/arm64/include/uapi/asm/evenless/fptest.h b/arch/arm64/include/
 similarity index 95%
 rename from arch/arm64/include/uapi/asm/evenless/fptest.h
 rename to arch/arm64/include/uapi/asm/evl/fptest.h
-index d8df4641dd0..8bf98331516 100644
+index d8df4641dd0b..8bf98331516d 100644
 --- a/arch/arm64/include/uapi/asm/evenless/fptest.h
 +++ b/arch/arm64/include/uapi/asm/evl/fptest.h
 @@ -4,8 +4,8 @@
@@ -472,7 +472,7 @@ index d8df4641dd0..8bf98331516 100644
 +#endif /* !_EVL_ARM64_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/include/uapi/asm/evl/syscall.h b/arch/arm64/include/uapi/asm/evl/syscall.h
 new file mode 100644
-index 00000000000..212ff2528aa
+index 000000000000..212ff2528aac
 --- /dev/null
 +++ b/arch/arm64/include/uapi/asm/evl/syscall.h
 @@ -0,0 +1,7 @@
@@ -484,7 +484,7 @@ index 00000000000..212ff2528aa
 +
 +#endif /* !_EVL_ARM64_ASM_UAPI_SYSCALL_H */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index b408ae51c18..176171a3b00 100644
+index 186d73c16561..db132065cf49 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -30,7 +30,7 @@ source "drivers/block/Kconfig"
@@ -497,7 +497,7 @@ index b408ae51c18..176171a3b00 100644
  # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 8a9c321e3f4..841cb968ff2 100644
+index d63a33a2f0d5..58de5bd6d972 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -521,7 +521,7 @@ diff --git a/drivers/evenless/hectic.c b/drivers/evl/hectic.c
 similarity index 98%
 rename from drivers/evenless/hectic.c
 rename to drivers/evl/hectic.c
-index fe7b4a621fb..5a72e73fba3 100644
+index fe7b4a621fb1..5a72e73fba37 100644
 --- a/drivers/evenless/hectic.c
 +++ b/drivers/evl/hectic.c
 @@ -13,11 +13,11 @@
@@ -545,7 +545,7 @@ diff --git a/drivers/evenless/latmus.c b/drivers/evl/latmus.c
 similarity index 99%
 rename from drivers/evenless/latmus.c
 rename to drivers/evl/latmus.c
-index 15ff9607b65..2c27bb767da 100644
+index 15ff9607b65e..2c27bb767da4 100644
 --- a/drivers/evenless/latmus.c
 +++ b/drivers/evl/latmus.c
 @@ -14,13 +14,13 @@
@@ -573,7 +573,7 @@ diff --git a/include/asm-generic/evenless/thread_info.h b/include/asm-generic/ev
 similarity index 64%
 rename from include/asm-generic/evenless/thread_info.h
 rename to include/asm-generic/evl/thread_info.h
-index 441e721fef6..bc1c7ada97a 100644
+index 441e721fef6c..bc1c7ada97a8 100644
 --- a/include/asm-generic/evenless/thread_info.h
 +++ b/include/asm-generic/evl/thread_info.h
 @@ -1,6 +1,6 @@
@@ -595,7 +595,7 @@ diff --git a/include/evenless/assert.h b/include/evl/assert.h
 similarity index 93%
 rename from include/evenless/assert.h
 rename to include/evl/assert.h
-index 044678c05f0..1eecf6ca898 100644
+index 044678c05f0d..1eecf6ca8985 100644
 --- a/include/evenless/assert.h
 +++ b/include/evl/assert.h
 @@ -5,8 +5,8 @@
@@ -619,7 +619,7 @@ diff --git a/include/evenless/clock.h b/include/evl/clock.h
 similarity index 95%
 rename from include/evenless/clock.h
 rename to include/evl/clock.h
-index ae96c1a2b1e..8ca6bf9e624 100644
+index ae96c1a2b1ec..8ca6bf9e624a 100644
 --- a/include/evenless/clock.h
 +++ b/include/evl/clock.h
 @@ -5,16 +5,16 @@
@@ -654,7 +654,7 @@ diff --git a/include/evenless/control.h b/include/evl/control.h
 similarity index 89%
 rename from include/evenless/control.h
 rename to include/evl/control.h
-index 83cbdc0a4e7..14f22fb1778 100644
+index 83cbdc0a4e74..14f22fb1778c 100644
 --- a/include/evenless/control.h
 +++ b/include/evl/control.h
 @@ -4,12 +4,12 @@
@@ -683,7 +683,7 @@ diff --git a/include/evenless/factory.h b/include/evl/factory.h
 similarity index 96%
 rename from include/evenless/factory.h
 rename to include/evl/factory.h
-index d1b660a46a7..a60559d6cac 100644
+index d1b660a46a70..a60559d6cac6 100644
 --- a/include/evenless/factory.h
 +++ b/include/evl/factory.h
 @@ -4,8 +4,8 @@
@@ -718,7 +718,7 @@ diff --git a/include/evenless/file.h b/include/evl/file.h
 similarity index 94%
 rename from include/evenless/file.h
 rename to include/evl/file.h
-index 1d7c424c6d6..15f6cd5184c 100644
+index 1d7c424c6d62..15f6cd5184cf 100644
 --- a/include/evenless/file.h
 +++ b/include/evl/file.h
 @@ -4,8 +4,8 @@
@@ -742,7 +742,7 @@ diff --git a/include/evenless/flag.h b/include/evl/flag.h
 similarity index 93%
 rename from include/evenless/flag.h
 rename to include/evl/flag.h
-index 4510708e8fd..91d8d2eecde 100644
+index 4510708e8fd6..91d8d2eecde0 100644
 --- a/include/evenless/flag.h
 +++ b/include/evl/flag.h
 @@ -4,11 +4,11 @@
@@ -771,7 +771,7 @@ diff --git a/include/evenless/init.h b/include/evl/init.h
 similarity index 88%
 rename from include/evenless/init.h
 rename to include/evl/init.h
-index baf519998ef..f668d709a40 100644
+index baf519998ef4..f668d709a40c 100644
 --- a/include/evenless/init.h
 +++ b/include/evl/init.h
 @@ -4,8 +4,8 @@
@@ -795,7 +795,7 @@ diff --git a/include/evenless/list.h b/include/evl/list.h
 similarity index 93%
 rename from include/evenless/list.h
 rename to include/evl/list.h
-index 6b545e4285d..742ce664b08 100644
+index 6b545e4285dc..742ce664b084 100644
 --- a/include/evenless/list.h
 +++ b/include/evl/list.h
 @@ -5,8 +5,8 @@
@@ -819,7 +819,7 @@ diff --git a/include/evenless/lock.h b/include/evl/lock.h
 similarity index 98%
 rename from include/evenless/lock.h
 rename to include/evl/lock.h
-index af49835310a..d25668874ab 100644
+index af49835310ac..d25668874abd 100644
 --- a/include/evenless/lock.h
 +++ b/include/evl/lock.h
 @@ -10,8 +10,8 @@
@@ -843,7 +843,7 @@ diff --git a/include/evenless/memory.h b/include/evl/memory.h
 similarity index 94%
 rename from include/evenless/memory.h
 rename to include/evl/memory.h
-index e340d1b128a..3219ee4bdf8 100644
+index e340d1b128a5..3219ee4bdf80 100644
 --- a/include/evenless/memory.h
 +++ b/include/evl/memory.h
 @@ -5,16 +5,16 @@
@@ -878,7 +878,7 @@ diff --git a/include/evenless/monitor.h b/include/evl/monitor.h
 similarity index 69%
 rename from include/evenless/monitor.h
 rename to include/evl/monitor.h
-index da5b9e6d35c..441decab3aa 100644
+index da5b9e6d35c7..441decab3aad 100644
 --- a/include/evenless/monitor.h
 +++ b/include/evl/monitor.h
 @@ -4,12 +4,12 @@
@@ -909,7 +909,7 @@ diff --git a/include/evenless/mutex.h b/include/evl/mutex.h
 similarity index 93%
 rename from include/evenless/mutex.h
 rename to include/evl/mutex.h
-index daeb2ee13fa..26423fbd26f 100644
+index daeb2ee13fa2..26423fbd26fa 100644
 --- a/include/evenless/mutex.h
 +++ b/include/evl/mutex.h
 @@ -4,17 +4,17 @@
@@ -947,7 +947,7 @@ diff --git a/include/evenless/poll.h b/include/evl/poll.h
 similarity index 88%
 rename from include/evenless/poll.h
 rename to include/evl/poll.h
-index 391577752cc..70f1c40f989 100644
+index 391577752ccc..70f1c40f989e 100644
 --- a/include/evenless/poll.h
 +++ b/include/evl/poll.h
 @@ -4,18 +4,18 @@
@@ -985,7 +985,7 @@ diff --git a/include/evenless/sched.h b/include/evl/sched.h
 similarity index 97%
 rename from include/evenless/sched.h
 rename to include/evl/sched.h
-index 65a6c01ef77..948e1c1aad9 100644
+index 65a6c01ef772..948e1c1aad98 100644
 --- a/include/evenless/sched.h
 +++ b/include/evl/sched.h
 @@ -5,19 +5,19 @@
@@ -1039,7 +1039,7 @@ diff --git a/include/evenless/sched/idle.h b/include/evl/sched/idle.h
 similarity index 85%
 rename from include/evenless/sched/idle.h
 rename to include/evl/sched/idle.h
-index cb3072a89ac..3f8aae3bfd3 100644
+index cb3072a89ac9..3f8aae3bfd32 100644
 --- a/include/evenless/sched/idle.h
 +++ b/include/evl/sched/idle.h
 @@ -5,11 +5,11 @@
@@ -1068,7 +1068,7 @@ diff --git a/include/evenless/sched/param.h b/include/evl/sched/param.h
 similarity index 83%
 rename from include/evenless/sched/param.h
 rename to include/evl/sched/param.h
-index d64510abe06..9c9056ffa49 100644
+index d64510abe062..9c9056ffa49d 100644
 --- a/include/evenless/sched/param.h
 +++ b/include/evl/sched/param.h
 @@ -5,8 +5,8 @@
@@ -1092,7 +1092,7 @@ diff --git a/include/evenless/sched/queue.h b/include/evl/sched/queue.h
 similarity index 91%
 rename from include/evenless/sched/queue.h
 rename to include/evl/sched/queue.h
-index ff9cfc1a0a7..42fd21fd3bc 100644
+index ff9cfc1a0a7f..42fd21fd3bce 100644
 --- a/include/evenless/sched/queue.h
 +++ b/include/evl/sched/queue.h
 @@ -5,11 +5,11 @@
@@ -1120,7 +1120,7 @@ diff --git a/include/evenless/sched/quota.h b/include/evl/sched/quota.h
 similarity index 94%
 rename from include/evenless/sched/quota.h
 rename to include/evl/sched/quota.h
-index 1b8476d196c..c10b0fadb4a 100644
+index 1b8476d196c0..c10b0fadb4a2 100644
 --- a/include/evenless/sched/quota.h
 +++ b/include/evl/sched/quota.h
 @@ -8,8 +8,8 @@
@@ -1138,7 +1138,7 @@ diff --git a/include/evenless/sched/rt.h b/include/evl/sched/rt.h
 similarity index 93%
 rename from include/evenless/sched/rt.h
 rename to include/evl/sched/rt.h
-index 77ae8489c8f..c823535f0b4 100644
+index 77ae8489c8f0..c823535f0b42 100644
 --- a/include/evenless/sched/rt.h
 +++ b/include/evl/sched/rt.h
 @@ -5,11 +5,11 @@
@@ -1167,7 +1167,7 @@ diff --git a/include/evenless/sched/weak.h b/include/evl/sched/weak.h
 similarity index 78%
 rename from include/evenless/sched/weak.h
 rename to include/evl/sched/weak.h
-index 145e13d8dbb..04339894524 100644
+index 145e13d8dbb6..043398945240 100644
 --- a/include/evenless/sched/weak.h
 +++ b/include/evl/sched/weak.h
 @@ -5,11 +5,11 @@
@@ -1196,7 +1196,7 @@ diff --git a/include/evenless/sem.h b/include/evl/sem.h
 similarity index 82%
 rename from include/evenless/sem.h
 rename to include/evl/sem.h
-index 6abdefaf5f3..a7c5ea11965 100644
+index 6abdefaf5f3e..a7c5ea119656 100644
 --- a/include/evenless/sem.h
 +++ b/include/evl/sem.h
 @@ -4,11 +4,11 @@
@@ -1224,7 +1224,7 @@ diff --git a/include/evenless/stat.h b/include/evl/stat.h
 similarity index 96%
 rename from include/evenless/stat.h
 rename to include/evl/stat.h
-index 3f083a0adbc..f669f2ba9fc 100644
+index 3f083a0adbcb..f669f2ba9fc4 100644
 --- a/include/evenless/stat.h
 +++ b/include/evl/stat.h
 @@ -7,10 +7,10 @@
@@ -1251,7 +1251,7 @@ diff --git a/include/evenless/thread.h b/include/evl/thread.h
 similarity index 96%
 rename from include/evenless/thread.h
 rename to include/evl/thread.h
-index 81e1eb760c9..2e4f33f7fe8 100644
+index 81e1eb760c9f..2e4f33f7fe86 100644
 --- a/include/evenless/thread.h
 +++ b/include/evl/thread.h
 @@ -6,8 +6,8 @@
@@ -1300,7 +1300,7 @@ diff --git a/include/evenless/tick.h b/include/evl/tick.h
 similarity index 86%
 rename from include/evenless/tick.h
 rename to include/evl/tick.h
-index 296592f97eb..d6183106f62 100644
+index 296592f97eb9..d6183106f62d 100644
 --- a/include/evenless/tick.h
 +++ b/include/evl/tick.h
 @@ -5,13 +5,13 @@
@@ -1331,7 +1331,7 @@ diff --git a/include/evenless/timer.h b/include/evl/timer.h
 similarity index 98%
 rename from include/evenless/timer.h
 rename to include/evl/timer.h
-index ffb334b0ddb..83910b6688c 100644
+index ffb334b0ddb1..83910b6688cd 100644
 --- a/include/evenless/timer.h
 +++ b/include/evl/timer.h
 @@ -5,17 +5,17 @@
@@ -1368,7 +1368,7 @@ diff --git a/include/evenless/wait.h b/include/evl/wait.h
 similarity index 94%
 rename from include/evenless/wait.h
 rename to include/evl/wait.h
-index 0bbfe00f83a..009dd5fdb5e 100644
+index 0bbfe00f83a7..009dd5fdb5e4 100644
 --- a/include/evenless/wait.h
 +++ b/include/evl/wait.h
 @@ -5,17 +5,17 @@
@@ -1406,7 +1406,7 @@ diff --git a/include/evenless/xbuf.h b/include/evl/xbuf.h
 similarity index 85%
 rename from include/evenless/xbuf.h
 rename to include/evl/xbuf.h
-index 6006addc081..ff70136758c 100644
+index 6006addc081e..ff70136758c5 100644
 --- a/include/evenless/xbuf.h
 +++ b/include/evl/xbuf.h
 @@ -4,8 +4,8 @@
@@ -1430,7 +1430,7 @@ diff --git a/include/trace/events/evenless.h b/include/trace/events/evl.h
 similarity index 97%
 rename from include/trace/events/evenless.h
 rename to include/trace/events/evl.h
-index aad524d86e4..deaca0a6565 100644
+index aad524d86e48..deaca0a6565e 100644
 --- a/include/trace/events/evenless.h
 +++ b/include/trace/events/evl.h
 @@ -6,18 +6,18 @@
@@ -1503,7 +1503,7 @@ index aad524d86e4..deaca0a6565 100644
  #include <trace/define_trace.h>
 diff --git a/include/uapi/evenless/syscall.h b/include/uapi/evenless/syscall.h
 deleted file mode 100644
-index 5bfc4e2a383..00000000000
+index 5bfc4e2a3830..000000000000
 --- a/include/uapi/evenless/syscall.h
 +++ /dev/null
 @@ -1,16 +0,0 @@
@@ -1527,7 +1527,7 @@ diff --git a/include/uapi/evenless/clock.h b/include/uapi/evl/clock.h
 similarity index 92%
 rename from include/uapi/evenless/clock.h
 rename to include/uapi/evl/clock.h
-index 61396ca411c..cd24ac98239 100644
+index 61396ca411c8..cd24ac98239b 100644
 --- a/include/uapi/evenless/clock.h
 +++ b/include/uapi/evl/clock.h
 @@ -4,8 +4,8 @@
@@ -1551,7 +1551,7 @@ diff --git a/include/uapi/evenless/control.h b/include/uapi/evl/control.h
 similarity index 75%
 rename from include/uapi/evenless/control.h
 rename to include/uapi/evl/control.h
-index 7a1535e8cc5..12729507d21 100644
+index 7a1535e8cc55..12729507d213 100644
 --- a/include/uapi/evenless/control.h
 +++ b/include/uapi/evl/control.h
 @@ -4,10 +4,10 @@
@@ -1578,7 +1578,7 @@ diff --git a/include/uapi/evenless/devices/hectic.h b/include/uapi/evl/devices/h
 similarity index 90%
 rename from include/uapi/evenless/devices/hectic.h
 rename to include/uapi/evl/devices/hectic.h
-index 28009ac8375..7832aff42e2 100644
+index 28009ac83751..7832aff42e23 100644
 --- a/include/uapi/evenless/devices/hectic.h
 +++ b/include/uapi/evl/devices/hectic.h
 @@ -6,8 +6,8 @@
@@ -1602,7 +1602,7 @@ diff --git a/include/uapi/evenless/devices/latmus.h b/include/uapi/evl/devices/l
 similarity index 90%
 rename from include/uapi/evenless/devices/latmus.h
 rename to include/uapi/evl/devices/latmus.h
-index d0fcca5b011..de47ffd0429 100644
+index d0fcca5b011a..de47ffd0429a 100644
 --- a/include/uapi/evenless/devices/latmus.h
 +++ b/include/uapi/evl/devices/latmus.h
 @@ -5,8 +5,8 @@
@@ -1626,7 +1626,7 @@ diff --git a/include/uapi/evenless/factory.h b/include/uapi/evl/factory.h
 similarity index 79%
 rename from include/uapi/evenless/factory.h
 rename to include/uapi/evl/factory.h
-index d7839aadf71..45c14891ed5 100644
+index d7839aadf710..45c14891ed5b 100644
 --- a/include/uapi/evenless/factory.h
 +++ b/include/uapi/evl/factory.h
 @@ -4,8 +4,8 @@
@@ -1650,7 +1650,7 @@ diff --git a/include/uapi/evenless/monitor.h b/include/uapi/evl/monitor.h
 similarity index 90%
 rename from include/uapi/evenless/monitor.h
 rename to include/uapi/evl/monitor.h
-index 450dac31d74..ba592b4e8c5 100644
+index 450dac31d741..ba592b4e8c50 100644
 --- a/include/uapi/evenless/monitor.h
 +++ b/include/uapi/evl/monitor.h
 @@ -4,11 +4,11 @@
@@ -1679,7 +1679,7 @@ diff --git a/include/uapi/evenless/mutex.h b/include/uapi/evl/mutex.h
 similarity index 86%
 rename from include/uapi/evenless/mutex.h
 rename to include/uapi/evl/mutex.h
-index 02e652ac1dc..68df16399ae 100644
+index 02e652ac1dc4..68df16399aee 100644
 --- a/include/uapi/evenless/mutex.h
 +++ b/include/uapi/evl/mutex.h
 @@ -6,10 +6,10 @@
@@ -1706,7 +1706,7 @@ diff --git a/include/uapi/evenless/poll.h b/include/uapi/evl/poll.h
 similarity index 86%
 rename from include/uapi/evenless/poll.h
 rename to include/uapi/evl/poll.h
-index 485e7cadcdd..64e154cc1c7 100644
+index 485e7cadcdd0..64e154cc1c7a 100644
 --- a/include/uapi/evenless/poll.h
 +++ b/include/uapi/evl/poll.h
 @@ -4,8 +4,8 @@
@@ -1730,7 +1730,7 @@ diff --git a/include/uapi/evenless/proxy.h b/include/uapi/evl/proxy.h
 similarity index 64%
 rename from include/uapi/evenless/proxy.h
 rename to include/uapi/evl/proxy.h
-index 740d66b663c..9ffdf00bbc1 100644
+index 740d66b663c6..9ffdf00bbc1f 100644
 --- a/include/uapi/evenless/proxy.h
 +++ b/include/uapi/evl/proxy.h
 @@ -4,12 +4,12 @@
@@ -1753,7 +1753,7 @@ diff --git a/include/uapi/evenless/sched.h b/include/uapi/evl/sched.h
 similarity index 92%
 rename from include/uapi/evenless/sched.h
 rename to include/uapi/evl/sched.h
-index 96fdcf6f0a1..a27ac09e1f6 100644
+index 96fdcf6f0a13..a27ac09e1f61 100644
 --- a/include/uapi/evenless/sched.h
 +++ b/include/uapi/evl/sched.h
 @@ -5,8 +5,8 @@
@@ -1777,7 +1777,7 @@ diff --git a/include/uapi/evenless/signal.h b/include/uapi/evl/signal.h
 similarity index 91%
 rename from include/uapi/evenless/signal.h
 rename to include/uapi/evl/signal.h
-index 563839a7e7b..74e53bc106a 100644
+index 563839a7e7be..74e53bc106a8 100644
 --- a/include/uapi/evenless/signal.h
 +++ b/include/uapi/evl/signal.h
 @@ -6,8 +6,8 @@
@@ -1799,7 +1799,7 @@ index 563839a7e7b..74e53bc106a 100644
 +#endif /* !_EVL_UAPI_SIGNAL_H */
 diff --git a/include/uapi/evl/syscall.h b/include/uapi/evl/syscall.h
 new file mode 100644
-index 00000000000..70807eb5455
+index 000000000000..70807eb54551
 --- /dev/null
 +++ b/include/uapi/evl/syscall.h
 @@ -0,0 +1,16 @@
@@ -1823,7 +1823,7 @@ diff --git a/include/uapi/evenless/thread.h b/include/uapi/evl/thread.h
 similarity index 96%
 rename from include/uapi/evenless/thread.h
 rename to include/uapi/evl/thread.h
-index fe6639f8316..12898149c76 100644
+index fe6639f83162..12898149c76e 100644
 --- a/include/uapi/evenless/thread.h
 +++ b/include/uapi/evl/thread.h
 @@ -5,10 +5,10 @@
@@ -1850,7 +1850,7 @@ diff --git a/include/uapi/evenless/trace.h b/include/uapi/evl/trace.h
 similarity index 68%
 rename from include/uapi/evenless/trace.h
 rename to include/uapi/evl/trace.h
-index 2be3998f333..b0e4e8c2648 100644
+index 2be3998f3330..b0e4e8c26481 100644
 --- a/include/uapi/evenless/trace.h
 +++ b/include/uapi/evl/trace.h
 @@ -4,11 +4,11 @@
@@ -1872,7 +1872,7 @@ diff --git a/include/uapi/evenless/types.h b/include/uapi/evl/types.h
 similarity index 87%
 rename from include/uapi/evenless/types.h
 rename to include/uapi/evl/types.h
-index 3cb3bebfd25..7aa2951c0e0 100644
+index 3cb3bebfd258..7aa2951c0e0b 100644
 --- a/include/uapi/evenless/types.h
 +++ b/include/uapi/evl/types.h
 @@ -5,8 +5,8 @@
@@ -1896,7 +1896,7 @@ diff --git a/include/uapi/evenless/xbuf.h b/include/uapi/evl/xbuf.h
 similarity index 69%
 rename from include/uapi/evenless/xbuf.h
 rename to include/uapi/evl/xbuf.h
-index 697463e99cb..636bad90745 100644
+index 697463e99cb3..636bad907452 100644
 --- a/include/uapi/evenless/xbuf.h
 +++ b/include/uapi/evl/xbuf.h
 @@ -4,8 +4,8 @@
@@ -1920,7 +1920,7 @@ diff --git a/kernel/Kconfig.evenless b/kernel/Kconfig.evl
 similarity index 94%
 rename from kernel/Kconfig.evenless
 rename to kernel/Kconfig.evl
-index 6730247e8da..9d825662983 100644
+index 6730247e8da3..9d8256629839 100644
 --- a/kernel/Kconfig.evenless
 +++ b/kernel/Kconfig.evl
 @@ -15,7 +15,7 @@ menuconfig EVL
@@ -1933,7 +1933,7 @@ index 6730247e8da..9d825662983 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index a9ad771b297..15192fd45f7 100644
+index 9fbb0c958b9a..a795a5ced447 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -99,7 +99,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
@@ -1947,7 +1947,7 @@ index a9ad771b297..15192fd45f7 100644
  
 diff --git a/kernel/evenless/sched/Makefile b/kernel/evenless/sched/Makefile
 deleted file mode 100644
-index 351b9fcca9e..00000000000
+index 351b9fcca9e3..000000000000
 --- a/kernel/evenless/sched/Makefile
 +++ /dev/null
 @@ -1,11 +0,0 @@
@@ -1974,7 +1974,7 @@ diff --git a/kernel/evenless/Makefile b/kernel/evl/Makefile
 similarity index 72%
 rename from kernel/evenless/Makefile
 rename to kernel/evl/Makefile
-index 91b79f28cb1..d7248a6e613 100644
+index 91b79f28cb1b..d7248a6e613c 100644
 --- a/kernel/evenless/Makefile
 +++ b/kernel/evl/Makefile
 @@ -1,8 +1,8 @@
@@ -1998,7 +1998,7 @@ diff --git a/kernel/evenless/clock.c b/kernel/evl/clock.c
 similarity index 98%
 rename from kernel/evenless/clock.c
 rename to kernel/evl/clock.c
-index 86ac5c12ff7..43967d470d8 100644
+index 86ac5c12ff75..43967d470d8f 100644
 --- a/kernel/evenless/clock.c
 +++ b/kernel/evl/clock.c
 @@ -20,19 +20,19 @@
@@ -2038,7 +2038,7 @@ diff --git a/kernel/evenless/control.c b/kernel/evl/control.c
 similarity index 95%
 rename from kernel/evenless/control.c
 rename to kernel/evl/control.c
-index 52503c2e7aa..6aa9aa3880c 100644
+index 52503c2e7aa7..6aa9aa3880c2 100644
 --- a/kernel/evenless/control.c
 +++ b/kernel/evl/control.c
 @@ -6,15 +6,15 @@
@@ -2070,7 +2070,7 @@ diff --git a/kernel/evenless/factory.c b/kernel/evl/factory.c
 similarity index 97%
 rename from kernel/evenless/factory.c
 rename to kernel/evl/factory.c
-index 641551f43a9..a0ef3630aa2 100644
+index 641551f43a93..a0ef3630aa21 100644
 --- a/kernel/evenless/factory.c
 +++ b/kernel/evl/factory.c
 @@ -18,12 +18,12 @@
@@ -2131,7 +2131,7 @@ diff --git a/kernel/evenless/file.c b/kernel/evl/file.c
 similarity index 97%
 rename from kernel/evenless/file.c
 rename to kernel/evl/file.c
-index 78755321cff..5e2cde8ea18 100644
+index 78755321cff4..5e2cde8ea180 100644
 --- a/kernel/evenless/file.c
 +++ b/kernel/evl/file.c
 @@ -13,11 +13,11 @@
@@ -2155,7 +2155,7 @@ diff --git a/kernel/evenless/init.c b/kernel/evl/init.c
 similarity index 92%
 rename from kernel/evenless/init.c
 rename to kernel/evl/init.c
-index 8a423623d90..9c0583a7426 100644
+index 8a423623d909..9c0583a74269 100644
 --- a/kernel/evenless/init.c
 +++ b/kernel/evl/init.c
 @@ -6,17 +6,17 @@
@@ -2190,7 +2190,7 @@ diff --git a/kernel/evenless/irq.c b/kernel/evl/irq.c
 similarity index 95%
 rename from kernel/evenless/irq.c
 rename to kernel/evl/irq.c
-index becf7c9395c..46cf6cf0e0c 100644
+index becf7c9395c7..46cf6cf0e0c3 100644
 --- a/kernel/evenless/irq.c
 +++ b/kernel/evl/irq.c
 @@ -6,7 +6,7 @@
@@ -2206,7 +2206,7 @@ diff --git a/kernel/evenless/lock.c b/kernel/evl/lock.c
 similarity index 93%
 rename from kernel/evenless/lock.c
 rename to kernel/evl/lock.c
-index 35a995b3291..3ddd24a153b 100644
+index 35a995b32918..3ddd24a153be 100644
 --- a/kernel/evenless/lock.c
 +++ b/kernel/evl/lock.c
 @@ -12,8 +12,8 @@
@@ -2224,7 +2224,7 @@ diff --git a/kernel/evenless/memory.c b/kernel/evl/memory.c
 similarity index 98%
 rename from kernel/evenless/memory.c
 rename to kernel/evl/memory.c
-index d8ab63b4ac7..7d60bc7ae06 100644
+index d8ab63b4ac70..7d60bc7ae068 100644
 --- a/kernel/evenless/memory.c
 +++ b/kernel/evl/memory.c
 @@ -17,12 +17,12 @@
@@ -2250,7 +2250,7 @@ diff --git a/kernel/evenless/monitor.c b/kernel/evl/monitor.c
 similarity index 97%
 rename from kernel/evenless/monitor.c
 rename to kernel/evl/monitor.c
-index 4e4d7fa0a1e..74e0b6ee25a 100644
+index 4e4d7fa0a1e2..74e0b6ee25a0 100644
 --- a/kernel/evenless/monitor.c
 +++ b/kernel/evl/monitor.c
 @@ -7,20 +7,20 @@
@@ -2292,7 +2292,7 @@ diff --git a/kernel/evenless/mutex.c b/kernel/evl/mutex.c
 similarity index 98%
 rename from kernel/evenless/mutex.c
 rename to kernel/evl/mutex.c
-index 76d6f3d43d4..8233bd68287 100644
+index 76d6f3d43d4c..8233bd682871 100644
 --- a/kernel/evenless/mutex.c
 +++ b/kernel/evl/mutex.c
 @@ -6,14 +6,14 @@
@@ -2322,7 +2322,7 @@ diff --git a/kernel/evenless/poll.c b/kernel/evl/poll.c
 similarity index 98%
 rename from kernel/evenless/poll.c
 rename to kernel/evl/poll.c
-index 98305c29257..389deb6e6ab 100644
+index 98305c29257f..389deb6e6ab6 100644
 --- a/kernel/evenless/poll.c
 +++ b/kernel/evl/poll.c
 @@ -11,14 +11,14 @@
@@ -2352,7 +2352,7 @@ diff --git a/kernel/evenless/proxy.c b/kernel/evl/proxy.c
 similarity index 98%
 rename from kernel/evenless/proxy.c
 rename to kernel/evl/proxy.c
-index ad83b89d2d9..9c2764efa8f 100644
+index ad83b89d2d96..9c2764efa8ff 100644
 --- a/kernel/evenless/proxy.c
 +++ b/kernel/evl/proxy.c
 @@ -15,8 +15,8 @@
@@ -2368,7 +2368,7 @@ index ad83b89d2d9..9c2764efa8f 100644
  	struct file *filp;
 diff --git a/kernel/evl/sched/Makefile b/kernel/evl/sched/Makefile
 new file mode 100644
-index 00000000000..43dba365533
+index 000000000000..43dba3655334
 --- /dev/null
 +++ b/kernel/evl/sched/Makefile
 @@ -0,0 +1,11 @@
@@ -2387,7 +2387,7 @@ diff --git a/kernel/evenless/sched/core.c b/kernel/evl/sched/core.c
 similarity index 98%
 rename from kernel/evenless/sched/core.c
 rename to kernel/evl/sched/core.c
-index 52503ae2d91..cef5b231700 100644
+index 52503ae2d91e..cef5b2317008 100644
 --- a/kernel/evenless/sched/core.c
 +++ b/kernel/evl/sched/core.c
 @@ -15,15 +15,15 @@
@@ -2419,7 +2419,7 @@ diff --git a/kernel/evenless/sched/idle.c b/kernel/evl/sched/idle.c
 similarity index 97%
 rename from kernel/evenless/sched/idle.c
 rename to kernel/evl/sched/idle.c
-index 5b872fed467..90e5f71bd06 100644
+index 5b872fed467a..90e5f71bd06e 100644
 --- a/kernel/evenless/sched/idle.c
 +++ b/kernel/evl/sched/idle.c
 @@ -5,7 +5,7 @@
@@ -2435,7 +2435,7 @@ diff --git a/kernel/evenless/sched/quota.c b/kernel/evl/sched/quota.c
 similarity index 99%
 rename from kernel/evenless/sched/quota.c
 rename to kernel/evl/sched/quota.c
-index 94c1d4cf4cd..9c6fbc69dbb 100644
+index 94c1d4cf4cd1..9c6fbc69dbba 100644
 --- a/kernel/evenless/sched/quota.c
 +++ b/kernel/evl/sched/quota.c
 @@ -7,9 +7,9 @@
@@ -2455,7 +2455,7 @@ diff --git a/kernel/evenless/sched/rt.c b/kernel/evl/sched/rt.c
 similarity index 99%
 rename from kernel/evenless/sched/rt.c
 rename to kernel/evl/sched/rt.c
-index 3ee18dfc9ca..bcac2792369 100644
+index 3ee18dfc9cae..bcac2792369b 100644
 --- a/kernel/evenless/sched/rt.c
 +++ b/kernel/evl/sched/rt.c
 @@ -5,7 +5,7 @@
@@ -2471,7 +2471,7 @@ diff --git a/kernel/evenless/sched/weak.c b/kernel/evl/sched/weak.c
 similarity index 97%
 rename from kernel/evenless/sched/weak.c
 rename to kernel/evl/sched/weak.c
-index a8ec88bb945..c94d7215a05 100644
+index a8ec88bb945d..c94d7215a05c 100644
 --- a/kernel/evenless/sched/weak.c
 +++ b/kernel/evl/sched/weak.c
 @@ -5,8 +5,8 @@
@@ -2489,7 +2489,7 @@ diff --git a/kernel/evenless/sem.c b/kernel/evl/sem.c
 similarity index 90%
 rename from kernel/evenless/sem.c
 rename to kernel/evl/sem.c
-index 375b496aa21..7f15ea4e38e 100644
+index 375b496aa219..7f15ea4e38e0 100644
 --- a/kernel/evenless/sem.c
 +++ b/kernel/evl/sem.c
 @@ -4,11 +4,11 @@
@@ -2513,7 +2513,7 @@ diff --git a/kernel/evenless/syscall.c b/kernel/evl/syscall.c
 similarity index 86%
 rename from kernel/evenless/syscall.c
 rename to kernel/evl/syscall.c
-index ec127d2c6e1..59da6c6cd75 100644
+index ec127d2c6e12..59da6c6cd757 100644
 --- a/kernel/evenless/syscall.c
 +++ b/kernel/evl/syscall.c
 @@ -15,21 +15,21 @@
@@ -2622,7 +2622,7 @@ diff --git a/kernel/evenless/thread.c b/kernel/evl/thread.c
 similarity index 99%
 rename from kernel/evenless/thread.c
 rename to kernel/evl/thread.c
-index 37ebd5db5bd..41894248729 100644
+index 37ebd5db5bd5..41894248729c 100644
 --- a/kernel/evenless/thread.c
 +++ b/kernel/evl/thread.c
 @@ -22,23 +22,23 @@
@@ -2670,7 +2670,7 @@ diff --git a/kernel/evenless/tick.c b/kernel/evl/tick.c
 similarity index 98%
 rename from kernel/evenless/tick.c
 rename to kernel/evl/tick.c
-index ba8c825ac80..2c38d244b61 100644
+index ba8c825ac803..2c38d244b615 100644
 --- a/kernel/evenless/tick.c
 +++ b/kernel/evl/tick.c
 @@ -14,12 +14,12 @@
@@ -2696,7 +2696,7 @@ diff --git a/kernel/evenless/timer.c b/kernel/evl/timer.c
 similarity index 98%
 rename from kernel/evenless/timer.c
 rename to kernel/evl/timer.c
-index 0cec520856c..e26cd8247ea 100644
+index 0cec520856cf..e26cd8247ead 100644
 --- a/kernel/evenless/timer.c
 +++ b/kernel/evl/timer.c
 @@ -9,13 +9,13 @@
@@ -2723,7 +2723,7 @@ diff --git a/kernel/evenless/trace.c b/kernel/evl/trace.c
 similarity index 94%
 rename from kernel/evenless/trace.c
 rename to kernel/evl/trace.c
-index d81156fd097..9a47dafece6 100644
+index d81156fd0977..9a47dafece68 100644
 --- a/kernel/evenless/trace.c
 +++ b/kernel/evl/trace.c
 @@ -6,9 +6,9 @@
@@ -2743,7 +2743,7 @@ diff --git a/kernel/evenless/wait.c b/kernel/evl/wait.c
 similarity index 94%
 rename from kernel/evenless/wait.c
 rename to kernel/evl/wait.c
-index 085b8315caf..056a8dfc2a8 100644
+index 085b8315caf2..056a8dfc2a82 100644
 --- a/kernel/evenless/wait.c
 +++ b/kernel/evl/wait.c
 @@ -5,12 +5,12 @@
@@ -2769,7 +2769,7 @@ diff --git a/kernel/evenless/xbuf.c b/kernel/evl/xbuf.c
 similarity index 98%
 rename from kernel/evenless/xbuf.c
 rename to kernel/evl/xbuf.c
-index 0ffce3a1d15..9c4305a4222 100644
+index 0ffce3a1d154..9c4305a4222f 100644
 --- a/kernel/evenless/xbuf.c
 +++ b/kernel/evl/xbuf.c
 @@ -12,17 +12,17 @@

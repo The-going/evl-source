@@ -1,4 +1,4 @@
-From 646558e061fae48a543f21bb9985411991419108 Mon Sep 17 00:00:00 2001
+From 88052ef282ae729590a9d633f0b58bcb6000c8f6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 17 Mar 2019 18:35:07 +0100
 Subject: [PATCH] arm64: irq_pipeline: fix user return from el0_irq
@@ -12,10 +12,10 @@ in-band stage was stalled on entry.
  1 file changed, 11 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-index e3b9c621ed7..b45e9dd21a3 100644
+index ac96198ac2a9..043cd022d20c 100644
 --- a/arch/arm64/kernel/entry.S
 +++ b/arch/arm64/kernel/entry.S
-@@ -881,16 +881,24 @@ el0_irq_naked:
+@@ -915,16 +915,24 @@ el0_irq_naked:
  1:
  #endif
  	irq_handler

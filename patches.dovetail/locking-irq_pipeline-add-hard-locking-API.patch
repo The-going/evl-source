@@ -1,4 +1,4 @@
-From 869e46627ef6a97829bd9f26e51bf8878eb64630 Mon Sep 17 00:00:00 2001
+From 3d42a638c80241dd13e967fff4207c0c14f37ccc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 16:07:57 +0200
 Subject: [PATCH] locking: irq_pipeline: add hard locking API
@@ -26,10 +26,10 @@ running on the head IRQ stage.
  create mode 100644 include/linux/spinlock_pipeline.h
 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index c5335df2372..11fe774e292 100644
+index 79c3873d58ac..2e5b6322aa1c 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
-@@ -284,21 +284,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+@@ -298,21 +298,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
   * or they are too narrow (they suffer from a false class-split):
   */
  #define lockdep_set_class(lock, key) \
@@ -59,7 +59,7 @@ index c5335df2372..11fe774e292 100644
  static inline int lockdep_match_key(struct lockdep_map *lock,
  				    struct lock_class_key *key)
 diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
-index e089157dcf9..f1393bbf6df 100644
+index e089157dcf97..f1393bbf6dff 100644
 --- a/include/linux/spinlock.h
 +++ b/include/linux/spinlock.h
 @@ -94,21 +94,27 @@
@@ -216,7 +216,7 @@ index e089157dcf9..f1393bbf6df 100644
   * Map the spin_lock functions to the raw variants for PREEMPT_RT=n
   */
 diff --git a/include/linux/spinlock_api_up.h b/include/linux/spinlock_api_up.h
-index d0d188861ad..6895779e81b 100644
+index d0d188861ad6..6895779e81bd 100644
 --- a/include/linux/spinlock_api_up.h
 +++ b/include/linux/spinlock_api_up.h
 @@ -30,21 +30,33 @@
@@ -271,7 +271,7 @@ index d0d188861ad..6895779e81b 100644
  #define _raw_read_lock(lock)			__LOCK(lock)
 diff --git a/include/linux/spinlock_pipeline.h b/include/linux/spinlock_pipeline.h
 new file mode 100644
-index 00000000000..de31c97e508
+index 000000000000..de31c97e5083
 --- /dev/null
 +++ b/include/linux/spinlock_pipeline.h
 @@ -0,0 +1,176 @@
@@ -452,7 +452,7 @@ index 00000000000..de31c97e508
 +
 +#endif /* __LINUX_SPINLOCK_PIPELINE_H */
 diff --git a/include/linux/spinlock_types.h b/include/linux/spinlock_types.h
-index 24b4e6f2c1a..7eb1b2aa827 100644
+index 24b4e6f2c1a2..7eb1b2aa8276 100644
 --- a/include/linux/spinlock_types.h
 +++ b/include/linux/spinlock_types.h
 @@ -80,6 +80,93 @@ typedef struct spinlock {
@@ -550,7 +550,7 @@ index 24b4e6f2c1a..7eb1b2aa827 100644
  
  #endif /* __LINUX_SPINLOCK_TYPES_H */
 diff --git a/kernel/locking/spinlock_debug.c b/kernel/locking/spinlock_debug.c
-index 9aa0fccd5d4..aa4de1dd669 100644
+index 9aa0fccd5d43..aa4de1dd669e 100644
 --- a/kernel/locking/spinlock_debug.c
 +++ b/kernel/locking/spinlock_debug.c
 @@ -113,6 +113,7 @@ void do_raw_spin_lock(raw_spinlock_t *lock)

@@ -1,4 +1,4 @@
-From f1c1b60e352e5feec088ebdbef26c7b2ef15685e Mon Sep 17 00:00:00 2001
+From 8626173282b77bd4f8f8157b9384ccea5ae3ee13 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 26 Jun 2018 12:04:25 +0200
 Subject: [PATCH] mm: dovetail: allow force commit of pages in mappings
@@ -11,10 +11,10 @@ Subject: [PATCH] mm: dovetail: allow force commit of pages in mappings
  4 files changed, 79 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe7..7dec3031af6 100644
+index 6b10c21630f5..60c24ade9f34 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2843,5 +2843,16 @@ void __init setup_nr_node_ids(void);
+@@ -2811,5 +2811,16 @@ void __init setup_nr_node_ids(void);
  static inline void setup_nr_node_ids(void) {}
  #endif
  
@@ -32,7 +32,7 @@ index 80bb6408fe7..7dec3031af6 100644
  #endif /* __KERNEL__ */
  #endif /* _LINUX_MM_H */
 diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
-index ecdc6542070..cefa20991d0 100644
+index ecdc6542070f..cefa20991d06 100644
 --- a/include/linux/sched/coredump.h
 +++ b/include/linux/sched/coredump.h
 @@ -73,6 +73,7 @@ static inline int get_dumpable(struct mm_struct *mm)
@@ -44,10 +44,10 @@ index ecdc6542070..cefa20991d0 100644
  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
  				 MMF_DISABLE_THP_MASK)
 diff --git a/mm/memory.c b/mm/memory.c
-index e11ca9dd823..44c0c7c4f4f 100644
+index ab650c21bccd..4f28070f1163 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -4560,6 +4560,66 @@ long copy_huge_page_from_user(struct page *dst_page,
+@@ -4585,6 +4585,66 @@ long copy_huge_page_from_user(struct page *dst_page,
  }
  #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
  
@@ -115,7 +115,7 @@ index e11ca9dd823..44c0c7c4f4f 100644
  
  static struct kmem_cache *page_ptl_cachep;
 diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 0dca51b4de6..455f27b7571 100644
+index fc47685995b6..c49dea5ad32f 100644
 --- a/mm/mprotect.c
 +++ b/mm/mprotect.c
 @@ -23,6 +23,7 @@

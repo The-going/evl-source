@@ -1,4 +1,4 @@
-From cc7cfe5ac878dc07902771fdbdb29a2fb9e6607b Mon Sep 17 00:00:00 2001
+From 1eddc36a002e4a3f04f37e29853058c76b00b107 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 10:07:11 +0200
 Subject: [PATCH] signal: dovetail: announce signal receipt
@@ -8,10 +8,10 @@ Subject: [PATCH] signal: dovetail: announce signal receipt
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/signal.c b/kernel/signal.c
-index 57b7771e20d..0d7f6d24f33 100644
+index f98448cf2def..2a6479303769 100644
 --- a/kernel/signal.c
 +++ b/kernel/signal.c
-@@ -744,6 +744,10 @@ static int dequeue_synchronous_signal(kernel_siginfo_t *info)
+@@ -746,6 +746,10 @@ static int dequeue_synchronous_signal(kernel_siginfo_t *info)
  void signal_wake_up_state(struct task_struct *t, unsigned int state)
  {
  	set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -22,7 +22,7 @@ index 57b7771e20d..0d7f6d24f33 100644
  	/*
  	 * TASK_WAKEKILL also means wake it up in the stopped/traced/killable
  	 * case. We don't check t->state here because there is a race with it
-@@ -964,8 +968,11 @@ static inline bool wants_signal(int sig, struct task_struct *p)
+@@ -966,8 +970,11 @@ static inline bool wants_signal(int sig, struct task_struct *p)
  	if (sig == SIGKILL)
  		return true;
  

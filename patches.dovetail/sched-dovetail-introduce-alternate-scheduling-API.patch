@@ -1,4 +1,4 @@
-From b769c39e80f608b8d65f5de668b964f6fccae374 Mon Sep 17 00:00:00 2001
+From 835c3956003ca42858fa39f5c9aac599c57dbb9b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 21:32:33 +0200
 Subject: [PATCH] sched: dovetail: introduce alternate scheduling API
@@ -23,7 +23,7 @@ Such tasks may migrate between execution stages.
  8 files changed, 362 insertions(+), 4 deletions(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index fb72d36f782..247dc74b8bb 100644
+index 2e0033348d8e..41c553c49cf2 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -1010,6 +1010,7 @@ static int exec_mmap(struct mm_struct *mm)
@@ -46,7 +46,7 @@ index fb72d36f782..247dc74b8bb 100644
  	vmacache_flush(tsk);
  	task_unlock(tsk);
 diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
-index a2f6e7b54bf..2c06473c68b 100644
+index a2f6e7b54bfb..2c06473c68b4 100644
 --- a/include/linux/dovetail.h
 +++ b/include/linux/dovetail.h
 @@ -28,6 +28,14 @@ struct dovetail_migration_data {
@@ -178,7 +178,7 @@ index a2f6e7b54bf..2c06473c68b 100644
  
  static inline bool dovetailing(void)
 diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
-index 2fafac82e34..31dceafcd98 100644
+index 2fafac82e348..31dceafcd98a 100644
 --- a/include/linux/irqstage.h
 +++ b/include/linux/irqstage.h
 @@ -49,6 +49,10 @@ struct irq_pipeline_data {
@@ -193,7 +193,7 @@ index 2fafac82e34..31dceafcd98 100644
  
  DECLARE_PER_CPU(struct irq_pipeline_data, irq_pipeline);
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7dec3031af6..459b1237229 100644
+index 60c24ade9f34..a2c4507b7cc4 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
 @@ -19,6 +19,7 @@
@@ -205,18 +205,18 @@ index 7dec3031af6..459b1237229 100644
  #include <linux/resource.h>
  #include <linux/page_ext.h>
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index f9b43c98957..784c20d9724 100644
+index 1549584a1538..60d88f6c3b86 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -22,6 +22,7 @@
- #include <linux/nodemask.h>
+@@ -23,6 +23,7 @@
  #include <linux/rcupdate.h>
+ #include <linux/refcount.h>
  #include <linux/resource.h>
 +#include <linux/irqstage.h>
  #include <linux/latencytop.h>
  #include <linux/sched/prio.h>
  #include <linux/signal_types.h>
-@@ -112,6 +113,12 @@ struct task_group;
+@@ -114,6 +115,12 @@ struct task_group;
  					 (task->flags & PF_FROZEN) == 0 && \
  					 (task->state & TASK_NOLOAD) == 0)
  
@@ -230,7 +230,7 @@ index f9b43c98957..784c20d9724 100644
  
  /*
 diff --git a/kernel/dovetail.c b/kernel/dovetail.c
-index 05bc5c0d735..6da6429bdf5 100644
+index 05bc5c0d7357..6da6429bdf5e 100644
 --- a/kernel/dovetail.c
 +++ b/kernel/dovetail.c
 @@ -12,6 +12,43 @@
@@ -369,10 +369,10 @@ index 05bc5c0d735..6da6429bdf5 100644
  {
  	check_inband_stage();
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 5769e435ad2..28c270379c6 100644
+index 9404feeba80c..92435d5b2512 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -1977,7 +1977,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
+@@ -2007,7 +2007,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
  	 */
  	raw_spin_lock_irqsave(&p->pi_lock, flags);
  	smp_mb__after_spinlock();
@@ -381,7 +381,7 @@ index 5769e435ad2..28c270379c6 100644
  		goto out;
  
  	trace_sched_waking(p);
-@@ -2629,6 +2629,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
+@@ -2662,6 +2662,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  	rseq_preempt(prev);
  	fire_sched_out_preempt_notifiers(prev, next);
  	prepare_task(next);
@@ -389,7 +389,7 @@ index 5769e435ad2..28c270379c6 100644
  	prepare_arch_switch(next);
  }
  
-@@ -2785,8 +2786,15 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+@@ -2818,8 +2819,15 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  	 * finish_task_switch() will drop rq->lock() and lower preempt_count
  	 * and the preempt_enable() will end up enabling preemption (on
  	 * PREEMPT_COUNT kernels).
@@ -405,7 +405,7 @@ index 5769e435ad2..28c270379c6 100644
  	rq = finish_task_switch(prev);
  	balance_callback(rq);
  	preempt_enable();
-@@ -2844,6 +2852,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2877,6 +2885,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
  	switch_to(prev, next, prev);
  	barrier();
  
@@ -421,7 +421,7 @@ index 5769e435ad2..28c270379c6 100644
  	return finish_task_switch(prev);
  }
  
-@@ -3394,7 +3411,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+@@ -3427,7 +3444,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
   *
   * WARNING: must be called with preemption disabled!
   */
@@ -430,7 +430,7 @@ index 5769e435ad2..28c270379c6 100644
  {
  	struct task_struct *prev, *next;
  	unsigned long *switch_count;
-@@ -3485,12 +3502,17 @@ static void __sched notrace __schedule(bool preempt)
+@@ -3518,12 +3535,17 @@ static void __sched notrace __schedule(bool preempt)
  
  		/* Also unlocks the rq: */
  		rq = context_switch(rq, prev, next, &rf);
@@ -448,7 +448,7 @@ index 5769e435ad2..28c270379c6 100644
  }
  
  void __noreturn do_task_dead(void)
-@@ -3528,7 +3550,8 @@ asmlinkage __visible void __sched schedule(void)
+@@ -3561,7 +3583,8 @@ asmlinkage __visible void __sched schedule(void)
  	sched_submit_work(tsk);
  	do {
  		preempt_disable();
@@ -458,7 +458,7 @@ index 5769e435ad2..28c270379c6 100644
  		sched_preempt_enable_no_resched();
  	} while (need_resched());
  }
-@@ -3608,7 +3631,8 @@ static void __sched notrace preempt_schedule_common(void)
+@@ -3641,7 +3664,8 @@ static void __sched notrace preempt_schedule_common(void)
  		 */
  		preempt_disable_notrace();
  		preempt_latency_start(1);
@@ -468,7 +468,7 @@ index 5769e435ad2..28c270379c6 100644
  		preempt_latency_stop(1);
  		preempt_enable_no_resched_notrace();
  
-@@ -7062,6 +7086,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
+@@ -7119,6 +7143,107 @@ struct cgroup_subsys cpu_cgrp_subsys = {
  
  #endif	/* CONFIG_CGROUP_SCHED */
  
@@ -577,7 +577,7 @@ index 5769e435ad2..28c270379c6 100644
  {
  	pr_info("Task dump for CPU %d:\n", cpu);
 diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-index 3e612ae748e..1a6fa10052c 100644
+index 3e612ae748e9..1a6fa10052c1 100644
 --- a/mm/mmu_context.c
 +++ b/mm/mmu_context.c
 @@ -23,15 +23,18 @@ void use_mm(struct mm_struct *mm)

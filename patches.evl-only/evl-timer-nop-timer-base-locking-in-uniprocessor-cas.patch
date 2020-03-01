@@ -1,0 +1,50 @@
+From 65e24fd8897bbb7928dc32c5ad3e9891d975ecd3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 5 Apr 2019 11:05:10 +0200
+Subject: [PATCH] evl/timer: nop timer base locking in uniprocessor case
+
+---
+ kernel/evl/timer.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
+index e26cd8247ead..70cf1b827506 100644
+--- a/kernel/evl/timer.c
++++ b/kernel/evl/timer.c
+@@ -17,6 +17,8 @@
+ #include <asm/div64.h>
+ #include <trace/events/evl.h>
+ 
++#ifdef CONFIG_SMP
++
+ static struct evl_timerbase *
+ lock_timer_base(struct evl_timer *timer, unsigned long *flags)
+ {
+@@ -43,6 +45,24 @@ static inline void unlock_timer_base(struct evl_timerbase *base,
+ 	raw_spin_unlock_irqrestore(&base->lock, flags);
+ }
+ 
++#else
++
++static inline struct evl_timerbase *
++lock_timer_base(struct evl_timer *timer, unsigned long *flags)
++{
++	*flags = hard_local_irq_save();
++
++	return timer->base;
++}
++
++static inline void unlock_timer_base(struct evl_timerbase *base,
++				unsigned long flags)
++{
++	hard_local_irq_restore(flags);
++}
++
++#endif
++
+ /* hard irqs off */
+ static inline void double_timer_base_lock(struct evl_timerbase *tb1,
+ 					struct evl_timerbase *tb2)
+-- 
+2.16.4
+

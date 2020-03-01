@@ -1,0 +1,37 @@
+From c2833faa52bf822ffe268a7fce3b39ef65f6fa82 Mon Sep 17 00:00:00 2001
+From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
+Date: Fri, 22 Mar 2019 06:34:00 +0100
+Subject: [PATCH] gpu: msm: irq_pipeline: enable pipelined interrupt control
+
+---
+ drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c  | 1 +
+ drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c b/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
+index 7316b4ab1b85..37908a935ec7 100644
+--- a/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
++++ b/drivers/gpu/drm/msm/disp/dpu1/dpu_mdss.c
+@@ -84,6 +84,7 @@ static struct irq_chip dpu_mdss_irq_chip = {
+ 	.name = "dpu_mdss",
+ 	.irq_mask = dpu_mdss_irq_mask,
+ 	.irq_unmask = dpu_mdss_irq_unmask,
++	.flags = IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static struct lock_class_key dpu_mdss_lock_key, dpu_mdss_request_key;
+diff --git a/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c b/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
+index 889c2940692c..543ae181a2b1 100644
+--- a/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
++++ b/drivers/gpu/drm/msm/disp/mdp5/mdp5_mdss.c
+@@ -102,6 +102,7 @@ static struct irq_chip mdss_hw_irq_chip = {
+ 	.name		= "mdss",
+ 	.irq_mask	= mdss_hw_mask_irq,
+ 	.irq_unmask	= mdss_hw_unmask_irq,
++	.flags		= IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static int mdss_hw_irqdomain_map(struct irq_domain *d, unsigned int irq,
+-- 
+2.16.4
+

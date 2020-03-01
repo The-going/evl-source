@@ -1,0 +1,25 @@
+From 354f5a675ec605b1d3a0b9006cea3b9fad27659a Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 5 Apr 2019 12:18:42 +0200
+Subject: [PATCH] genirq: irq_pipeline: inline short code on fast path
+
+---
+ kernel/irq/pipeline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index 74bc3b092e60..06dfa9a11941 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -928,7 +928,7 @@ static bool inject_irq(struct irq_desc *desc)
+ 	return false;
+ }
+ 
+-static void synchronize_pipeline_on_irq(void)
++static inline void synchronize_pipeline_on_irq(void)
+ {
+ 	/*
+ 	 * Optimize if we preempted the high priority oob stage: we
+-- 
+2.16.4
+

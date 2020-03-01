@@ -1,4 +1,4 @@
-From ac3959bd9348e4fb1273edb34cc3c489dffb1e7d Mon Sep 17 00:00:00 2001
+From f18c1fa02cc046ad42fa703178336946d8cf6fa6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 25 Aug 2017 16:25:14 +0200
 Subject: [PATCH] pinctrl/bcm2835: irq_pipeline: enable pipelined interrupt
@@ -9,7 +9,7 @@ Subject: [PATCH] pinctrl/bcm2835: irq_pipeline: enable pipelined interrupt
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/pinctrl/bcm/pinctrl-bcm2835.c b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
-index f180aa44a42..b635a6eb864 100644
+index 183d1ffe6a75..bd94d0173596 100644
 --- a/drivers/pinctrl/bcm/pinctrl-bcm2835.c
 +++ b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
 @@ -79,7 +79,7 @@ struct bcm2835_pinctrl {
@@ -21,7 +21,7 @@ index f180aa44a42..b635a6eb864 100644
  };
  
  /* pins are just named GPIO0..GPIO53 */
-@@ -607,6 +607,7 @@ static struct irq_chip bcm2835_gpio_irq_chip = {
+@@ -608,6 +608,7 @@ static struct irq_chip bcm2835_gpio_irq_chip = {
  	.irq_ack = bcm2835_gpio_irq_ack,
  	.irq_mask = bcm2835_gpio_irq_disable,
  	.irq_unmask = bcm2835_gpio_irq_enable,

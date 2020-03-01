@@ -1,4 +1,4 @@
-From e3240e06215b5acfb90a160293f91ebe2ab77267 Mon Sep 17 00:00:00 2001
+From adfc4ad06146306383bd071b723f8a3ea81daa0d Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 14 Sep 2018 11:17:29 +0200
 Subject: [PATCH] arm64: dovetail: route traps to the co-kernel
@@ -12,7 +12,7 @@ Subject: [PATCH] arm64: dovetail: route traps to the co-kernel
  5 files changed, 47 insertions(+), 8 deletions(-)
 
 diff --git a/arch/arm64/include/asm/dovetail.h b/arch/arm64/include/asm/dovetail.h
-index 8c0af9bbf97..c2c0ae6c1e0 100644
+index 8c0af9bbf972..c2c0ae6c1e05 100644
 --- a/arch/arm64/include/asm/dovetail.h
 +++ b/arch/arm64/include/asm/dovetail.h
 @@ -6,4 +6,14 @@
@@ -31,7 +31,7 @@ index 8c0af9bbf97..c2c0ae6c1e0 100644
 +
  #endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/kernel/fpsimd.c b/arch/arm64/kernel/fpsimd.c
-index 5ebe73b6996..8e6d776b6e9 100644
+index 5ebe73b69961..8e6d776b6e97 100644
 --- a/arch/arm64/kernel/fpsimd.c
 +++ b/arch/arm64/kernel/fpsimd.c
 @@ -38,6 +38,7 @@
@@ -61,7 +61,7 @@ index 5ebe73b6996..8e6d776b6e9 100644
  		       (void __user *)instruction_pointer(regs),
  		       current);
 diff --git a/arch/arm64/kernel/ptrace.c b/arch/arm64/kernel/ptrace.c
-index ddaea0fd2fa..8a1172d7d80 100644
+index b82e0a9b3da3..8873ded43566 100644
 --- a/arch/arm64/kernel/ptrace.c
 +++ b/arch/arm64/kernel/ptrace.c
 @@ -185,6 +185,8 @@ static void ptrace_hbptriggered(struct perf_event *bp,
@@ -74,10 +74,10 @@ index ddaea0fd2fa..8a1172d7d80 100644
  	if (is_compat_task()) {
  		int si_errno = 0;
 diff --git a/arch/arm64/kernel/traps.c b/arch/arm64/kernel/traps.c
-index fdc62c54f29..53d72c62eec 100644
+index fce8953886f8..7dc655e64d71 100644
 --- a/arch/arm64/kernel/traps.c
 +++ b/arch/arm64/kernel/traps.c
-@@ -412,6 +412,8 @@ void arm64_notify_segfault(unsigned long addr)
+@@ -415,6 +415,8 @@ void arm64_notify_segfault(unsigned long addr)
  
  asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
  {
@@ -86,7 +86,7 @@ index fdc62c54f29..53d72c62eec 100644
  	/* check for AArch32 breakpoint instructions */
  	if (!aarch32_break_handler(regs))
  		return;
-@@ -809,6 +811,8 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
+@@ -812,6 +814,8 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
  {
  	void __user *pc = (void __user *)instruction_pointer(regs);
  
@@ -96,17 +96,17 @@ index fdc62c54f29..53d72c62eec 100644
  	current->thread.fault_code = esr;
  
 diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index c3d9708769a..012ecab39d4 100644
+index c985f17b765d..88680ac4a052 100644
 --- a/arch/arm64/mm/fault.c
 +++ b/arch/arm64/mm/fault.c
-@@ -47,6 +47,7 @@
+@@ -49,6 +49,7 @@
  #include <asm/pgtable.h>
  #include <asm/tlbflush.h>
  #include <asm/traps.h>
 +#include <asm/dovetail.h>
  
- #include <acpi/ghes.h>
- 
+ struct fault_info {
+ 	int	(*fn)(unsigned long addr, unsigned int esr,
 @@ -71,6 +72,13 @@ static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
  	return debug_fault_info + DBG_ESR_EVT(esr);
  }
@@ -180,7 +180,7 @@ index c3d9708769a..012ecab39d4 100644
  
  	inf = esr_to_fault_info(esr);
  
-@@ -839,7 +857,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
+@@ -825,7 +843,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
  	if (!inf->fn(addr, esr, regs))
  		return;
  
@@ -189,7 +189,7 @@ index c3d9708769a..012ecab39d4 100644
  
  	if (!user_mode(regs)) {
  		pr_alert("Unhandled fault at 0x%016lx\n", addr);
-@@ -892,7 +910,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
+@@ -878,7 +896,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
  		local_daif_restore(DAIF_PROCCTX);
  	}
  
@@ -198,14 +198,14 @@ index c3d9708769a..012ecab39d4 100644
  
  	arm64_notify_die("SP/PC alignment exception", regs,
  			 SIGBUS, BUS_ADRALN, (void __user *)addr, esr);
-@@ -949,7 +967,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
- 	if (user_mode(regs) && !is_ttbr0_addr(instruction_pointer(regs)))
+@@ -936,7 +954,7 @@ asmlinkage int __exception do_debug_exception(unsigned long addr_if_watchpoint,
+ 	if (user_mode(regs) && !is_ttbr0_addr(pc))
  		arm64_apply_bp_hardening();
  
 -	irqflags = fault_entry(regs);
 +	irqflags = fault_entry(ARM64_TRAP_DEBUG, regs);
  
- 	if (!inf->fn(addr, esr, regs)) {
+ 	if (!inf->fn(addr_if_watchpoint, esr, regs)) {
  		rv = 1;
 -- 
 2.16.4

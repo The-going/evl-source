@@ -134,3 +134,7 @@
 	patches.evl-only/evl-assert-fix-SMP-build.patch
 	patches.evl-only/evl-init-fix-SMP-build.patch
 	patches.evl-only/evl-sched-fix-SMP-build.patch
+	patches.evl-only/evl-stat-use-xchg-for-swapping-pointers.patch
+	patches.evl-only/uapi-evl-define-the-user-available-elements-and-util.patch
+	patches.evl-only/evl-timer-nop-timer-base-locking-in-uniprocessor-cas.patch
+	patches.evl-only/evl-thread-fix-handling-of-self-directed-ioctls.patch

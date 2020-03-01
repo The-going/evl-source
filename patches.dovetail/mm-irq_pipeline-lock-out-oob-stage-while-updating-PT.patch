@@ -1,4 +1,4 @@
-From b5525a0fe57ff19770ddfa83a2c2d65f884c5900 Mon Sep 17 00:00:00 2001
+From 6c059bc53fe1812d602bae82d4b07fcf40d85567 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:57:40 +0200
 Subject: [PATCH] mm: irq_pipeline: lock out oob stage while updating PTE range
@@ -15,7 +15,7 @@ around this section.
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 36cb358db17..0dca51b4de6 100644
+index 028c724dcb1a..fc47685995b6 100644
 --- a/mm/mprotect.c
 +++ b/mm/mprotect.c
 @@ -42,7 +42,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
@@ -32,13 +32,13 @@ index 36cb358db17..0dca51b4de6 100644
  			}
  
 +			flags = hard_local_irq_save();
- 			ptent = ptep_modify_prot_start(mm, addr, pte);
- 			ptent = pte_modify(ptent, newprot);
+ 			oldpte = ptep_modify_prot_start(vma, addr, pte);
+ 			ptent = pte_modify(oldpte, newprot);
  			if (preserve_write)
 @@ -122,6 +123,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
  				ptent = pte_mkwrite(ptent);
  			}
- 			ptep_modify_prot_commit(mm, addr, pte, ptent);
+ 			ptep_modify_prot_commit(vma, addr, pte, oldpte, ptent);
 +			hard_local_irq_restore(flags);
  			pages++;
  		} else if (IS_ENABLED(CONFIG_MIGRATION)) {

@@ -1,4 +1,4 @@
-From a79ebf3ec0b275b9f78f20d8d9d9137d697935ab Mon Sep 17 00:00:00 2001
+From 6f5aff8a47e8a61622cd9e8bbb6c2add7c8505d1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 13 Jan 2019 10:36:09 +0100
 Subject: [PATCH] fs/file: dovetail: enable file_operations for oob request
@@ -13,7 +13,7 @@ Subject: [PATCH] fs/file: dovetail: enable file_operations for oob request
  5 files changed, 60 insertions(+)
 
 diff --git a/fs/file.c b/fs/file.c
-index 3209ee271c4..53b62278781 100644
+index 3da91a112bab..d4fbe05210ab 100644
 --- a/fs/file.c
 +++ b/fs/file.c
 @@ -385,6 +385,7 @@ static struct fdtable *close_files(struct files_struct * files)
@@ -24,7 +24,7 @@ index 3209ee271c4..53b62278781 100644
  					filp_close(file, files);
  					cond_resched();
  				}
-@@ -596,6 +597,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
+@@ -597,6 +598,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
  		fdt = files_fdtable(files);
  		BUG_ON(fdt->fd[fd] != NULL);
  		rcu_assign_pointer(fdt->fd[fd], file);
@@ -32,7 +32,7 @@ index 3209ee271c4..53b62278781 100644
  		spin_unlock(&files->file_lock);
  		return;
  	}
-@@ -604,6 +606,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
+@@ -605,6 +607,7 @@ void __fd_install(struct files_struct *files, unsigned int fd,
  	fdt = rcu_dereference_sched(files->fdt);
  	BUG_ON(fdt->fd[fd] != NULL);
  	rcu_assign_pointer(fdt->fd[fd], file);
@@ -40,7 +40,7 @@ index 3209ee271c4..53b62278781 100644
  	rcu_read_unlock_sched();
  }
  
-@@ -631,6 +634,7 @@ int __close_fd(struct files_struct *files, unsigned fd)
+@@ -632,6 +635,7 @@ int __close_fd(struct files_struct *files, unsigned fd)
  		goto out_unlock;
  	rcu_assign_pointer(fdt->fd[fd], NULL);
  	__put_unused_fd(files, fd);
@@ -48,7 +48,7 @@ index 3209ee271c4..53b62278781 100644
  	spin_unlock(&files->file_lock);
  	return filp_close(file, files);
  
-@@ -658,6 +662,7 @@ int __close_fd_get_file(unsigned int fd, struct file **res)
+@@ -659,6 +663,7 @@ int __close_fd_get_file(unsigned int fd, struct file **res)
  		goto out_unlock;
  	rcu_assign_pointer(fdt->fd[fd], NULL);
  	__put_unused_fd(files, fd);
@@ -56,7 +56,7 @@ index 3209ee271c4..53b62278781 100644
  	spin_unlock(&files->file_lock);
  	get_file(file);
  	*res = file;
-@@ -695,6 +700,7 @@ void do_close_on_exec(struct files_struct *files)
+@@ -696,6 +701,7 @@ void do_close_on_exec(struct files_struct *files)
  				continue;
  			rcu_assign_pointer(fdt->fd[fd], NULL);
  			__put_unused_fd(files, fd);
@@ -64,7 +64,7 @@ index 3209ee271c4..53b62278781 100644
  			spin_unlock(&files->file_lock);
  			filp_close(file, files);
  			cond_resched();
-@@ -866,6 +872,7 @@ __releases(&files->file_lock)
+@@ -872,6 +878,7 @@ __releases(&files->file_lock)
  		__set_close_on_exec(fd, fdt);
  	else
  		__clear_close_on_exec(fd, fdt);
@@ -73,7 +73,7 @@ index 3209ee271c4..53b62278781 100644
  
  	if (tofree)
 diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
-index b9a48597e90..d924f4358c0 100644
+index b9a48597e904..d924f4358c08 100644
 --- a/include/linux/dovetail.h
 +++ b/include/linux/dovetail.h
 @@ -14,6 +14,8 @@
@@ -125,10 +125,10 @@ index b9a48597e90..d924f4358c0 100644
  
  static inline bool dovetailing(void)
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 29d8e2cfed0..1c76f921c43 100644
+index dd28e7679089..36985e2176af 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -51,6 +51,7 @@ struct kiocb;
+@@ -54,6 +54,7 @@ struct kiocb;
  struct kobject;
  struct pipe_inode_info;
  struct poll_table_struct;
@@ -136,7 +136,7 @@ index 29d8e2cfed0..1c76f921c43 100644
  struct kstatfs;
  struct vm_area_struct;
  struct vfsmount;
-@@ -928,6 +929,7 @@ struct file {
+@@ -943,6 +944,7 @@ struct file {
  #endif
  	/* needed for tty driver, and maybe others */
  	void			*private_data;
@@ -144,7 +144,7 @@ index 29d8e2cfed0..1c76f921c43 100644
  
  #ifdef CONFIG_EPOLL
  	/* Used by fs/eventpoll.c to link all the hooks to this file */
-@@ -1792,6 +1794,10 @@ struct file_operations {
+@@ -1795,6 +1797,10 @@ struct file_operations {
  	__poll_t (*poll) (struct file *, struct poll_table_struct *);
  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
@@ -156,7 +156,7 @@ index 29d8e2cfed0..1c76f921c43 100644
  	unsigned long mmap_supported_flags;
  	int (*open) (struct inode *, struct file *);
 diff --git a/include/linux/poll.h b/include/linux/poll.h
-index 7e0fdcf905d..1e8af17c5b0 100644
+index 7e0fdcf905d2..1e8af17c5b09 100644
 --- a/include/linux/poll.h
 +++ b/include/linux/poll.h
 @@ -106,6 +106,13 @@ struct poll_wqueues {
@@ -174,7 +174,7 @@ index 7e0fdcf905d..1e8af17c5b0 100644
  extern void poll_freewait(struct poll_wqueues *pwq);
  extern u64 select_estimate_accuracy(struct timespec64 *tv);
 diff --git a/kernel/dovetail.c b/kernel/dovetail.c
-index 33982457830..785e7bbb186 100644
+index 339824578307..785e7bbb1860 100644
 --- a/kernel/dovetail.c
 +++ b/kernel/dovetail.c
 @@ -339,6 +339,21 @@ void __weak inband_clock_was_set(void)

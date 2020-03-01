@@ -1,4 +1,4 @@
-From 4d500f640fe80ed9d57c878f8960b1c609b85b3c Mon Sep 17 00:00:00 2001
+From 342866ecf741f6b7bfd2e94d3caf49a37c397b5a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 11 Jan 2019 20:39:32 +0100
 Subject: [PATCH] KVM: dovetail: keep hypervisor state consistent accross stage
@@ -21,7 +21,7 @@ Date:   Mon Oct 10 13:38:17 2011 +0200
  4 files changed, 54 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
-index 55010e66c3c..b9a48597e90 100644
+index 55010e66c3cd..b9a48597e904 100644
 --- a/include/linux/dovetail.h
 +++ b/include/linux/dovetail.h
 @@ -105,10 +105,26 @@ static inline void prepare_inband_switch(struct task_struct *next)
@@ -82,7 +82,7 @@ index 55010e66c3c..b9a48597e90 100644
  {
  	return 0;
 diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
-index 31dceafcd98..88125c1e24c 100644
+index 31dceafcd98a..88125c1e24ca 100644
 --- a/include/linux/irqstage.h
 +++ b/include/linux/irqstage.h
 @@ -14,6 +14,7 @@
@@ -102,10 +102,10 @@ index 31dceafcd98..88125c1e24c 100644
  };
  
 diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index c38cc5eb7e7..9353feb6624 100644
+index 9d55c63db09b..59c9044783aa 100644
 --- a/include/linux/kvm_host.h
 +++ b/include/linux/kvm_host.h
-@@ -215,10 +215,22 @@ struct kvm_mmio_fragment {
+@@ -236,10 +236,22 @@ struct kvm_mmio_fragment {
  	unsigned len;
  };
  
@@ -129,7 +129,7 @@ index c38cc5eb7e7..9353feb6624 100644
  	int cpu;
  	int vcpu_id;
 diff --git a/kernel/dovetail.c b/kernel/dovetail.c
-index 05ba868cda1..33982457830 100644
+index 05ba868cda1e..339824578307 100644
 --- a/kernel/dovetail.c
 +++ b/kernel/dovetail.c
 @@ -7,6 +7,7 @@

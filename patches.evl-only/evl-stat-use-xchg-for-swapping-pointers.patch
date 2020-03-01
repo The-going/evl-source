@@ -1,0 +1,26 @@
+From 0dd88d85a218c1e9f236550f9851403ec09f66e9 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 21 Mar 2019 12:57:37 +0100
+Subject: [PATCH] evl/stat: use xchg() for swapping pointers
+
+---
+ include/evl/stat.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/include/evl/stat.h b/include/evl/stat.h
+index f669f2ba9fc4..3a5d340d0537 100644
+--- a/include/evl/stat.h
++++ b/include/evl/stat.h
+@@ -69,8 +69,7 @@ static inline void evl_reset_account(struct evl_account *account)
+ 	({								\
+ 		struct evl_account *__prev;				\
+ 		__prev = (struct evl_account *)				\
+-			atomic_long_xchg(&(__rq)->current_account,	\
+-					(long)(__new_account));		\
++			xchg(&(__rq)->current_account, (__new_account)); \
+ 		__prev;							\
+ 	})
+ 
+-- 
+2.16.4
+

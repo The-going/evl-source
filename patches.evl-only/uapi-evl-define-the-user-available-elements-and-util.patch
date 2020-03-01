@@ -1,0 +1,217 @@
+From 97e9299834e4dba9b96f1e5c177246f575b02ec6 Mon Sep 17 00:00:00 2001
+From: Jorge Ramirez-Ortiz <jorge.ramirez-ortiz@linaro.org>
+Date: Thu, 28 Mar 2019 12:03:12 +0100
+Subject: [PATCH] uapi: evl: define the user available elements and utilities
+
+Elements:
+--------
+Basic features that cant be implemented from userland sharable between
+processes.
+
+Threads, monitors, xbufs and clocks -> every instance is backed by a
+device in /dev/evl which allows sharing.
+
+Utilities
+---------
+poll is a private-process construct; all poll groups are obtained from a
+single multiplex device: /dev/evl/poll. They cannot be shared.
+
+timers are in essence timerfd directly obtained from clocks, they don't
+exist on their own, and are process-local too.
+
+proxies are backed by a device in /dev/evl to allow for sharing, but
+this is not something essential.
+---
+ include/uapi/evl/clock.h   | 4 ++++
+ include/uapi/evl/monitor.h | 2 ++
+ include/uapi/evl/poll.h    | 2 ++
+ include/uapi/evl/proxy.h   | 2 ++
+ include/uapi/evl/thread.h  | 2 ++
+ include/uapi/evl/xbuf.h    | 2 ++
+ kernel/evl/clock.c         | 6 +++---
+ kernel/evl/monitor.c       | 2 +-
+ kernel/evl/poll.c          | 2 +-
+ kernel/evl/proxy.c         | 2 +-
+ kernel/evl/thread.c        | 2 +-
+ kernel/evl/xbuf.c          | 2 +-
+ 12 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/include/uapi/evl/clock.h b/include/uapi/evl/clock.h
+index cd24ac98239b..3882fa548d22 100644
+--- a/include/uapi/evl/clock.h
++++ b/include/uapi/evl/clock.h
+@@ -7,6 +7,10 @@
+ #ifndef _EVL_UAPI_CLOCK_H
+ #define _EVL_UAPI_CLOCK_H
+ 
++#define EVL_CLOCK_MONOTONIC_DEV		"monotonic"
++#define EVL_CLOCK_REALTIME_DEV		"realtime"
++#define EVL_CLOCK_DEV			"clock"
++
+ #define EVL_CLOCK_MONOTONIC  (-CLOCK_MONOTONIC)
+ #define EVL_CLOCK_REALTIME   (-CLOCK_REALTIME)
+ 
+diff --git a/include/uapi/evl/monitor.h b/include/uapi/evl/monitor.h
+index ba592b4e8c50..cc62fea2ea34 100644
+--- a/include/uapi/evl/monitor.h
++++ b/include/uapi/evl/monitor.h
+@@ -10,6 +10,8 @@
+ #include <uapi/evl/types.h>
+ #include <uapi/evl/factory.h>
+ 
++#define EVL_MONITOR_DEV		"monitor"
++
+ #define EVL_MONITOR_EV  0	/* Event monitor. */
+ #define EVL_MONITOR_PI  1	/* Gate with priority inheritance. */
+ #define EVL_MONITOR_PP  2	/* Gate with priority protection (ceiling). */
+diff --git a/include/uapi/evl/poll.h b/include/uapi/evl/poll.h
+index 64e154cc1c7a..8834c034fec8 100644
+--- a/include/uapi/evl/poll.h
++++ b/include/uapi/evl/poll.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_POLL_H
+ #define _EVL_UAPI_POLL_H
+ 
++#define EVL_POLL_DEV		"poll"
++
+ #define EVL_POLL_IOCBASE  'p'
+ 
+ #define EVL_POLL_CTLADD  0
+diff --git a/include/uapi/evl/proxy.h b/include/uapi/evl/proxy.h
+index 9ffdf00bbc1f..7e112c129964 100644
+--- a/include/uapi/evl/proxy.h
++++ b/include/uapi/evl/proxy.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_PROXY_H
+ #define _EVL_UAPI_PROXY_H
+ 
++#define EVL_PROXY_DEV	"proxy"
++
+ struct evl_proxy_attrs {
+ 	__u32 fd;
+ 	__u32 bufsz;
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index 12898149c76e..4acd323e75f9 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -10,6 +10,8 @@
+ 
+ #include <uapi/evl/sched.h>
+ 
++#define EVL_THREAD_DEV		"thread"
++
+ /* State flags (shared) */
+ 
+ #define T_SUSP    0x00000001 /*< Suspended */
+diff --git a/include/uapi/evl/xbuf.h b/include/uapi/evl/xbuf.h
+index 636bad907452..d982ab18ab30 100644
+--- a/include/uapi/evl/xbuf.h
++++ b/include/uapi/evl/xbuf.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_XBUF_H
+ #define _EVL_UAPI_XBUF_H
+ 
++#define EVL_XBUF_DEV		"xbuf"
++
+ struct evl_xbuf_attrs {
+ 	__u32 i_bufsz;
+ 	__u32 o_bufsz;
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index 594dd137ef5c..a6923c7aaa43 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -960,7 +960,7 @@ static struct attribute *clock_attrs[] = {
+ ATTRIBUTE_GROUPS(clock);
+ 
+ struct evl_factory evl_clock_factory = {
+-	.name	=	"clock",
++	.name	=	EVL_CLOCK_DEV,
+ 	.fops	=	&clock_fops,
+ 	.nrdev	=	CONFIG_EVL_NR_CLOCKS,
+ 	.attrs	=	clock_groups,
+@@ -1030,7 +1030,7 @@ static void adjust_realtime_clock(struct evl_clock *clock)
+ }
+ 
+ struct evl_clock evl_mono_clock = {
+-	.name = "monotonic",
++	.name = EVL_CLOCK_MONOTONIC_DEV,
+ 	.resolution = 1,	/* nanosecond. */
+ 	.ops = {
+ 		.read = read_mono_clock,
+@@ -1046,7 +1046,7 @@ struct evl_clock evl_mono_clock = {
+ EXPORT_SYMBOL_GPL(evl_mono_clock);
+ 
+ struct evl_clock evl_realtime_clock = {
+-	.name = "realtime",
++	.name = EVL_CLOCK_REALTIME_DEV,
+ 	.resolution = 1,	/* nanosecond. */
+ 	.ops = {
+ 		.read = read_realtime_clock,
+diff --git a/kernel/evl/monitor.c b/kernel/evl/monitor.c
+index 74e0b6ee25a0..3aa4c32b0302 100644
+--- a/kernel/evl/monitor.c
++++ b/kernel/evl/monitor.c
+@@ -722,7 +722,7 @@ static struct attribute *monitor_attrs[] = {
+ ATTRIBUTE_GROUPS(monitor);
+ 
+ struct evl_factory evl_monitor_factory = {
+-	.name	=	"monitor",
++	.name	=	EVL_MONITOR_DEV,
+ 	.fops	=	&monitor_fops,
+ 	.build =	monitor_factory_build,
+ 	.dispose =	monitor_factory_dispose,
+diff --git a/kernel/evl/poll.c b/kernel/evl/poll.c
+index 389deb6e6ab6..b2a82e04766a 100644
+--- a/kernel/evl/poll.c
++++ b/kernel/evl/poll.c
+@@ -656,7 +656,7 @@ static const struct file_operations poll_fops = {
+ };
+ 
+ struct evl_factory evl_poll_factory = {
+-	.name	=	"poll",
++	.name	=	EVL_POLL_DEV,
+ 	.fops	=	&poll_fops,
+ 	.flags	=	EVL_FACTORY_SINGLE,
+ };
+diff --git a/kernel/evl/proxy.c b/kernel/evl/proxy.c
+index 9c2764efa8ff..90c9bdb33772 100644
+--- a/kernel/evl/proxy.c
++++ b/kernel/evl/proxy.c
+@@ -262,7 +262,7 @@ static void proxy_factory_dispose(struct evl_element *e)
+ }
+ 
+ struct evl_factory evl_proxy_factory = {
+-	.name	=	"proxy",
++	.name	=	EVL_PROXY_DEV,
+ 	.fops	=	&proxy_fops,
+ 	.build =	proxy_factory_build,
+ 	.dispose =	proxy_factory_dispose,
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 41894248729c..bed5646146bb 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -2483,7 +2483,7 @@ static struct attribute *thread_attrs[] = {
+ ATTRIBUTE_GROUPS(thread);
+ 
+ struct evl_factory evl_thread_factory = {
+-	.name	=	"thread",
++	.name	=	EVL_THREAD_DEV,
+ 	.fops	=	&thread_fops,
+ 	.build	=	thread_factory_build,
+ 	.dispose =	thread_factory_dispose,
+diff --git a/kernel/evl/xbuf.c b/kernel/evl/xbuf.c
+index 9c4305a4222f..29f5ff2b6c45 100644
+--- a/kernel/evl/xbuf.c
++++ b/kernel/evl/xbuf.c
+@@ -776,7 +776,7 @@ static struct attribute *xbuf_attrs[] = {
+ ATTRIBUTE_GROUPS(xbuf);
+ 
+ struct evl_factory evl_xbuf_factory = {
+-	.name	=	"xbuf",
++	.name	=	EVL_XBUF_DEV,
+ 	.fops	=	&xbuf_fops,
+ 	.build =	xbuf_factory_build,
+ 	.dispose =	xbuf_factory_dispose,
+-- 
+2.16.4
+

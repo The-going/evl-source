@@ -1,4 +1,4 @@
-From e479e86dff1dbc018ff3a73fbd278b4221ee5510 Mon Sep 17 00:00:00 2001
+From c551805df26316607e8fe4235a1f30ae77ccab01 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 26 Jul 2018 21:39:54 +0200
 Subject: [PATCH] regmap: irq_pipeline: enable pipelined interrupt control
@@ -8,17 +8,17 @@ Subject: [PATCH] regmap: irq_pipeline: enable pipelined interrupt control
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/base/regmap/regmap-irq.c b/drivers/base/regmap/regmap-irq.c
-index 330c1f7e966..ef1bc3ed22b 100644
+index 5059748afd4c..9a41ae04cfee 100644
 --- a/drivers/base/regmap/regmap-irq.c
 +++ b/drivers/base/regmap/regmap-irq.c
-@@ -327,6 +327,7 @@ static const struct irq_chip regmap_irq_chip = {
+@@ -328,6 +328,7 @@ static const struct irq_chip regmap_irq_chip = {
  	.irq_enable		= regmap_irq_enable,
  	.irq_set_type		= regmap_irq_set_type,
  	.irq_set_wake		= regmap_irq_set_wake,
 +	.flags			= IRQCHIP_PIPELINE_SAFE,
  };
  
- static irqreturn_t regmap_irq_thread(int irq, void *d)
+ static inline int read_sub_irq_data(struct regmap_irq_chip_data *data,
 -- 
 2.16.4
 

@@ -1,0 +1,25 @@
+From 8a2e7efbf839af6bee17f79db9b4770dd4176158 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 4 Apr 2019 12:29:37 +0200
+Subject: [PATCH] mfd: tps65217: irq_pipeline: enable pipelined interrupt
+ control
+
+---
+ drivers/mfd/tps65217.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/mfd/tps65217.c b/drivers/mfd/tps65217.c
+index 7566ce4457a0..23095cdc1ced 100644
+--- a/drivers/mfd/tps65217.c
++++ b/drivers/mfd/tps65217.c
+@@ -84,6 +84,7 @@ static struct irq_chip tps65217_irq_chip = {
+ 	.irq_bus_sync_unlock	= tps65217_irq_sync_unlock,
+ 	.irq_enable		= tps65217_irq_enable,
+ 	.irq_disable		= tps65217_irq_disable,
++	.flags			= IRQCHIP_PIPELINE_SAFE,
+ };
+ 
+ static struct mfd_cell tps65217s[] = {
+-- 
+2.16.4
+

@@ -1,4 +1,4 @@
-From 51dc0fb80b1209142a00a2597fc23e808a81579d Mon Sep 17 00:00:00 2001
+From b587374b7e23d6945ce15e96f7f3ea59237649a9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 08:53:52 +0200
 Subject: [PATCH] lib/smp_processor_id: irq_pipeline: exclude oob stage from
@@ -25,17 +25,17 @@ considered to branch out immediately if running over the oob stage.
  1 file changed, 4 insertions(+)
 
 diff --git a/lib/smp_processor_id.c b/lib/smp_processor_id.c
-index 85925aaa4ff..81e366b9fce 100644
+index 157d9e31f6c2..dede111435ec 100644
 --- a/lib/smp_processor_id.c
 +++ b/lib/smp_processor_id.c
-@@ -6,12 +6,16 @@
-  */
+@@ -7,12 +7,16 @@
  #include <linux/export.h>
+ #include <linux/kprobes.h>
  #include <linux/sched.h>
 +#include <linux/irqstage.h>
  
- notrace static unsigned int check_preemption_disabled(const char *what1,
- 							const char *what2)
+ notrace static nokprobe_inline
+ unsigned int check_preemption_disabled(const char *what1, const char *what2)
  {
  	int this_cpu = raw_smp_processor_id();
  

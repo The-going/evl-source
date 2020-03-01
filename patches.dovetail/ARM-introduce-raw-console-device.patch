@@ -1,4 +1,4 @@
-From c3074608e78c4b8cc240c2d64f6f29a40b50fced Mon Sep 17 00:00:00 2001
+From f3ab0cd9ca57d3d2d38385236160cacfb7d57dc9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 7 Dec 2015 11:49:50 +0100
 Subject: [PATCH] ARM: introduce raw console device
@@ -12,7 +12,7 @@ Subject: [PATCH] ARM: introduce raw console device
  create mode 100644 arch/arm/kernel/raw_printk.c
 
 diff --git a/arch/arm/kernel/Makefile b/arch/arm/kernel/Makefile
-index 8cad59465af..9ab239f7388 100644
+index 8cad59465af3..9ab239f73889 100644
 --- a/arch/arm/kernel/Makefile
 +++ b/arch/arm/kernel/Makefile
 @@ -88,6 +88,9 @@ obj-$(CONFIG_PARAVIRT)	+= paravirt.o
@@ -27,7 +27,7 @@ index 8cad59465af..9ab239f7388 100644
  # nor global data is available. Everything has to be allocated on the stack.
 diff --git a/arch/arm/kernel/raw_printk.c b/arch/arm/kernel/raw_printk.c
 new file mode 100644
-index 00000000000..9024b772fca
+index 000000000000..9024b772fca4
 --- /dev/null
 +++ b/arch/arm/kernel/raw_printk.c
 @@ -0,0 +1,30 @@
@@ -62,10 +62,10 @@ index 00000000000..9024b772fca
 +}
 +console_initcall(raw_console_init);
 diff --git a/include/linux/printk.h b/include/linux/printk.h
-index 25844df4573..6f6f0fd979d 100644
+index f15ea4d1f078..5efc88c89724 100644
 --- a/include/linux/printk.h
 +++ b/include/linux/printk.h
-@@ -158,11 +158,14 @@ static inline void printk_nmi_direct_exit(void) { }
+@@ -157,11 +157,14 @@ static inline void printk_nmi_direct_exit(void) { }
  #endif /* PRINTK_NMI */
  
  #ifdef CONFIG_RAW_PRINTK
@@ -81,10 +81,10 @@ index 25844df4573..6f6f0fd979d 100644
  static inline __printf(1, 2) __cold
  void raw_printk(const char *s, ...) { }
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 3243b850f76..dc4e97f12e0 100644
+index 993654683059..1fd361386d55 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2053,21 +2053,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2097,21 +2097,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  static struct console *raw_console;
  static DEFINE_RAW_SPINLOCK(raw_console_lock);
  

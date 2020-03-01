@@ -1,4 +1,4 @@
-From 4eede4bcd6b9e6a0ff3e9280afd066fafedff7ff Mon Sep 17 00:00:00 2001
+From 512874f289d9e948b98ec9235a245bf4cb22ee4c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Sep 2018 19:11:56 +0200
 Subject: [PATCH] arm64: dovetail: add core support
@@ -11,18 +11,18 @@ Subject: [PATCH] arm64: dovetail: add core support
  create mode 100644 arch/arm64/include/asm/dovetail.h
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 5b725b6ce02..9e42d137562 100644
+index 7a434537918e..b59f2926e30a 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -140,6 +140,7 @@ config ARM64
- 	select HAVE_GENERIC_DMA_COHERENT
+@@ -141,6 +141,7 @@ config ARM64
+ 	select HAVE_GCC_PLUGINS
  	select HAVE_HW_BREAKPOINT if PERF_EVENTS
  	select HAVE_IRQ_PIPELINE
 +	select HAVE_DOVETAIL
  	select HAVE_IRQ_TIME_ACCOUNTING
  	select HAVE_MEMBLOCK_NODE_MAP if NUMA
  	select HAVE_NMI
-@@ -886,6 +887,8 @@ config SECCOMP
+@@ -903,6 +904,8 @@ config SECCOMP
  	  and the task is only allowed to execute a few safe syscalls
  	  defined by each seccomp mode.
  
@@ -33,7 +33,7 @@ index 5b725b6ce02..9e42d137562 100644
  	help
 diff --git a/arch/arm64/include/asm/dovetail.h b/arch/arm64/include/asm/dovetail.h
 new file mode 100644
-index 00000000000..8c0af9bbf97
+index 000000000000..8c0af9bbf972
 --- /dev/null
 +++ b/arch/arm64/include/asm/dovetail.h
 @@ -0,0 +1,9 @@
@@ -47,7 +47,7 @@ index 00000000000..8c0af9bbf97
 +
 +#endif /* _ASM_ARM64_DOVETAIL_H */
 diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-index 3a31c8e2bd5..7c97d20c7c0 100644
+index c7fa27197381..9575c872a30d 100644
 --- a/arch/arm64/include/asm/thread_info.h
 +++ b/arch/arm64/include/asm/thread_info.h
 @@ -27,6 +27,7 @@
@@ -66,15 +66,15 @@ index 3a31c8e2bd5..7c97d20c7c0 100644
  };
  
  #define thread_saved_pc(tsk)	\
-@@ -83,6 +85,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -82,6 +84,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+  *  TIF_SIGPENDING	- signal pending
   *  TIF_NEED_RESCHED	- rescheduling necessary
   *  TIF_NOTIFY_RESUME	- callback before returning to user
-  *  TIF_USEDFPU		- FPU was used by this task this quantum (SMP)
 + *  TIF_MAYDAY		- emergency request to leave the oob stage
   */
  #define TIF_SIGPENDING		0
  #define TIF_NEED_RESCHED	1
-@@ -103,6 +106,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -102,6 +105,7 @@ void arch_release_task_struct(struct task_struct *tsk);
  #define TIF_SVE			23	/* Scalable Vector Extension in use */
  #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
  #define TIF_SSBD		25	/* Wants SSB mitigation */
@@ -82,7 +82,7 @@ index 3a31c8e2bd5..7c97d20c7c0 100644
  
  #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
  #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-@@ -117,6 +121,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -116,6 +120,7 @@ void arch_release_task_struct(struct task_struct *tsk);
  #define _TIF_FSCHECK		(1 << TIF_FSCHECK)
  #define _TIF_32BIT		(1 << TIF_32BIT)
  #define _TIF_SVE		(1 << TIF_SVE)
@@ -90,7 +90,7 @@ index 3a31c8e2bd5..7c97d20c7c0 100644
  
  #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
  				 _TIF_NOTIFY_RESUME | _TIF_FOREIGN_FPSTATE | \
-@@ -137,6 +142,8 @@ void arch_release_task_struct(struct task_struct *tsk);
+@@ -136,6 +141,8 @@ void arch_release_task_struct(struct task_struct *tsk);
   * Local (synchronous) thread flags.
   */
  #define _TLF_OOB		0x0001

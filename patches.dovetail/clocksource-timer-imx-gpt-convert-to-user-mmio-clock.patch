@@ -1,4 +1,4 @@
-From 987f37c2a854bccaeef741431067d95d77ae6243 Mon Sep 17 00:00:00 2001
+From df2bd1dbe479347eb56f1b4d068eb0a0f43b8d50 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Thu, 21 Jul 2016 01:09:11 +0200
 Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 24899d57aab..1275fd116ce 100644
+index 3f714bc63c24..597de9848119 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -582,7 +582,7 @@ config H8300_TPU
+@@ -593,7 +593,7 @@ config H8300_TPU
  config CLKSRC_IMX_GPT
  	bool "Clocksource using i.MX GPT" if COMPILE_TEST
  	depends on (ARM || ARM64) && CLKDEV_LOOKUP
@@ -22,7 +22,7 @@ index 24899d57aab..1275fd116ce 100644
  config CLKSRC_IMX_TPM
  	bool "Clocksource using i.MX TPM" if COMPILE_TEST
 diff --git a/drivers/clocksource/timer-imx-gpt.c b/drivers/clocksource/timer-imx-gpt.c
-index e5dffe39d60..dfb789f58f2 100644
+index e5dffe39d602..dfb789f58f22 100644
 --- a/drivers/clocksource/timer-imx-gpt.c
 +++ b/drivers/clocksource/timer-imx-gpt.c
 @@ -164,8 +164,8 @@ static int __init mxc_clocksource_init(struct imx_timer *imxtm)

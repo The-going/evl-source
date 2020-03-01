@@ -1,4 +1,4 @@
-From 28ed0dee09db7a3de68ee49cfbfd4126626c3f95 Mon Sep 17 00:00:00 2001
+From f1b8351e27d5ebb91da60e6c320ac8fd961fcad1 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 10 Jul 2018 18:44:45 +0200
 Subject: [PATCH] clocksource/arm_global_timer: convert to user mmio
@@ -10,10 +10,10 @@ Subject: [PATCH] clocksource/arm_global_timer: convert to user mmio
  2 files changed, 19 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index 1275fd116ce..f3e4701f175 100644
+index 597de9848119..38f477d33a55 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -368,6 +368,7 @@ config ARM64_ERRATUM_858921
+@@ -379,6 +379,7 @@ config SUN50I_ERRATUM_UNKNOWN1
  config ARM_GLOBAL_TIMER
  	bool "Support for the ARM global timer" if COMPILE_TEST
  	select TIMER_OF if OF
@@ -22,7 +22,7 @@ index 1275fd116ce..f3e4701f175 100644
  	help
  	  This options enables support for the ARM global timer unit
 diff --git a/drivers/clocksource/arm_global_timer.c b/drivers/clocksource/arm_global_timer.c
-index 095bb965f62..1ce485b42e5 100644
+index 095bb965f621..1ce485b42e5e 100644
 --- a/drivers/clocksource/arm_global_timer.c
 +++ b/drivers/clocksource/arm_global_timer.c
 @@ -195,11 +195,6 @@ static int gt_dying_cpu(unsigned int cpu)

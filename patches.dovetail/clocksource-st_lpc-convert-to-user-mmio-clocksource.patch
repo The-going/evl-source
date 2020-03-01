@@ -1,4 +1,4 @@
-From 8afbc7790edcc0dff2b8e0597950e07c61e19c49 Mon Sep 17 00:00:00 2001
+From e519801d063ad871ee126aa12ecbd8311871506c Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 11 Jul 2018 09:27:33 +0200
 Subject: [PATCH] clocksource/st_lpc: convert to user mmio clocksource
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource/st_lpc: convert to user mmio clocksource
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index f3e4701f175..e86374f417a 100644
+index 38f477d33a55..aacd470e4e4e 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -597,7 +597,7 @@ config CLKSRC_ST_LPC
+@@ -608,7 +608,7 @@ config CLKSRC_ST_LPC
  	bool "Low power clocksource found in the LPC" if COMPILE_TEST
  	select TIMER_OF if OF
  	depends on HAS_IOMEM
@@ -22,7 +22,7 @@ index f3e4701f175..e86374f417a 100644
  	  Enable this option to use the Low Power controller timer
  	  as clocksource.
 diff --git a/drivers/clocksource/clksrc_st_lpc.c b/drivers/clocksource/clksrc_st_lpc.c
-index a1d01ebb81f..aca6e118f96 100644
+index a1d01ebb81f5..aca6e118f966 100644
 --- a/drivers/clocksource/clksrc_st_lpc.c
 +++ b/drivers/clocksource/clksrc_st_lpc.c
 @@ -55,7 +55,7 @@ static int __init st_clksrc_init(void)

@@ -1,4 +1,4 @@
-From 1f324172ee9bab7cf04239d2b3ad8e9fbf181f1a Mon Sep 17 00:00:00 2001
+From 3aeaaf832bc3d68a0f7c3525ba2f311dbd9ef4f7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
@@ -12,10 +12,10 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index c4238b44162..8ea9f652028 100644
+index 6c24755655c7..ebca7df8bd49 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -2138,12 +2138,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+@@ -2313,12 +2313,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
  	entry->flags =
  #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
  		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -32,7 +32,7 @@ index c4238b44162..8ea9f652028 100644
  		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
  }
 diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
-index 08900828d28..396218e0573 100644
+index d80cee49e0eb..1f99aa32ce31 100644
 --- a/kernel/trace/trace.h
 +++ b/kernel/trace/trace.h
 @@ -122,11 +122,14 @@ struct kretprobe_trace_entry_head {
@@ -61,10 +61,10 @@ index 08900828d28..396218e0573 100644
  
  #define TRACE_BUF_SIZE		1024
 diff --git a/kernel/trace/trace_irqsoff.c b/kernel/trace/trace_irqsoff.c
-index d3294721f11..bad7794c25e 100644
+index a745b0cee5d3..7316cfc95e27 100644
 --- a/kernel/trace/trace_irqsoff.c
 +++ b/kernel/trace/trace_irqsoff.c
-@@ -43,7 +43,7 @@ static int start_irqsoff_tracer(struct trace_array *tr, int graph);
+@@ -44,7 +44,7 @@ static int start_irqsoff_tracer(struct trace_array *tr, int graph);
  static inline int
  preempt_trace(int pc)
  {
@@ -73,7 +73,7 @@ index d3294721f11..bad7794c25e 100644
  }
  #else
  # define preempt_trace(pc) (0)
-@@ -54,7 +54,7 @@ static inline int
+@@ -55,7 +55,7 @@ static inline int
  irq_trace(void)
  {
  	return ((trace_type & TRACER_IRQS_OFF) &&
@@ -82,7 +82,7 @@ index d3294721f11..bad7794c25e 100644
  }
  #else
  # define irq_trace() (0)
-@@ -427,7 +427,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
+@@ -428,7 +428,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
  
  	atomic_inc(&data->disabled);
  
@@ -92,7 +92,7 @@ index d3294721f11..bad7794c25e 100644
  	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
  	data->critical_start = 0;
 diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index 54373d93e25..c8957039fad 100644
+index 54373d93e251..c8957039fad2 100644
 --- a/kernel/trace/trace_output.c
 +++ b/kernel/trace/trace_output.c
 @@ -430,14 +430,19 @@ int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
@@ -135,21 +135,21 @@ index 54373d93e25..c8957039fad 100644
  	else
  		trace_seq_putc(s, '.');
 diff --git a/kernel/trace/trace_preemptirq.c b/kernel/trace/trace_preemptirq.c
-index 71f553cceb3..0b8ec4f8136 100644
+index 4d8e99fdbbbe..0e6537bc3056 100644
 --- a/kernel/trace/trace_preemptirq.c
 +++ b/kernel/trace/trace_preemptirq.c
-@@ -9,6 +9,7 @@
- #include <linux/uaccess.h>
+@@ -10,6 +10,7 @@
  #include <linux/module.h>
  #include <linux/ftrace.h>
+ #include <linux/kprobes.h>
 +#include <linux/irq_pipeline.h>
  #include "trace.h"
  
  #define CREATE_TRACE_POINTS
-@@ -69,6 +70,23 @@ __visible void trace_hardirqs_off_caller(unsigned long caller_addr)
- 	lockdep_hardirqs_off(CALLER_ADDR0);
+@@ -74,6 +75,23 @@ __visible void trace_hardirqs_off_caller(unsigned long caller_addr)
  }
  EXPORT_SYMBOL(trace_hardirqs_off_caller);
+ NOKPROBE_SYMBOL(trace_hardirqs_off_caller);
 +
 +void trace_hardirqs_on_pipelined(void)
 +{

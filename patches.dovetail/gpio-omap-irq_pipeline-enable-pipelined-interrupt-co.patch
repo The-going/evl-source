@@ -1,0 +1,34 @@
+From a17e4aa495f6a2b556e61c18a81e9f254d4d918d Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 4 Apr 2019 12:29:11 +0200
+Subject: [PATCH] gpio: omap: irq_pipeline: enable pipelined interrupt control
+
+---
+ drivers/gpio/gpio-omap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpio/gpio-omap.c b/drivers/gpio/gpio-omap.c
+index 7f33024b6d83..7354c356034c 100644
+--- a/drivers/gpio/gpio-omap.c
++++ b/drivers/gpio/gpio-omap.c
+@@ -66,7 +66,7 @@ struct gpio_bank {
+ 	u32 saved_datain;
+ 	u32 level_mask;
+ 	u32 toggle_mask;
+-	raw_spinlock_t lock;
++	hard_spinlock_t lock;
+ 	raw_spinlock_t wa_lock;
+ 	struct gpio_chip chip;
+ 	struct clk *dbck;
+@@ -1318,7 +1318,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
+ 	irqc->irq_bus_lock = omap_gpio_irq_bus_lock,
+ 	irqc->irq_bus_sync_unlock = gpio_irq_bus_sync_unlock,
+ 	irqc->name = dev_name(&pdev->dev);
+-	irqc->flags = IRQCHIP_MASK_ON_SUSPEND;
++	irqc->flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_PIPELINE_SAFE;
+ 	irqc->parent_device = dev;
+ 
+ 	bank->irq = platform_get_irq(pdev, 0);
+-- 
+2.16.4
+

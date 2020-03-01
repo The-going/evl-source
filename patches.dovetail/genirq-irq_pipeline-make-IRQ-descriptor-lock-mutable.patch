@@ -1,4 +1,4 @@
-From f4ce47e3b71b39dd4572209084a8187993a198cf Mon Sep 17 00:00:00 2001
+From 4c328662e6e519793b62dc2325efd0b08ef3260a Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Oct 2016 10:00:24 +0200
 Subject: [PATCH] genirq: irq_pipeline: make IRQ descriptor lock mutable
@@ -25,10 +25,10 @@ stage;
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/irqdesc.h b/include/linux/irqdesc.h
-index c01775da1ca..8c3c13b7646 100644
+index 2eee8530c82d..5a74f7c58f83 100644
 --- a/include/linux/irqdesc.h
 +++ b/include/linux/irqdesc.h
-@@ -70,7 +70,7 @@ struct irq_desc {
+@@ -72,7 +72,7 @@ struct irq_desc {
  	unsigned int		irqs_unhandled;
  	atomic_t		threads_handled;
  	int			threads_handled_last;

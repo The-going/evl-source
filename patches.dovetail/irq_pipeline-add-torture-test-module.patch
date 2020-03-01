@@ -1,4 +1,4 @@
-From d09bc257a79e4ebcc38b5b65968d2e10e834ed6e Mon Sep 17 00:00:00 2001
+From 0cb8655098b33aaf52201d3f1f172e23914434a5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Mar 2017 16:52:52 +0100
 Subject: [PATCH] irq_pipeline: add torture test module
@@ -11,7 +11,7 @@ Subject: [PATCH] irq_pipeline: add torture test module
  create mode 100644 kernel/irq/irqptorture.c
 
 diff --git a/kernel/irq/Makefile b/kernel/irq/Makefile
-index fc6bad55edd..d9c6497bd71 100644
+index fc6bad55edde..d9c6497bd71d 100644
 --- a/kernel/irq/Makefile
 +++ b/kernel/irq/Makefile
 @@ -7,6 +7,7 @@ obj-$(CONFIG_GENERIC_IRQ_PROBE) += autoprobe.o
@@ -24,7 +24,7 @@ index fc6bad55edd..d9c6497bd71 100644
  obj-$(CONFIG_GENERIC_IRQ_MIGRATION) += cpuhotplug.o
 diff --git a/kernel/irq/irqptorture.c b/kernel/irq/irqptorture.c
 new file mode 100644
-index 00000000000..9b410cebcbd
+index 000000000000..9b410cebcbd5
 --- /dev/null
 +++ b/kernel/irq/irqptorture.c
 @@ -0,0 +1,283 @@
@@ -312,10 +312,10 @@ index 00000000000..9b410cebcbd
 +}
 +late_initcall(irqp_torture_init);
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index d209cb136c2..db628841a63 100644
+index 1eb52f3f66fe..ea6095217c24 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -815,6 +815,18 @@ config DEBUG_IRQ_PIPELINE
+@@ -816,6 +816,18 @@ config DEBUG_IRQ_PIPELINE
  
  	  If unsure, say N.
  

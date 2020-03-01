@@ -101,3 +101,13 @@
 	patches.dovetail/genirq-irq_pipeline-add-helper-probing-for-pending-i.patch
 	patches.dovetail/arm64-irq_pipeline-fix-interrupt-state-logic-in-do_n.patch
 	patches.dovetail/ARM-irq_pipeline-fix-interrupt-state-logic-in-do_wor.patch
+	patches.dovetail/gpu-msm-irq_pipeline-enable-pipelined-interrupt-cont.patch
+	patches.dovetail/dovetail-introduce-dovetail_mm_state.patch
+	patches.dovetail/ARM-OMAP2-timer-irq_pipeline-enable-pipelined-clock-.patch
+	patches.dovetail/gpio-omap-irq_pipeline-enable-pipelined-interrupt-co.patch
+	patches.dovetail/mfd-tps65217-irq_pipeline-enable-pipelined-interrupt.patch
+	patches.dovetail/ARM-OMAP2-timer-convert-to-user-mmio-clocksource.patch
+	patches.dovetail/genirq-irq_pipeline-inline-short-code-on-fast-path.patch
+	patches.dovetail/soc-qcom-enable-pipelined-interrupt-control.patch
+	patches.dovetail/clocksource-arm_arch_timer-dovetail-fix-call-to-arch.patch
+	patches.dovetail/genirq-irq_pipeline-drop-redundant-sanity-check.patch
