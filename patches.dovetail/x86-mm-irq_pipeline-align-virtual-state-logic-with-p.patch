@@ -1,0 +1,43 @@
+From 200ef35bd4cb4c74143031a6ed35cc490ac13c52 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 20 May 2019 18:27:05 +0200
+Subject: [PATCH] x86/mm: irq_pipeline: align virtual state logic with
+ !pipelined mode
+
+TLB management expects interrupts to be enabled for the inband stage,
+issuing lockdep_assert_irqs_enabled() to enforce this. Convert hard
+enabling to dual hard+virtual enabling where expected.
+---
+ arch/x86/mm/fault.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 94eefa16a0d6..11e6336057f1 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -911,7 +911,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+ 		/*
+ 		 * It's possible to have interrupts off here:
+ 		 */
+-		hard_local_irq_enable();
++		local_irq_enable_full();
+ 
+ 		/*
+ 		 * Valid to do another page fault here because this one came
+@@ -1374,11 +1374,11 @@ void do_user_addr_fault(struct pt_regs *regs,
+ 	 * potential system fault or CPU buglet:
+ 	 */
+ 	if (user_mode(regs)) {
+-		hard_local_irq_enable();
++		local_irq_enable_full();
+ 		flags |= FAULT_FLAG_USER;
+ 	} else {
+ 		if (regs->flags & X86_EFLAGS_IF)
+-			hard_local_irq_enable();
++			local_irq_enable_full();
+ 	}
+ 
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
+-- 
+2.16.4
+

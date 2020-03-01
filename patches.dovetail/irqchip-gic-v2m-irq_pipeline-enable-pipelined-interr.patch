@@ -1,4 +1,4 @@
-From 1c33b9d8e70342a34ffa2c2e742004d2b2f562a8 Mon Sep 17 00:00:00 2001
+From 47d42bc33e682b6e3557eb4c9fb149284e556db8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 28 May 2018 16:25:08 +0200
 Subject: [PATCH] irqchip/gic-v2m: irq_pipeline: enable pipelined interrupt
@@ -9,7 +9,7 @@ Subject: [PATCH] irqchip/gic-v2m: irq_pipeline: enable pipelined interrupt
  1 file changed, 3 insertions(+)
 
 diff --git a/drivers/irqchip/irq-gic-v2m.c b/drivers/irqchip/irq-gic-v2m.c
-index f5fe0100f9f..0d979fce748 100644
+index 3c77ab676e54..07f339160055 100644
 --- a/drivers/irqchip/irq-gic-v2m.c
 +++ b/drivers/irqchip/irq-gic-v2m.c
 @@ -90,6 +90,7 @@ static struct irq_chip gicv2m_msi_irq_chip = {
@@ -28,7 +28,7 @@ index f5fe0100f9f..0d979fce748 100644
  };
  
  static int gicv2m_irq_gic_domain_alloc(struct irq_domain *domain,
-@@ -236,6 +238,7 @@ static bool is_msi_spi_valid(u32 base, u32 num)
+@@ -242,6 +244,7 @@ static bool is_msi_spi_valid(u32 base, u32 num)
  
  static struct irq_chip gicv2m_pmsi_irq_chip = {
  	.name			= "pMSI",

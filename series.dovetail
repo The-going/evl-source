@@ -132,3 +132,42 @@
 	patches.dovetail/time-proxy-simplify-the-user-interface-for-setup.patch
 	patches.dovetail/time-proxy-remove-wrong-assertion.patch
 	patches.dovetail/stop_machine-irq_pipeline-ensure-no-in-band-IRQ-is-d.patch
+	patches.dovetail/dovetail-disable-hard-irqs-around-out-of-band-trap-h.patch
+	patches.dovetail/dovetail-altsched-account-for-per-cpu-preempt-count.patch
+	patches.dovetail/cpuidle-enable-hard-irqs-in-polling-idle-state.patch
+	patches.dovetail/sched-dovetail-add-switch-prepare-finish-handlers.patch
+	patches.dovetail/ARM-dovetail-convert-to-switch-prepare-finish-handle.patch
+	patches.dovetail/arm64-dovetail-convert-to-switch-prepare-finish-hand.patch
+	patches.dovetail/arm64-fpsimd-convert-to-switch-prepare-finish-handle.patch
+	patches.dovetail/x86-thread-export-offset-of-synchronous-status.patch
+	patches.dovetail/x86-irq_pipeline-add-IRQ-pipeline-core.patch
+	patches.dovetail/x86-apic-irq_pipeline-enable-pipelined-clock-events.patch
+	patches.dovetail/x86-hpet-irq_pipeline-enable-pipelined-clock-events.patch
+	patches.dovetail/x86-mtrr-irq_pipeline-guard-against-stage-preemption.patch
+	patches.dovetail/x86-vdso-dovetail-serialize-gtod-update-vs-read.patch
+	patches.dovetail/x86-nmi-irq_pipeline-disable-copy_from_user_nmi-from.patch
+	patches.dovetail/x86-dovetail-add-core-support.patch
+	patches.dovetail/x86-dovetail-enable-context-switching-from-the-oob-s.patch
+	patches.dovetail/x86-dovetail-route-traps-to-the-co-kernel.patch
+	patches.dovetail/x86-dovetail-route-syscalls-to-the-co-kernel.patch
+	patches.dovetail/x86-fault-dovetail-add-new-mappings-to-the-master-pa.patch
+	patches.dovetail/x86-fpu-dovetail-enable-sharing-with-oob-stage.patch
+	patches.dovetail/x86-entry-irq_pipeline-do-early-exit-from-out-of-ban.patch
+	patches.dovetail/genirq-irq_pipeline-disable-ftracing-for-run_oob_cal.patch
+	patches.dovetail/sched-irq_pipeline-leverage-IRQ-state-invariants-in-.patch
+	patches.dovetail/x86-dovetail-general-rework-of-trap-handling.patch
+	patches.dovetail/x86-dovetail-protect-TLB-flush-op-against-oob-preemp.patch
+	patches.dovetail/x86-mm-irq_pipeline-align-virtual-state-logic-with-p.patch
+	patches.dovetail/x86-dovetail-keep-updates-to-TLS-register-fully-atom.patch
+	patches.dovetail/x86-mm-dovetail-keep-local-TLB-and-loaded-mm-generat.patch
+	patches.dovetail/genirq-irq_pipeline-fix-naming-conflict-w-iSCSI.patch
+	patches.dovetail/sched-irq_pipeline-fix-naming-conflict-w-iSCSI.patch
+	patches.dovetail/dovetail-fix-naming-conflict-w-iSCSI.patch
+	patches.dovetail/x86-irq_pipeline-fix-naming-conflict-w-iSCSI.patch
+	patches.dovetail/irqchip-imx-irqsteer-irq_pipeline-enable-pipelined-i.patch
+	patches.dovetail/x86-apic-irq_pipeline-fix-locking-in-numachip_send_I.patch
+	patches.dovetail/x86-irq_pipeline-fix-build-issues-in-APIC-event-tram.patch
+	patches.dovetail/drivers-net-fec-drop-useless-membar-from-RX-stall-fi.patch
+	patches.dovetail/x86-irq_pipeline-fix-allyesconfig-build-issues.patch
+	patches.dovetail/locking-irq_pipeline-fix-allnoconfig-build-issue.patch
+	patches.dovetail/ARM-irq_pipeline-fix-allnoconfig-build-issue.patch

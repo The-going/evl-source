@@ -1,0 +1,25 @@
+From 777e35f48e4631068d19157ec77c8563abe31929 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 21 May 2019 20:18:08 +0200
+Subject: [PATCH] evl/wait: include scheduler bits from evl/wait.h
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/evl/wait.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/evl/wait.h b/include/evl/wait.h
+index 009dd5fdb5e4..ab701701f1ec 100644
+--- a/include/evl/wait.h
++++ b/include/evl/wait.h
+@@ -15,6 +15,7 @@
+ #include <evl/timer.h>
+ #include <evl/clock.h>
+ #include <evl/thread.h>
++#include <evl/sched.h>
+ #include <uapi/evl/thread.h>
+ 
+ #define EVL_WAIT_FIFO    0
+-- 
+2.16.4
+

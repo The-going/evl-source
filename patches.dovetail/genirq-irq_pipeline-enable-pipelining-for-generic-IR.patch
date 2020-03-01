@@ -1,4 +1,4 @@
-From af3aae6894b250914a7ebf385a5e6a70d12e2852 Mon Sep 17 00:00:00 2001
+From 05bc8ff143e42b6ce1855016c6be974ca3d4c584 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 11:43:21 +0200
 Subject: [PATCH] genirq: irq_pipeline: enable pipelining for generic IRQ chip
@@ -8,10 +8,10 @@ Subject: [PATCH] genirq: irq_pipeline: enable pipelining for generic IRQ chip
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/irq.h b/include/linux/irq.h
-index 71ebea9604ac..b0c7fbdd7fb1 100644
+index aab2c331f755..2f9d6193b45c 100644
 --- a/include/linux/irq.h
 +++ b/include/linux/irq.h
-@@ -1001,7 +1001,7 @@ struct irq_chip_type {
+@@ -1003,7 +1003,7 @@ struct irq_chip_type {
   * different flow mechanisms (level/edge) for it.
   */
  struct irq_chip_generic {

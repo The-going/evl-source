@@ -1,0 +1,35 @@
+From 4fdb24a057ac128b862280db2d2d3488a721db1e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 7 May 2019 16:51:50 +0200
+Subject: [PATCH] dovetail: disable hard irqs around out-of-band trap handling
+
+---
+ kernel/dovetail.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 785e7bbb1860..61556b95cb70 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -231,12 +231,17 @@ void __weak handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 
+ void __oob_trap_notify(unsigned int exception, struct pt_regs *regs)
+ {
++	unsigned long flags;
++
+ 	/*
+ 	 * We send a notification about all traps raised over a
+ 	 * registered oob stage only.
+ 	 */
+-	if (dovetail_enabled)
++	if (dovetail_enabled) {
++		flags = hard_local_irq_save();
+ 		handle_oob_trap(exception, regs);
++		hard_local_irq_restore(flags);
++	}
+ }
+ 
+ void __weak handle_inband_event(enum inband_event_type event, void *data)
+-- 
+2.16.4
+

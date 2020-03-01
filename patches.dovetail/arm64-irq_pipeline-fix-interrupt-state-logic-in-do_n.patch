@@ -1,4 +1,4 @@
-From d80ebb8fd0cac046fa27c80b32e29f7be620e7ae Mon Sep 17 00:00:00 2001
+From 1ba27cc037c8da68be26ab8295cb390a52af73b7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 18 Mar 2019 12:48:27 +0100
 Subject: [PATCH] arm64: irq_pipeline: fix interrupt state logic in
@@ -22,7 +22,7 @@ behavior.
  1 file changed, 19 insertions(+), 19 deletions(-)
 
 diff --git a/arch/arm64/kernel/signal.c b/arch/arm64/kernel/signal.c
-index 53ecb51f548..fd1ec457be2 100644
+index c9b0ed185bc7..da8f258cffa6 100644
 --- a/arch/arm64/kernel/signal.c
 +++ b/arch/arm64/kernel/signal.c
 @@ -22,6 +22,7 @@
@@ -33,7 +33,7 @@ index 53ecb51f548..fd1ec457be2 100644
  #include <linux/personality.h>
  #include <linux/freezer.h>
  #include <linux/stddef.h>
-@@ -915,26 +916,28 @@ static void do_signal(struct pt_regs *regs)
+@@ -910,26 +911,28 @@ static void do_signal(struct pt_regs *regs)
  asmlinkage void do_notify_resume(struct pt_regs *regs,
  				 unsigned long thread_flags)
  {
@@ -69,7 +69,7 @@ index 53ecb51f548..fd1ec457be2 100644
  
  			schedule();
  		} else {
-@@ -958,20 +961,17 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
+@@ -953,20 +956,17 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
  				fpsimd_restore_current_state();
  		}
  

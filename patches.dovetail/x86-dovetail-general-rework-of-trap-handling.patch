@@ -1,0 +1,449 @@
+From ed267a171c71d20597c8b45547f32144b64ad6f3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 17 May 2019 17:32:22 +0200
+Subject: [PATCH] x86: dovetail: general rework of trap handling
+
+We need to postpone entering a fault_entry/exit section until we have
+no other option than calling inband code directly or indirectly.  This
+excludes notify_die() calls which trigger the atomic notifier, and
+that one knows how to handle out-of-band callers.
+
+By doing so, we guarantee that ftrace/kprobe/kgdb breakpoints are
+immediately passed to their respective inband handlers, without
+notifying the companion core which has no business in handling
+those. These inband handlers have to be able to run from out-of-band
+context too. Likewise, light exception fixups due to
+probe_kernel_{read, write} attempts must benefit from the same
+guarantee for the same requirement.
+
+In addition, make sure to apply conditional IRQ enabling/disabling
+before fault_entry() is invoked, since we want to restore the hardware
+interrupt state the kernel wants at fault_exit().
+
+Finally, if CONFIG_PREEMPT is enabled, skip preempt_schedule_irq() if
+the inband state is disabled upon return from common IDT entry
+handlers (paranoid handlers already skip kernel preemption by design).
+---
+ arch/x86/entry/entry_64.S     |  9 +++--
+ arch/x86/kernel/asm-offsets.c |  5 ++-
+ arch/x86/kernel/traps.c       | 80 +++++++++++++++++++++----------------------
+ arch/x86/mm/fault.c           | 36 ++++++++++++++-----
+ 4 files changed, 78 insertions(+), 52 deletions(-)
+
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index cffce17ef253..5b65448f0680 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -1378,12 +1378,15 @@ ENTRY(error_exit)
+ 	DISABLE_INTERRUPTS(CLBR_ANY)
+ 	TRACE_IRQS_OFF
+ #ifdef CONFIG_IRQ_PIPELINE
+-	testl	$OOB_stage_mask, PER_CPU_VAR(__preempt_count)
+-	jz	1f
++	testl	$oob_preempt_mask, PER_CPU_VAR(__preempt_count)
++	jnz	1f
++	testl	$inband_stall_mask, PER_CPU_VAR(irq_pipeline + inband_stage_status)
++	jz	2f
++1:
+ 	testb	$3, CS(%rsp)
+ 	jz	retint_kernel_early
+ 	jmp	retint_user_early
+-1:
++2:
+ #endif
+ 	testb	$3, CS(%rsp)
+ 	jz	retint_kernel
+diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
+index 0dd9bf4be160..b11ed0a8e809 100644
+--- a/arch/x86/kernel/asm-offsets.c
++++ b/arch/x86/kernel/asm-offsets.c
+@@ -12,6 +12,7 @@
+ #include <linux/hardirq.h>
+ #include <linux/suspend.h>
+ #include <linux/kbuild.h>
++#include <linux/irqstage.h>
+ #include <asm/processor.h>
+ #include <asm/thread_info.h>
+ #include <asm/sigframe.h>
+@@ -44,7 +45,9 @@ static void __used common(void)
+ 
+ #ifdef CONFIG_IRQ_PIPELINE
+ 	BLANK();
+-	DEFINE(OOB_stage_mask, STAGE_MASK);
++	DEFINE(oob_preempt_mask, STAGE_MASK);
++	DEFINE(inband_stall_mask, BIT(STAGE_STALL_BIT));
++	OFFSET(inband_stage_status, irq_pipeline_data, stages[0].status);
+ #endif
+ 
+ 	BLANK();
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 06159eb5c35a..a108f180fec1 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -81,6 +81,13 @@ unsigned long pipelined_fault_entry(int trapnr, struct pt_regs *regs)
+ 	unsigned long flags;
+ 	int nosync = 1;
+ 
++	/*
++	 * NOTE: having entered the IST context when the companion
++	 * core is notified that an exception has been taken from
++	 * out-of-band context is not an issue. At best that core
++	 * could plan for a deferred switch to inband mode, which by
++	 * definition cannot involve immediate schedule().
++	 */
+ 	oob_trap_notify(trapnr, regs);
+ 
+ 	flags = hard_local_irq_save();
+@@ -305,8 +312,6 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
+ {
+ 	unsigned long flags;
+ 
+-	flags = pipelined_fault_entry(trapnr, regs);
+-
+ 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+ 
+ 	/*
+@@ -314,16 +319,15 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
+ 	 * notifier chain.
+ 	 */
+ 	if (!user_mode(regs) && fixup_bug(regs, trapnr))
+-		goto out;
++		return;
+ 
+ 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
+ 			NOTIFY_STOP) {
+ 		cond_local_irq_enable(regs);
++		flags = pipelined_fault_entry(trapnr, regs);
+ 		do_trap(trapnr, signr, str, regs, error_code, sicode, addr);
++		pipelined_fault_exit(flags);
+ 	}
+-
+-out:
+-	pipelined_fault_exit(flags);
+ }
+ 
+ #define IP ((void __user *)uprobe_get_trap_addr(regs))
+@@ -484,14 +488,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+ 	const struct mpx_bndcsr *bndcsr;
+ 	unsigned long flags;
+ 
+-	flags = pipelined_fault_entry(X86_TRAP_BR, regs);
+-
+ 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+ 	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
+ 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
+-		goto out;
++		return;
+ 	cond_local_irq_enable(regs);
+ 
++	flags = pipelined_fault_entry(X86_TRAP_BR, regs);
++
+ 	if (!user_mode(regs))
+ 		die("bounds", regs, error_code);
+ 
+@@ -580,23 +584,21 @@ do_general_protection(struct pt_regs *regs, long error_code)
+ 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+ 	cond_local_irq_enable(regs);
+ 
+-	flags = pipelined_fault_entry(X86_TRAP_GP, regs);
+-
+ 	if (static_cpu_has(X86_FEATURE_UMIP)) {
+ 		if (user_mode(regs) && fixup_umip_exception(regs))
+-			goto out;
++			return;
+ 	}
+ 
+ 	if (v8086_mode(regs)) {
+-		local_irq_enable();
++		hard_local_irq_enable();
+ 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
+-		goto out;
++		return;
+ 	}
+ 
+ 	tsk = current;
+ 	if (!user_mode(regs)) {
+ 		if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
+-			goto out;
++			return;
+ 
+ 		tsk->thread.error_code = error_code;
+ 		tsk->thread.trap_nr = X86_TRAP_GP;
+@@ -608,21 +610,23 @@ do_general_protection(struct pt_regs *regs, long error_code)
+ 		 */
+ 		if (!preemptible() && kprobe_running() &&
+ 		    kprobe_fault_handler(regs, X86_TRAP_GP))
+-			goto out;
++			return;
+ 
+ 		if (notify_die(DIE_GPF, desc, regs, error_code,
+ 			       X86_TRAP_GP, SIGSEGV) != NOTIFY_STOP)
+ 			die(desc, regs, error_code);
+-		goto out;
++		return;
+ 	}
+ 
++	flags = pipelined_fault_entry(X86_TRAP_GP, regs);
++
+ 	tsk->thread.error_code = error_code;
+ 	tsk->thread.trap_nr = X86_TRAP_GP;
+ 
+ 	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
+ 
+ 	force_sig(SIGSEGV, tsk);
+-out:
++
+ 	pipelined_fault_exit(flags);
+ }
+ NOKPROBE_SYMBOL(do_general_protection);
+@@ -631,8 +635,6 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ {
+ 	unsigned long flags;
+ 
+-	flags = pipelined_fault_entry(X86_TRAP_BP, regs);
+-
+ #ifdef CONFIG_DYNAMIC_FTRACE
+ 	/*
+ 	 * ftrace must be first, everything else may cause a recursive crash.
+@@ -640,10 +642,10 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ 	 */
+ 	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
+ 	    ftrace_int3_handler(regs))
+-		goto out;
++		return;
+ #endif
+ 	if (poke_int3_handler(regs))
+-		goto out;
++		return;
+ 
+ 	/*
+ 	 * Use ist_enter despite the fact that we don't use an IST stack.
+@@ -670,13 +672,13 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ 		goto exit;
+ 
+ 	cond_local_irq_enable(regs);
++	flags = pipelined_fault_entry(X86_TRAP_BP, regs);
+ 	do_trap(X86_TRAP_BP, SIGTRAP, "int3", regs, error_code, 0, NULL);
++	pipelined_fault_exit(flags);
+ 	cond_local_irq_disable(regs);
+ 
+ exit:
+ 	ist_exit(regs);
+-out:
+-	pipelined_fault_exit(flags);
+ }
+ NOKPROBE_SYMBOL(do_int3);
+ 
+@@ -834,11 +836,9 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+ 		goto exit;
+ #endif
+ 
+-	flags = pipelined_fault_entry(X86_TRAP_DB, regs);
+-
+ 	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
+ 							SIGTRAP) == NOTIFY_STOP)
+-		goto exit_fault;
++		goto exit;
+ 
+ 	/*
+ 	 * Let others (NMI) know that the debug stack is in use
+@@ -854,7 +854,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+ 					X86_TRAP_DB);
+ 		cond_local_irq_disable(regs);
+ 		debug_stack_usage_dec();
+-		goto exit_fault;
++		goto exit;
+ 	}
+ 
+ 	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
+@@ -869,13 +869,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
+ 		regs->flags &= ~X86_EFLAGS_TF;
+ 	}
+ 	si_code = get_si_code(tsk->thread.debugreg6);
+-	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
++	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp) {
++		flags = pipelined_fault_entry(X86_TRAP_DB, regs);
+ 		send_sigtrap(tsk, regs, error_code, si_code);
++		pipelined_fault_exit(flags);
++	}
+ 	cond_local_irq_disable(regs);
+ 	debug_stack_usage_dec();
+ 
+-exit_fault:
+-	pipelined_fault_exit(flags);
+ exit:
+ 	ist_exit(regs);
+ }
+@@ -895,13 +896,11 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 	char *str = (trapnr == X86_TRAP_MF) ? "fpu exception" :
+ 						"simd exception";
+ 
+-	flags = pipelined_fault_entry(trapnr, regs);
+-
+ 	cond_local_irq_enable(regs);
+ 
+ 	if (!user_mode(regs)) {
+ 		if (fixup_exception(regs, trapnr, error_code, 0))
+-			goto out;
++			return;
+ 
+ 		task->thread.error_code = error_code;
+ 		task->thread.trap_nr = trapnr;
+@@ -909,7 +908,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 		if (notify_die(DIE_TRAP, str, regs, error_code,
+ 					trapnr, SIGFPE) != NOTIFY_STOP)
+ 			die(str, regs, error_code);
+-		goto out;
++		return;
+ 	}
+ 
+ 	/*
+@@ -923,11 +922,13 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
+ 	si_code = fpu__exception_code(fpu, trapnr);
+ 	/* Retry when we get spurious exceptions: */
+ 	if (!si_code)
+-		goto out;
++		return;
++
++	flags = pipelined_fault_entry(trapnr, regs);
+ 
+ 	force_sig_fault(SIGFPE, si_code,
+ 			(void __user *)uprobe_get_trap_addr(regs), task);
+-out:
++
+ 	pipelined_fault_exit(flags);
+ }
+ 
+@@ -961,10 +962,10 @@ do_device_not_available(struct pt_regs *regs, long error_code)
+ 	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
+ 		struct math_emu_info info = { };
+ 
+-		flags = pipelined_fault_entry(X86_TRAP_NM, regs);
+-
+ 		cond_local_irq_enable(regs);
+ 
++		flags = pipelined_fault_entry(X86_TRAP_NM, regs);
++
+ 		info.regs = regs;
+ 		math_emulate(&info);
+ 
+@@ -992,7 +993,6 @@ NOKPROBE_SYMBOL(do_device_not_available);
+ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
+ {
+ 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
+-
+ 	local_irq_enable();
+ 
+ 	if (notify_die(DIE_TRAP, "iret exception", regs, error_code,
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 440b40000171..94eefa16a0d6 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -725,7 +725,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	   unsigned long address, int signal, int si_code)
+ {
+ 	struct task_struct *tsk = current;
+-	unsigned long flags;
++	unsigned long flags, entry_flags = 0;
+ 	int sig;
+ 
+ 	if (user_mode(regs)) {
+@@ -744,7 +744,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 		 * the below recursive fault logic only apply to a faults from
+ 		 * task context.
+ 		 */
+-		if (in_interrupt())
++		if (running_inband() && in_interrupt())
+ 			return;
+ 
+ 		/*
+@@ -754,11 +754,20 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 		 * faulting through the emulate_vsyscall() logic.
+ 		 */
+ 		if (current->thread.sig_on_uaccess_err && signal) {
++			/*
++			 * If !user_mode(regs), we did not notify the
++			 * pipeline about this fault, do this now
++			 * before we (re-enter inband code.
++			 */
++			entry_flags = pipelined_fault_entry(X86_TRAP_PF, regs);
++
+ 			set_signal_archinfo(address, error_code);
+ 
+ 			/* XXX: hwpoison faults will set the wrong code. */
+ 			force_sig_fault(signal, si_code, (void __user *)address,
+ 					tsk);
++
++			pipelined_fault_exit(entry_flags);
+ 		}
+ 
+ 		/*
+@@ -815,6 +824,14 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	if (is_errata93(regs, address))
+ 		return;
+ 
++	/*
++	 * The odds we can survive to this PF over an out-of-band
++	 * context are pretty high, but if a companion core is
++	 * present, we want to let it know so it might try desperate
++	 * fixups as well.
++	 */
++	entry_flags = pipelined_fault_entry(X86_TRAP_PF, regs);
++
+ 	/*
+ 	 * Buggy firmware could access regions which might page fault, try to
+ 	 * recover from such faults.
+@@ -842,6 +859,9 @@ no_context(struct pt_regs *regs, unsigned long error_code,
+ 	printk(KERN_DEFAULT "CR2: %016lx\n", address);
+ 
+ 	oops_end(flags, regs, sig);
++
++	if (!user_mode(regs))
++		pipelined_fault_exit(entry_flags);
+ }
+ 
+ /*
+@@ -1512,6 +1532,8 @@ static noinline void
+ __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
+ 		unsigned long address)
+ {
++	unsigned long flags;
++
+ 	prefetchw(&current->mm->mmap_sem);
+ 
+ 	if (unlikely(kmmio_fault(regs, address)))
+@@ -1520,8 +1542,11 @@ __do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
+ 	/* Was the fault on kernel-controlled part of the address space? */
+ 	if (unlikely(fault_in_kernel_space(address)))
+ 		do_kern_addr_fault(regs, hw_error_code, address);
+-	else
++	else {
++		flags = pipelined_fault_entry(X86_TRAP_PF, regs);
+ 		do_user_addr_fault(regs, hw_error_code, address);
++		pipelined_fault_exit(flags);
++	}
+ }
+ NOKPROBE_SYMBOL(__do_page_fault);
+ 
+@@ -1547,9 +1572,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+ {
+ 	unsigned long address = read_cr2(); /* Get the faulting address */
+ 	enum ctx_state prev_state;
+-	unsigned long flags;
+-
+-	flags = pipelined_fault_entry(X86_TRAP_PF, regs);
+ 
+ 	prev_state = exception_enter();
+ 	if (trace_pagefault_enabled())
+@@ -1557,8 +1579,6 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
+ 
+ 	__do_page_fault(regs, error_code, address);
+ 	exception_exit(prev_state);
+-
+-	pipelined_fault_exit(flags);
+ }
+ NOKPROBE_SYMBOL(do_page_fault);
+ 
+-- 
+2.16.4
+

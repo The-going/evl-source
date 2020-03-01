@@ -1,0 +1,28 @@
+From 4573107a69052ffb5c8a20a24b4bfe18e0c41cda Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 11 May 2019 15:48:00 +0200
+Subject: [PATCH] ARM: dovetail: convert to switch prepare/finish handlers
+
+---
+ arch/arm/include/asm/dovetail.h | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/include/asm/dovetail.h b/arch/arm/include/asm/dovetail.h
+index ce1951b185a3..6b975d0ca6d6 100644
+--- a/arch/arm/include/asm/dovetail.h
++++ b/arch/arm/include/asm/dovetail.h
+@@ -19,7 +19,10 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
+-static inline void arch_dovetail_context_resume(void)
++static inline void arch_dovetail_switch_prepare(bool leave_inband)
++{ }
++
++static inline void arch_dovetail_switch_finish(bool enter_inband)
+ { }
+ 
+ #endif
+-- 
+2.16.4
+

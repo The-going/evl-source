@@ -1,0 +1,204 @@
+From 90c1b362fab20da99443bf98da2d52c3c9e40f6e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 17 May 2019 09:43:45 +0200
+Subject: [PATCH] uapi/evl: include <linux/types.h> as recommended
+
+---
+ arch/arm/include/uapi/asm/evl/fptest.h   | 2 ++
+ arch/arm64/include/uapi/asm/evl/fptest.h | 2 ++
+ arch/x86/include/uapi/asm/evl/fptest.h   | 2 ++
+ include/uapi/evl/control.h               | 1 +
+ include/uapi/evl/devices/hectic.h        | 2 ++
+ include/uapi/evl/devices/latmus.h        | 2 ++
+ include/uapi/evl/factory.h               | 2 ++
+ include/uapi/evl/monitor.h               | 1 +
+ include/uapi/evl/poll.h                  | 2 ++
+ include/uapi/evl/proxy.h                 | 2 ++
+ include/uapi/evl/sched.h                 | 2 ++
+ include/uapi/evl/thread.h                | 1 +
+ include/uapi/evl/types.h                 | 2 ++
+ include/uapi/evl/xbuf.h                  | 2 ++
+ 14 files changed, 25 insertions(+)
+
+diff --git a/arch/arm/include/uapi/asm/evl/fptest.h b/arch/arm/include/uapi/asm/evl/fptest.h
+index d9771dda64f2..1ea355d28a5d 100644
+--- a/arch/arm/include/uapi/asm/evl/fptest.h
++++ b/arch/arm/include/uapi/asm/evl/fptest.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_ARM_ASM_UAPI_FPTEST_H
+ #define _EVL_ARM_ASM_UAPI_FPTEST_H
+ 
++#include <linux/types.h>
++
+ #define evl_arm_vfp  0x1
+ 
+ #define evl_set_fpregs(__features, __val)				\
+diff --git a/arch/arm64/include/uapi/asm/evl/fptest.h b/arch/arm64/include/uapi/asm/evl/fptest.h
+index 8bf98331516d..e083e952c2c7 100644
+--- a/arch/arm64/include/uapi/asm/evl/fptest.h
++++ b/arch/arm64/include/uapi/asm/evl/fptest.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_ARM64_ASM_UAPI_FPTEST_H
+ #define _EVL_ARM64_ASM_UAPI_FPTEST_H
+ 
++#include <linux/types.h>
++
+ #define evl_arm64_fpsimd  0x1
+ #define evl_arm64_sve     0x2
+ 
+diff --git a/arch/x86/include/uapi/asm/evl/fptest.h b/arch/x86/include/uapi/asm/evl/fptest.h
+index a2d87d560b06..b8ace9fcaeb0 100644
+--- a/arch/x86/include/uapi/asm/evl/fptest.h
++++ b/arch/x86/include/uapi/asm/evl/fptest.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_X86_ASM_UAPI_FPTEST_H
+ #define _EVL_X86_ASM_UAPI_FPTEST_H
+ 
++#include <linux/types.h>
++
+ #define evl_x86_xmm2  0x1
+ #define evl_x86_avx   0x2
+ 
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 12729507d213..2ed03b07d0d5 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -7,6 +7,7 @@
+ #ifndef _EVL_UAPI_CONTROL_H
+ #define _EVL_UAPI_CONTROL_H
+ 
++#include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+ struct evl_core_info {
+diff --git a/include/uapi/evl/devices/hectic.h b/include/uapi/evl/devices/hectic.h
+index d52794527065..4ef3366ae8c9 100644
+--- a/include/uapi/evl/devices/hectic.h
++++ b/include/uapi/evl/devices/hectic.h
+@@ -9,6 +9,8 @@
+ #ifndef _EVL_UAPI_DEVICES_HECTIC_H
+ #define _EVL_UAPI_DEVICES_HECTIC_H
+ 
++#include <linux/types.h>
++
+ /* hectic_task_index.flags */
+ #define HECTIC_OOB_WAIT     0x10000
+ #define HECTIC_INBAND_WAIT  0
+diff --git a/include/uapi/evl/devices/latmus.h b/include/uapi/evl/devices/latmus.h
+index 3c5bd201a7d1..6960b9aac65c 100644
+--- a/include/uapi/evl/devices/latmus.h
++++ b/include/uapi/evl/devices/latmus.h
+@@ -8,6 +8,8 @@
+ #ifndef _EVL_UAPI_DEVICES_LATMUS_H
+ #define _EVL_UAPI_DEVICES_LATMUS_H
+ 
++#include <linux/types.h>
++
+ /* Latmus context types. */
+ #define EVL_LAT_IRQ   0
+ #define EVL_LAT_KERN  1
+diff --git a/include/uapi/evl/factory.h b/include/uapi/evl/factory.h
+index 45c14891ed5b..3424bfd137a2 100644
+--- a/include/uapi/evl/factory.h
++++ b/include/uapi/evl/factory.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_FACTORY_H
+ #define _EVL_UAPI_FACTORY_H
+ 
++#include <linux/types.h>
++
+ #define EVL_FACTORY_IOCBASE	'f'
+ 
+ struct evl_element_ids {
+diff --git a/include/uapi/evl/monitor.h b/include/uapi/evl/monitor.h
+index cc62fea2ea34..6caa8a58e7e1 100644
+--- a/include/uapi/evl/monitor.h
++++ b/include/uapi/evl/monitor.h
+@@ -7,6 +7,7 @@
+ #ifndef _EVL_UAPI_MONITOR_H
+ #define _EVL_UAPI_MONITOR_H
+ 
++#include <linux/types.h>
+ #include <uapi/evl/types.h>
+ #include <uapi/evl/factory.h>
+ 
+diff --git a/include/uapi/evl/poll.h b/include/uapi/evl/poll.h
+index 8834c034fec8..4d28316f3c95 100644
+--- a/include/uapi/evl/poll.h
++++ b/include/uapi/evl/poll.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_POLL_H
+ #define _EVL_UAPI_POLL_H
+ 
++#include <linux/types.h>
++
+ #define EVL_POLL_DEV		"poll"
+ 
+ #define EVL_POLL_IOCBASE  'p'
+diff --git a/include/uapi/evl/proxy.h b/include/uapi/evl/proxy.h
+index 7e112c129964..96ed94f0647a 100644
+--- a/include/uapi/evl/proxy.h
++++ b/include/uapi/evl/proxy.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_PROXY_H
+ #define _EVL_UAPI_PROXY_H
+ 
++#include <linux/types.h>
++
+ #define EVL_PROXY_DEV	"proxy"
+ 
+ struct evl_proxy_attrs {
+diff --git a/include/uapi/evl/sched.h b/include/uapi/evl/sched.h
+index 49bd9d0ad044..7f7eec6c1de1 100644
+--- a/include/uapi/evl/sched.h
++++ b/include/uapi/evl/sched.h
+@@ -8,6 +8,8 @@
+ #ifndef _EVL_UAPI_SCHED_H
+ #define _EVL_UAPI_SCHED_H
+ 
++#include <linux/types.h>
++
+ #define SCHED_EVL	42
+ #define SCHED_WEAK	43
+ 
+diff --git a/include/uapi/evl/thread.h b/include/uapi/evl/thread.h
+index 520e41826645..574394d4e9d5 100644
+--- a/include/uapi/evl/thread.h
++++ b/include/uapi/evl/thread.h
+@@ -8,6 +8,7 @@
+ #ifndef _EVL_UAPI_THREAD_H
+ #define _EVL_UAPI_THREAD_H
+ 
++#include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+ #define EVL_THREAD_DEV		"thread"
+diff --git a/include/uapi/evl/types.h b/include/uapi/evl/types.h
+index 7aa2951c0e0b..356b42d7d204 100644
+--- a/include/uapi/evl/types.h
++++ b/include/uapi/evl/types.h
+@@ -8,6 +8,8 @@
+ #ifndef _EVL_UAPI_TYPES_H
+ #define _EVL_UAPI_TYPES_H
+ 
++#include <linux/types.h>
++
+ typedef __u32 fundle_t;
+ 
+ #define EVL_NO_HANDLE		((fundle_t)0x00000000)
+diff --git a/include/uapi/evl/xbuf.h b/include/uapi/evl/xbuf.h
+index d982ab18ab30..ff0afc5b3a60 100644
+--- a/include/uapi/evl/xbuf.h
++++ b/include/uapi/evl/xbuf.h
+@@ -7,6 +7,8 @@
+ #ifndef _EVL_UAPI_XBUF_H
+ #define _EVL_UAPI_XBUF_H
+ 
++#include <linux/types.h>
++
+ #define EVL_XBUF_DEV		"xbuf"
+ 
+ struct evl_xbuf_attrs {
+-- 
+2.16.4
+

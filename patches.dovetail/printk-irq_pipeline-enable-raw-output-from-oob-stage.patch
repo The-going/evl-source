@@ -1,4 +1,4 @@
-From fac6b759480ed11f6dc28a74a2badaa37cbc4e43 Mon Sep 17 00:00:00 2001
+From 2da3bf77d8b9d4c1b339fd17591bd17159e655f2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 21 Jul 2016 09:39:07 +0200
 Subject: [PATCH] printk: irq_pipeline: enable raw output from oob stage
@@ -8,10 +8,10 @@ Subject: [PATCH] printk: irq_pipeline: enable raw output from oob stage
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index cc6afce73ccf..a8b191495761 100644
+index 1130584bb17a..40bb46dee842 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2096,7 +2096,7 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2106,7 +2106,7 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  
  #ifdef CONFIG_RAW_PRINTK
  static struct console *raw_console;

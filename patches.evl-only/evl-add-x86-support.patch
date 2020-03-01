@@ -1,0 +1,331 @@
+From 51633e31452cbcb0a75171c49135975ecf42c592 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 7 May 2019 12:29:30 +0200
+Subject: [PATCH] evl: add x86 support
+
+---
+ arch/x86/Kconfig                        |   2 +
+ arch/x86/Makefile                       |   4 ++
+ arch/x86/include/asm/evl/fptest.h       |  42 +++++++++++
+ arch/x86/include/asm/evl/syscall.h      |  45 ++++++++++++
+ arch/x86/include/asm/evl/thread.h       |  14 ++++
+ arch/x86/include/dovetail/thread_info.h |   7 ++
+ arch/x86/include/uapi/asm/evl/fptest.h  | 120 ++++++++++++++++++++++++++++++++
+ arch/x86/include/uapi/asm/evl/syscall.h |   7 ++
+ 8 files changed, 241 insertions(+)
+ create mode 100644 arch/x86/include/asm/evl/fptest.h
+ create mode 100644 arch/x86/include/asm/evl/syscall.h
+ create mode 100644 arch/x86/include/asm/evl/thread.h
+ create mode 100644 arch/x86/include/dovetail/thread_info.h
+ create mode 100644 arch/x86/include/uapi/asm/evl/fptest.h
+ create mode 100644 arch/x86/include/uapi/asm/evl/syscall.h
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index dcaa7febcadf..07be8a21bc25 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -28,6 +28,7 @@ config X86_64
+ 	select HAVE_ARCH_SOFT_DIRTY
+ 	select HAVE_IRQ_PIPELINE
+ 	select HAVE_DOVETAIL
++	select HAVE_ARCH_EVL
+ 	select MODULES_USE_ELF_RELA
+ 	select NEED_DMA_MAP_STATE
+ 	select SWIOTLB
+@@ -837,6 +838,7 @@ config JAILHOUSE_GUEST
+ 
+ endif #HYPERVISOR_GUEST
+ 
++source "kernel/Kconfig.evl"
+ source "kernel/Kconfig.dovetail"
+ source "arch/x86/Kconfig.cpu"
+ 
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index 56e748a7679f..b5db2e52268c 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -197,6 +197,10 @@ sha256_ni_instr :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,-DCONFIG_AS_SHA2
+ KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+ KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr) $(avx512_instr) $(sha1_ni_instr) $(sha256_ni_instr)
+ 
++ifeq ($(CONFIG_EVL),y)
++KBUILD_CFLAGS += -Iarch/$(SRCARCH)/evl/include -Iinclude/evl
++endif
++
+ KBUILD_LDFLAGS := -m elf_$(UTS_MACHINE)
+ 
+ #
+diff --git a/arch/x86/include/asm/evl/fptest.h b/arch/x86/include/asm/evl/fptest.h
+new file mode 100644
+index 000000000000..ba9504980dd3
+--- /dev/null
++++ b/arch/x86/include/asm/evl/fptest.h
+@@ -0,0 +1,42 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_X86_ASM_FPTEST_H
++#define _EVL_X86_ASM_FPTEST_H
++
++#include <asm/fpu/api.h>
++#include <uapi/asm/evl/fptest.h>
++
++static inline bool evl_begin_fpu(void)
++{
++	kernel_fpu_begin();
++	/*
++	 * We need a clean context for testing the sanity of the FPU
++	 * register stack across switches in evl_check_fpregs()
++	 * (fildl->fistpl), which kernel_fpu_begin() does not
++	 * guarantee us. Force this manually.
++	 */
++	asm volatile("fninit");
++
++	return true;
++}
++
++static inline void evl_end_fpu(void)
++{
++	kernel_fpu_end();
++}
++
++static inline u32 evl_detect_fpu(void)
++{
++	u32 features = 0;
++
++	/* We only test XMM2 and AVX switching when present. */
++
++	if (boot_cpu_has(X86_FEATURE_XMM2))
++		features |= evl_x86_xmm2;
++
++	if (boot_cpu_has(X86_FEATURE_AVX))
++		features |= evl_x86_avx;
++
++	return features;
++}
++
++#endif /* _EVL_X86_ASM_FPTEST_H */
+diff --git a/arch/x86/include/asm/evl/syscall.h b/arch/x86/include/asm/evl/syscall.h
+new file mode 100644
+index 000000000000..e0b6652c7452
+--- /dev/null
++++ b/arch/x86/include/asm/evl/syscall.h
+@@ -0,0 +1,45 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_X86_ASM_SYSCALL_H
++#define _EVL_X86_ASM_SYSCALL_H
++
++#include <linux/uaccess.h>
++#include <asm/unistd.h>
++#include <asm/ptrace.h>
++#include <uapi/asm/evl/syscall.h>
++
++#define raw_put_user(src, dst)  __put_user(src, dst)
++#define raw_get_user(dst, src)  __get_user(dst, src)
++
++#define is_oob_syscall(__regs)	((__regs)->orig_ax & __EVL_SYSCALL_BIT)
++#define oob_syscall_nr(__regs)	((__regs)->orig_ax & ~__EVL_SYSCALL_BIT)
++
++#define oob_retval(__regs)	((__regs)->ax)
++#define oob_arg1(__regs)	((__regs)->di)
++#define oob_arg2(__regs)	((__regs)->si)
++#define oob_arg3(__regs)	((__regs)->dx)
++#define oob_arg4(__regs)	((__regs)->r10)
++#define oob_arg5(__regs)	((__regs)->r8)
++
++/*
++ * Fetch and test inband syscall number (valid only if
++ * !is_oob_syscall(__regs)).
++ */
++#define inband_syscall_nr(__regs, __nr)			\
++	({						\
++		*(__nr) = oob_syscall_nr(__regs);	\
++		!is_oob_syscall(__regs);		\
++	})
++
++static inline void
++set_oob_error(struct pt_regs *regs, int err)
++{
++	oob_retval(regs) = err;
++}
++
++static inline
++void set_oob_retval(struct pt_regs *regs, long ret)
++{
++	oob_retval(regs) = ret;
++}
++
++#endif /* !_EVL_X86_ASM_SYSCALL_H */
+diff --git a/arch/x86/include/asm/evl/thread.h b/arch/x86/include/asm/evl/thread.h
+new file mode 100644
+index 000000000000..956801d241cc
+--- /dev/null
++++ b/arch/x86/include/asm/evl/thread.h
+@@ -0,0 +1,14 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_X86_ASM_THREAD_H
++#define _EVL_X86_ASM_THREAD_H
++
++#include <asm/traps.h>
++
++#define xnarch_fault_pf_p(__trapnr)	((__trapnr) == X86_TRAP_PF)
++#define xnarch_fault_bp_p(__trapnr)	((current->ptrace & PT_PTRACED) && \
++					(__trapnr == X86_TRAP_DB ||	\
++						(__trapnr) == X86_TRAP_BP))
++
++#define xnarch_fault_notify(__trapnr) (!xnarch_fault_bp_p(__trapnr))
++
++#endif /* !_EVL_X86_ASM_THREAD_H */
+diff --git a/arch/x86/include/dovetail/thread_info.h b/arch/x86/include/dovetail/thread_info.h
+new file mode 100644
+index 000000000000..4253b13fe47f
+--- /dev/null
++++ b/arch/x86/include/dovetail/thread_info.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _EVL_DOVETAIL_THREAD_INFO_H
++#define _EVL_DOVETAIL_THREAD_INFO_H
++
++#include <asm-generic/evl/thread_info.h>
++
++#endif /* !_EVL_DOVETAIL_THREAD_INFO_H */
+diff --git a/arch/x86/include/uapi/asm/evl/fptest.h b/arch/x86/include/uapi/asm/evl/fptest.h
+new file mode 100644
+index 000000000000..a2d87d560b06
+--- /dev/null
++++ b/arch/x86/include/uapi/asm/evl/fptest.h
+@@ -0,0 +1,120 @@
++/*
++ * SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
++ *
++ * Derived from Xenomai Cobalt, https://xenomai.org/
++ * Copyright (C) 2006 Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>.
++ */
++#ifndef _EVL_X86_ASM_UAPI_FPTEST_H
++#define _EVL_X86_ASM_UAPI_FPTEST_H
++
++#define evl_x86_xmm2  0x1
++#define evl_x86_avx   0x2
++
++#define evl_set_fpregs(__features, __val)				\
++	do {								\
++		__u64 __vec[4] = { __val, 0, __val, 0 };		\
++		__u32 __ival = (__val);					\
++		unsigned int i;						\
++									\
++		for (i = 0; i < 8; i++)					\
++			__asm__ __volatile__("fildl %0":		\
++					/* no output */ :"m"(__ival));	\
++		if (__features & evl_x86_avx) {				\
++		__asm__ __volatile__(					\
++			"vmovupd %0,%%ymm0;"				\
++			"vmovupd %0,%%ymm1;"				\
++			"vmovupd %0,%%ymm2;"				\
++			"vmovupd %0,%%ymm3;"				\
++			"vmovupd %0,%%ymm4;"				\
++			"vmovupd %0,%%ymm5;"				\
++			"vmovupd %0,%%ymm6;"				\
++			"vmovupd %0,%%ymm7;"				\
++			: : "m"(__vec[0]), "m"(__vec[1]),		\
++			  "m"(__vec[2]), "m"(__vec[3]));		\
++		} else if (__features & evl_x86_xmm2) {			\
++		__asm__ __volatile__(					\
++			"movupd %0,%%xmm0;"				\
++			"movupd %0,%%xmm1;"				\
++			"movupd %0,%%xmm2;"				\
++			"movupd %0,%%xmm3;"				\
++			"movupd %0,%%xmm4;"				\
++			"movupd %0,%%xmm5;"				\
++			"movupd %0,%%xmm6;"				\
++			"movupd %0,%%xmm7;"				\
++			: : "m"(__vec[0]), "m"(__vec[1]),		\
++			  "m"(__vec[2]), "m"(__vec[3]));		\
++		}							\
++	} while (0)
++
++#define evl_check_fpregs(__features, __val, __bad)			\
++	({								\
++		unsigned int i, __result = __val;			\
++		__u64 __vec[8][4];					\
++		__u32 __e[8];						\
++									\
++		for (i = 0; i < 8; i++)					\
++			__asm__ __volatile__("fistpl %0":		\
++					"=m" (__e[7 - i]));		\
++		if (__features & evl_x86_avx) {				\
++			__asm__ __volatile__(				\
++				"vmovupd %%ymm0,%0;"			\
++				"vmovupd %%ymm1,%1;"			\
++				"vmovupd %%ymm2,%2;"			\
++				"vmovupd %%ymm3,%3;"			\
++				"vmovupd %%ymm4,%4;"			\
++				"vmovupd %%ymm5,%5;"			\
++				"vmovupd %%ymm6,%6;"			\
++				"vmovupd %%ymm7,%7;"			\
++				: "=m" (__vec[0][0]), "=m" (__vec[1][0]), \
++				  "=m" (__vec[2][0]), "=m" (__vec[3][0]), \
++				  "=m" (__vec[4][0]), "=m" (__vec[5][0]), \
++				  "=m" (__vec[6][0]), "=m" (__vec[7][0])); \
++		} else if (__features & evl_x86_xmm2) {			\
++			__asm__ __volatile__(				\
++				"movupd %%xmm0,%0;"			\
++				"movupd %%xmm1,%1;"			\
++				"movupd %%xmm2,%2;"			\
++				"movupd %%xmm3,%3;"			\
++				"movupd %%xmm4,%4;"			\
++				"movupd %%xmm5,%5;"			\
++				"movupd %%xmm6,%6;"			\
++				"movupd %%xmm7,%7;"			\
++				: "=m" (__vec[0][0]), "=m" (__vec[1][0]), \
++				  "=m" (__vec[2][0]), "=m" (__vec[3][0]), \
++				  "=m" (__vec[4][0]), "=m" (__vec[5][0]), \
++				  "=m" (__vec[6][0]), "=m" (__vec[7][0])); \
++		}							\
++		for (i = 0, __bad = -1; i < 8; i++) {			\
++			if (__e[i] != __val) {				\
++				__result = __e[i];			\
++				__bad = i;				\
++				break;					\
++			}						\
++		}							\
++		if (__bad >= 0)						\
++			;						\
++		else if (__features & evl_x86_avx) {			\
++			for (i = 0; i < 8; i++) {			\
++				if (__vec[i][0] != __val) {		\
++					__result = __vec[i][0];		\
++					__bad = i + 8;			\
++					break;				\
++				}					\
++				if (__vec[i][2] != __val) {		\
++					__result = __vec[i][2];		\
++					__bad = i + 8;			\
++					break;				\
++				}					\
++			}						\
++		} else if (__features & evl_x86_xmm2) {			\
++			for (i = 0; i < 8; i++)				\
++				if (__vec[i][0] != __val) {		\
++					__result = __vec[i][0];		\
++					__bad = i + 8;			\
++					break;				\
++				}					\
++		}							\
++		__result;						\
++	})
++
++#endif /* !_EVL_X86_ASM_UAPI_FPTEST_H */
+diff --git a/arch/x86/include/uapi/asm/evl/syscall.h b/arch/x86/include/uapi/asm/evl/syscall.h
+new file mode 100644
+index 000000000000..f3464ae53572
+--- /dev/null
++++ b/arch/x86/include/uapi/asm/evl/syscall.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef _EVL_X86_ASM_UAPI_SYSCALL_H
++#define _EVL_X86_ASM_UAPI_SYSCALL_H
++
++#define __EVL_SYSCALL_BIT	0x10000000
++
++#endif /* !_EVL_X86_ASM_UAPI_SYSCALL_H */
+-- 
+2.16.4
+

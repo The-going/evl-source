@@ -1,0 +1,65 @@
+From 7f2ce644f341f1bda95906e67392ab7defb748f1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 11 May 2019 15:41:29 +0200
+Subject: [PATCH] sched: dovetail: add switch prepare/finish handlers
+
+We need to call the architecture code for context switch preparation
+and finalization (i.e. switch tail), notably to handle preemption of
+the in-kernel fpu context by out-of-band tasks.
+
+Split arch_dovetail_context_resume() into
+arch_dovetail_prepare_switch() and arch_dovetail_finish_switch(),
+passing them the stage transition information we received on entry to
+dovetail_context_switch().
+---
+ kernel/sched/core.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 18f328587946..765755fb91de 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -7161,6 +7161,7 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+ {
+ 	struct task_struct *next, *prev, *last;
+ 	struct mm_struct *prev_mm, *next_mm;
++	bool inband = false;
+ 
+ 	if (leave_inband) {
+ 		struct task_struct *tsk = current;
+@@ -7176,6 +7177,8 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+ 			oob_notify_kvm();
+ 	}
+ 
++	arch_dovetail_switch_prepare(leave_inband);
++
+ 	next = in->task;
+ 	prev = out->task;
+ 	prev_mm = out->active_mm;
+@@ -7208,8 +7211,6 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+ 	if (check_hard_irqs_disabled())
+ 		hard_irqs_disabled();
+ 
+-	arch_dovetail_context_resume();
+-
+ 	/*
+ 	 * If we entered this routine for switching to an out-of-band
+ 	 * task but don't have _TLF_OOB set for the current context
+@@ -7224,10 +7225,12 @@ bool dovetail_context_switch(struct dovetail_altsched_context *out,
+ 				!(preempt_count() & STAGE_MASK));
+ 			preempt_count_sub(STAGE_OFFSET);
+ 		}
+-		return true;
++		inband = true;
+ 	}
+ 
+-	return false;
++	arch_dovetail_switch_finish(leave_inband);
++
++	return inband;
+ }
+ EXPORT_SYMBOL_GPL(dovetail_context_switch);
+ 
+-- 
+2.16.4
+

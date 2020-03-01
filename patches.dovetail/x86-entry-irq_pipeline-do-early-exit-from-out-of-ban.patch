@@ -1,0 +1,93 @@
+From 85f72ea1efb72237fc57387303eebfe6a58889b6 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 18 May 2019 15:57:54 +0200
+Subject: [PATCH] x86/entry: irq_pipeline: do early exit from out-of-band entry
+
+---
+ arch/x86/entry/common.c       |  2 ++
+ arch/x86/entry/entry_64.S     | 17 +++++++++++++----
+ arch/x86/kernel/asm-offsets.c |  6 +++++-
+ arch/x86/kernel/process_64.c  |  2 ++
+ 4 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/arch/x86/entry/common.c b/arch/x86/entry/common.c
+index 6bc7a9b30401..4f49a0ac76b4 100644
+--- a/arch/x86/entry/common.c
++++ b/arch/x86/entry/common.c
+@@ -207,6 +207,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
+ 	struct thread_info *ti = current_thread_info();
+ 	u32 cached_flags;
+ 
++	WARN_ON_ONCE(irq_pipeline_debug() && running_oob());
++
+ 	addr_limit_user_check();
+ 
+ 	lockdep_assert_irqs_disabled();
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index c74aff4f576f..cffce17ef253 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -565,10 +565,11 @@ ENTRY(interrupt_entry)
+ 
+ 1:
+ 	ENTER_IRQ_STACK old_rsp=%rdi save_ret=1
+-	/* We entered an interrupt context - irqs are off unless
+-	   pipelining is enabled, in which case we defer tracing until
+-	   __ipipe_do_sync_stage() where the virtual IRQ state is
+-	   updated for the root stage. */
++	/*
++	 * We entered an interrupt context - irqs are off unless
++	 * pipelining is enabled, in which case we defer tracing until
++	 * sync_current_stage() is called from the inband stage.
++	 */
+ #ifndef CONFIG_IRQ_PIPELINE
+ 	TRACE_IRQS_OFF
+ #endif
+@@ -1376,6 +1377,14 @@ ENTRY(error_exit)
+ 	UNWIND_HINT_REGS
+ 	DISABLE_INTERRUPTS(CLBR_ANY)
+ 	TRACE_IRQS_OFF
++#ifdef CONFIG_IRQ_PIPELINE
++	testl	$OOB_stage_mask, PER_CPU_VAR(__preempt_count)
++	jz	1f
++	testb	$3, CS(%rsp)
++	jz	retint_kernel_early
++	jmp	retint_user_early
++1:
++#endif
+ 	testb	$3, CS(%rsp)
+ 	jz	retint_kernel
+ 	jmp	retint_user
+diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
+index 7125e4fbb0bd..0dd9bf4be160 100644
+--- a/arch/x86/kernel/asm-offsets.c
++++ b/arch/x86/kernel/asm-offsets.c
+@@ -41,7 +41,11 @@ static void __used common(void)
+ 	OFFSET(TASK_TI_flags, task_struct, thread_info.flags);
+ 	OFFSET(TASK_TI_status, task_struct, thread_info.status);
+ 	OFFSET(TASK_addr_limit, task_struct, thread.addr_limit);
+-	DEFINE(TASK_oob_mask, STAGE_MASK);
++
++#ifdef CONFIG_IRQ_PIPELINE
++	BLANK();
++	DEFINE(OOB_stage_mask, STAGE_MASK);
++#endif
+ 
+ 	BLANK();
+ 	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index f8e1af380cdf..02c3fe02d4fa 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -521,6 +521,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+ 	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
+ 		     this_cpu_read(irq_count) != -1);
+ 
++	WARN_ON_ONCE(dovetailing() && !hard_irqs_disabled());
++
+ 	if (!test_thread_flag(TIF_NEED_FPU_LOAD))
+ 		switch_fpu_prepare(prev_fpu, cpu);
+ 
+-- 
+2.16.4
+

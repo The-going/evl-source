@@ -1,0 +1,67 @@
+From 1816d0e284dc234203da17fb52f1bb3a71a554d4 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 23 May 2019 18:49:02 +0200
+Subject: [PATCH] x86: dovetail: keep updates to TLS register fully atomic
+
+We must not allow an out-of-band task to preempt an inband task while
+the latter updates %fs / %gs, otherwise the in-register (MSR) value
+might not match the in-memory copy, which is kind of problematic when
+switching back later to the inband context.
+
+To fix this, hard disable preemption around ARCH_SET_FS and
+ARCH_SET_GS operations.
+---
+ arch/x86/kernel/process_64.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 02c3fe02d4fa..2efd61069c9d 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -713,6 +713,7 @@ static long prctl_map_vdso(const struct vdso_image *image, unsigned long addr)
+ 
+ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+ {
++	unsigned long flags;
+ 	int ret = 0;
+ 
+ 	switch (option) {
+@@ -720,7 +721,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+ 		if (unlikely(arg2 >= TASK_SIZE_MAX))
+ 			return -EPERM;
+ 
+-		preempt_disable();
++		flags = hard_preempt_disable();
+ 		/*
+ 		 * ARCH_SET_GS has always overwritten the index
+ 		 * and the base. Zero is the most sensible value
+@@ -741,7 +742,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+ 			task->thread.gsindex = 0;
+ 			x86_gsbase_write_task(task, arg2);
+ 		}
+-		preempt_enable();
++		hard_preempt_enable(flags);
+ 		break;
+ 	}
+ 	case ARCH_SET_FS: {
+@@ -752,7 +753,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+ 		if (unlikely(arg2 >= TASK_SIZE_MAX))
+ 			return -EPERM;
+ 
+-		preempt_disable();
++		flags = hard_preempt_disable();
+ 		/*
+ 		 * Set the selector to 0 for the same reason
+ 		 * as %gs above.
+@@ -770,7 +771,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
+ 			task->thread.fsindex = 0;
+ 			x86_fsbase_write_task(task, arg2);
+ 		}
+-		preempt_enable();
++		hard_preempt_enable(flags);
+ 		break;
+ 	}
+ 	case ARCH_GET_FS: {
+-- 
+2.16.4
+

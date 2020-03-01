@@ -1,4 +1,4 @@
-From f3ab0cd9ca57d3d2d38385236160cacfb7d57dc9 Mon Sep 17 00:00:00 2001
+From 8a0962349bb9d4a9dc0a5a04104b386c662e7215 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 7 Dec 2015 11:49:50 +0100
 Subject: [PATCH] ARM: introduce raw console device
@@ -62,10 +62,10 @@ index 000000000000..9024b772fca4
 +}
 +console_initcall(raw_console_init);
 diff --git a/include/linux/printk.h b/include/linux/printk.h
-index f15ea4d1f078..5efc88c89724 100644
+index b36738cd5ea3..bcbbc740cad0 100644
 --- a/include/linux/printk.h
 +++ b/include/linux/printk.h
-@@ -157,11 +157,14 @@ static inline void printk_nmi_direct_exit(void) { }
+@@ -159,11 +159,14 @@ static inline void printk_nmi_direct_exit(void) { }
  #endif /* PRINTK_NMI */
  
  #ifdef CONFIG_RAW_PRINTK
@@ -81,10 +81,10 @@ index f15ea4d1f078..5efc88c89724 100644
  static inline __printf(1, 2) __cold
  void raw_printk(const char *s, ...) { }
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 993654683059..1fd361386d55 100644
+index 1e5bbdcc26ed..010cf6e93375 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2097,21 +2097,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2107,21 +2107,28 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  static struct console *raw_console;
  static DEFINE_RAW_SPINLOCK(raw_console_lock);
  

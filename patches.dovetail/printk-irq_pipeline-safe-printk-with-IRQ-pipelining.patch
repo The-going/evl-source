@@ -1,4 +1,4 @@
-From 749a440b94a16bc2e19e7365bbdb85072e89e770 Mon Sep 17 00:00:00 2001
+From 36d9b0398ef6e242000acc272ea97fe4f99bfacc Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 21:27:59 +0200
 Subject: [PATCH] printk: irq_pipeline: safe printk with IRQ pipelining
@@ -51,10 +51,10 @@ index 6eb44397ba00..cdd7656c96e6 100644
  
  #endif /* _LINUX_IRQ_PIPELINE_H */
 diff --git a/init/Kconfig b/init/Kconfig
-index 2fa4c92008ed..36fd9d8b2413 100644
+index 603d12891d86..d822662b1222 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1316,7 +1316,7 @@ config PRINTK
+@@ -1322,7 +1322,7 @@ config PRINTK
  config PRINTK_NMI
  	def_bool y
  	depends on PRINTK

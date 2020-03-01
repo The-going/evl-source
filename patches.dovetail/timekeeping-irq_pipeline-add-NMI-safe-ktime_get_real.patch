@@ -1,4 +1,4 @@
-From 20d23ca9684c9ac6d54f54820abf316bf6686182 Mon Sep 17 00:00:00 2001
+From aa0c2c53755b850e689513979fcab6c2939c1cf5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 6 May 2017 18:28:49 +0200
 Subject: [PATCH] timekeeping: irq_pipeline: add NMI-safe ktime_get_real_fast()
@@ -17,7 +17,7 @@ ktime_get_mono_fast_ns() which is NMI-safe too.
  2 files changed, 16 insertions(+)
 
 diff --git a/include/linux/timekeeping.h b/include/linux/timekeeping.h
-index a8ab0f143ac..98bdf01c70c 100644
+index a8ab0f143ac4..98bdf01c70cc 100644
 --- a/include/linux/timekeeping.h
 +++ b/include/linux/timekeeping.h
 @@ -69,6 +69,7 @@ extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
@@ -29,10 +29,10 @@ index a8ab0f143ac..98bdf01c70c 100644
  
  /**
 diff --git a/kernel/time/timekeeping.c b/kernel/time/timekeeping.c
-index ac5dbf2cd4a..c40f2a599d7 100644
+index 85f5912d8f70..e7a8cef9dfb4 100644
 --- a/kernel/time/timekeeping.c
 +++ b/kernel/time/timekeeping.c
-@@ -88,6 +88,8 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
+@@ -89,6 +89,8 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
  	.base[1] = { .clock = &dummy_clock, },
  };
  
@@ -41,7 +41,7 @@ index ac5dbf2cd4a..c40f2a599d7 100644
  /* flag for if timekeeping is suspended */
  int __read_mostly timekeeping_suspended;
  
-@@ -504,6 +506,16 @@ u64 notrace ktime_get_boot_fast_ns(void)
+@@ -505,6 +507,16 @@ u64 notrace ktime_get_boot_fast_ns(void)
  }
  EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
  
@@ -58,7 +58,7 @@ index ac5dbf2cd4a..c40f2a599d7 100644
  
  /*
   * See comment for __ktime_get_fast_ns() vs. timestamp ordering
-@@ -563,6 +575,8 @@ static void halt_fast_timekeeper(const struct timekeeper *tk)
+@@ -564,6 +576,8 @@ static void halt_fast_timekeeper(const struct timekeeper *tk)
  	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
  	tkr_dummy.clock = &dummy_clock;
  	update_fast_timekeeper(&tkr_dummy, &tk_fast_raw);
@@ -67,7 +67,7 @@ index ac5dbf2cd4a..c40f2a599d7 100644
  }
  
  static RAW_NOTIFIER_HEAD(pvclock_gtod_chain);
-@@ -668,6 +682,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
+@@ -669,6 +683,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
  	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
  	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
  	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);

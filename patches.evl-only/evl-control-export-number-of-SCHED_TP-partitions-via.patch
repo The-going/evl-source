@@ -1,0 +1,44 @@
+From 1c2b703836ef061a46ff6f73609fc4cb8f2e3f30 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 6 May 2019 10:30:04 +0200
+Subject: [PATCH] evl/control: export number of SCHED_TP partitions via sysfs
+
+Visible from class/evl/control/tp.
+---
+ kernel/evl/control.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/kernel/evl/control.c b/kernel/evl/control.c
+index 45ea6f76e2c9..c0eb05ca1f07 100644
+--- a/kernel/evl/control.c
++++ b/kernel/evl/control.c
+@@ -346,11 +346,26 @@ static DEVICE_ATTR_RW(quota);
+ 
+ #endif
+ 
++#ifdef CONFIG_EVL_SCHED_TP
++
++static ssize_t tp_show(struct device *dev,
++			struct device_attribute *attr,
++			char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%d\n", CONFIG_EVL_SCHED_TP_NR_PART);
++}
++static DEVICE_ATTR_RO(tp);
++
++#endif
++
+ static struct attribute *control_attrs[] = {
+ 	&dev_attr_state.attr,
+ 	&dev_attr_abi.attr,
+ #ifdef CONFIG_EVL_SCHED_QUOTA
+ 	&dev_attr_quota.attr,
++#endif
++#ifdef CONFIG_EVL_SCHED_TP
++	&dev_attr_tp.attr,
+ #endif
+ 	NULL,
+ };
+-- 
+2.16.4
+

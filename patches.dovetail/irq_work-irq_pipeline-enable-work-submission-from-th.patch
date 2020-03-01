@@ -1,4 +1,4 @@
-From 6639419636dc39923c1f966a84b20d7a38f8bfb1 Mon Sep 17 00:00:00 2001
+From b5461c8dbc789a3d6e0339dadf9ef4a388552854 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 19 Mar 2017 12:18:51 +0100
 Subject: [PATCH] irq_work: irq_pipeline: enable work submission from the oob
@@ -28,7 +28,7 @@ requests in the in-band stage from the oob stage.
  2 files changed, 44 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
-index 293d897930f..efc5596c6ab 100644
+index 293d897930f5..efc5596c6ab0 100644
 --- a/kernel/irq/pipeline.c
 +++ b/kernel/irq/pipeline.c
 @@ -9,6 +9,7 @@
@@ -90,7 +90,7 @@ index 293d897930f..efc5596c6ab 100644
  	 * We are running on the boot CPU, hw interrupts are off, and
  	 * secondary CPUs are still lost in space. Now we may run
 diff --git a/kernel/irq_work.c b/kernel/irq_work.c
-index 6b7cdf17ccf..618bcaefc65 100644
+index 73288914ed5e..6a403bbde35e 100644
 --- a/kernel/irq_work.c
 +++ b/kernel/irq_work.c
 @@ -56,6 +56,11 @@ void __weak arch_irq_work_raise(void)
@@ -102,10 +102,10 @@ index 6b7cdf17ccf..618bcaefc65 100644
 +	arch_irq_work_raise();
 +}
 +
- /*
-  * Enqueue the irq_work @work on @cpu unless it's already pending
-  * somewhere.
-@@ -100,10 +105,10 @@ bool irq_work_queue(struct irq_work *work)
+ /* Enqueue on current CPU, work must already be claimed and preempt disabled */
+ static void __irq_work_queue_local(struct irq_work *work)
+ {
+@@ -63,10 +68,10 @@ static void __irq_work_queue_local(struct irq_work *work)
  	if (work->flags & IRQ_WORK_LAZY) {
  		if (llist_add(&work->llnode, this_cpu_ptr(&lazy_list)) &&
  		    tick_nohz_tick_stopped())
@@ -116,8 +116,8 @@ index 6b7cdf17ccf..618bcaefc65 100644
 -			arch_irq_work_raise();
 +			irq_local_work_raise();
  	}
+ }
  
- 	preempt_enable();
 -- 
 2.16.4
 

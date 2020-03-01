@@ -1,4 +1,4 @@
-From 3d42a638c80241dd13e967fff4207c0c14f37ccc Mon Sep 17 00:00:00 2001
+From 1d8c6df5cd2c2844969f82fbd30c2dd61988fcf5 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 27 Jul 2016 16:07:57 +0200
 Subject: [PATCH] locking: irq_pipeline: add hard locking API
@@ -26,10 +26,10 @@ running on the head IRQ stage.
  create mode 100644 include/linux/spinlock_pipeline.h
 
 diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index 79c3873d58ac..2e5b6322aa1c 100644
+index 6e2377e6c1d6..4066c048b8a0 100644
 --- a/include/linux/lockdep.h
 +++ b/include/linux/lockdep.h
-@@ -298,21 +298,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
+@@ -303,21 +303,22 @@ extern void lockdep_init_map(struct lockdep_map *lock, const char *name,
   * or they are too narrow (they suffer from a false class-split):
   */
  #define lockdep_set_class(lock, key) \
@@ -59,10 +59,10 @@ index 79c3873d58ac..2e5b6322aa1c 100644
  static inline int lockdep_match_key(struct lockdep_map *lock,
  				    struct lock_class_key *key)
 diff --git a/include/linux/spinlock.h b/include/linux/spinlock.h
-index e089157dcf97..f1393bbf6dff 100644
+index ed7c4d6b8235..c8867b614754 100644
 --- a/include/linux/spinlock.h
 +++ b/include/linux/spinlock.h
-@@ -94,21 +94,27 @@
+@@ -95,21 +95,27 @@
    extern void __raw_spin_lock_init(raw_spinlock_t *lock, const char *name,
  				   struct lock_class_key *key);
  # define raw_spin_lock_init(lock)				\
@@ -95,7 +95,7 @@ index e089157dcf97..f1393bbf6dff 100644
  #else
  #define raw_spin_is_contended(lock)	(((void)(lock), 0))
  #endif /*arch_spin_is_contended*/
-@@ -209,9 +215,13 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+@@ -218,9 +224,13 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
   * various methods are defined as nops in the case they are not
   * required.
   */
@@ -111,7 +111,7 @@ index e089157dcf97..f1393bbf6dff 100644
  
  #ifdef CONFIG_DEBUG_LOCK_ALLOC
  # define raw_spin_lock_nested(lock, subclass) \
-@@ -235,11 +245,12 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+@@ -244,11 +254,12 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
  
  #if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
  
@@ -129,7 +129,7 @@ index e089157dcf97..f1393bbf6dff 100644
  
  #ifdef CONFIG_DEBUG_LOCK_ALLOC
  #define raw_spin_lock_irqsave_nested(lock, flags, subclass)		\
-@@ -257,45 +268,55 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+@@ -266,45 +277,55 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
  
  #else
  
@@ -203,7 +203,7 @@ index e089157dcf97..f1393bbf6dff 100644
  
  /* Include rwlock functions */
  #include <linux/rwlock.h>
-@@ -309,6 +330,11 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
+@@ -318,6 +339,11 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
  # include <linux/spinlock_api_up.h>
  #endif
  
@@ -550,18 +550,18 @@ index 24b4e6f2c1a2..7eb1b2aa8276 100644
  
  #endif /* __LINUX_SPINLOCK_TYPES_H */
 diff --git a/kernel/locking/spinlock_debug.c b/kernel/locking/spinlock_debug.c
-index 9aa0fccd5d43..aa4de1dd669e 100644
+index 399669f7eba8..a6b3a703f93c 100644
 --- a/kernel/locking/spinlock_debug.c
 +++ b/kernel/locking/spinlock_debug.c
-@@ -113,6 +113,7 @@ void do_raw_spin_lock(raw_spinlock_t *lock)
- 	arch_spin_lock(&lock->raw_lock);
+@@ -114,6 +114,7 @@ void do_raw_spin_lock(raw_spinlock_t *lock)
+ 	mmiowb_spin_lock();
  	debug_spin_lock_after(lock);
  }
 +EXPORT_SYMBOL_GPL(do_raw_spin_lock);
  
  int do_raw_spin_trylock(raw_spinlock_t *lock)
  {
-@@ -128,12 +129,14 @@ int do_raw_spin_trylock(raw_spinlock_t *lock)
+@@ -131,6 +132,7 @@ int do_raw_spin_trylock(raw_spinlock_t *lock)
  #endif
  	return ret;
  }
@@ -569,6 +569,7 @@ index 9aa0fccd5d43..aa4de1dd669e 100644
  
  void do_raw_spin_unlock(raw_spinlock_t *lock)
  {
+@@ -138,6 +140,7 @@ void do_raw_spin_unlock(raw_spinlock_t *lock)
  	debug_spin_unlock(lock);
  	arch_spin_unlock(&lock->raw_lock);
  }

@@ -1,0 +1,39 @@
+From 78eb566b7aaeab20d533fd6de71fad7d3cea7327 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 11 May 2019 15:49:44 +0200
+Subject: [PATCH] arm64: fpsimd: convert to switch prepare/finish handlers
+
+---
+ arch/arm64/include/asm/dovetail.h | 3 +--
+ arch/arm64/kernel/dovetail.c      | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/include/asm/dovetail.h b/arch/arm64/include/asm/dovetail.h
+index 4bd4ccf4e7e5..c9a51cd389c2 100644
+--- a/arch/arm64/include/asm/dovetail.h
++++ b/arch/arm64/include/asm/dovetail.h
+@@ -19,7 +19,6 @@
+ static inline void arch_dovetail_switch_prepare(bool leave_inband)
+ { }
+ 
+-static inline void arch_dovetail_switch_finish(bool leave_inband)
+-{ }
++void arch_dovetail_switch_finish(bool enter_inband);
+ 
+ #endif /* _ASM_ARM64_DOVETAIL_H */
+diff --git a/arch/arm64/kernel/dovetail.c b/arch/arm64/kernel/dovetail.c
+index 4aee34fb0e88..9c6235a16228 100644
+--- a/arch/arm64/kernel/dovetail.c
++++ b/arch/arm64/kernel/dovetail.c
+@@ -6,7 +6,7 @@
+ #include <linux/dovetail.h>
+ #include <asm/fpsimd.h>
+ 
+-void arch_dovetail_context_resume(void)
++void arch_dovetail_switch_finish(bool enter_inband)
+ {
+ 	fpsimd_restore_current_oob();
+ }
+-- 
+2.16.4
+

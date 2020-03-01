@@ -1,0 +1,49 @@
+From 4218d3ea9e25e7a6f8fd8da9e35bae611b88a829 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 28 Apr 2019 16:23:29 +0200
+Subject: [PATCH] x86/hpet: irq_pipeline: enable pipelined clock events
+
+---
+ arch/x86/kernel/hpet.c | 5 +++--
+ arch/x86/kernel/time.c | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/kernel/hpet.c b/arch/x86/kernel/hpet.c
+index fb32925a2e62..e3cb9de10bab 100644
+--- a/arch/x86/kernel/hpet.c
++++ b/arch/x86/kernel/hpet.c
+@@ -418,7 +418,8 @@ static int hpet_legacy_next_event(unsigned long delta,
+ static struct clock_event_device hpet_clockevent = {
+ 	.name			= "hpet",
+ 	.features		= CLOCK_EVT_FEAT_PERIODIC |
+-				  CLOCK_EVT_FEAT_ONESHOT,
++				  CLOCK_EVT_FEAT_ONESHOT |
++				  CLOCK_EVT_FEAT_PIPELINE,
+ 	.set_state_periodic	= hpet_legacy_set_periodic,
+ 	.set_state_oneshot	= hpet_legacy_set_oneshot,
+ 	.set_state_shutdown	= hpet_legacy_shutdown,
+@@ -524,7 +525,7 @@ static irqreturn_t hpet_interrupt_handler(int irq, void *data)
+ 		return IRQ_HANDLED;
+ 	}
+ 
+-	hevt->event_handler(hevt);
++	clockevents_handle_event(hevt);
+ 	return IRQ_HANDLED;
+ }
+ 
+diff --git a/arch/x86/kernel/time.c b/arch/x86/kernel/time.c
+index 0e14f6c0d35e..3e59b5b9a722 100644
+--- a/arch/x86/kernel/time.c
++++ b/arch/x86/kernel/time.c
+@@ -59,7 +59,7 @@ EXPORT_SYMBOL(profile_pc);
+  */
+ static irqreturn_t timer_interrupt(int irq, void *dev_id)
+ {
+-	global_clock_event->event_handler(global_clock_event);
++	clockevents_handle_event(global_clock_event);
+ 	return IRQ_HANDLED;
+ }
+ 
+-- 
+2.16.4
+

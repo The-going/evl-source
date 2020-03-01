@@ -1,0 +1,51 @@
+From ede91e1185dfb749183d625c524da0cb7e727e84 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 13 May 2019 14:14:57 +0200
+Subject: [PATCH] drivers/evl: fix signedness when summing latency values
+
+We may collect negative delta values when sampling latency on fast
+machines, make sure the delta sum which is used in calculating the
+average is signed, to prevent weird results.
+---
+ drivers/evl/latmus.c              | 4 ++--
+ include/uapi/evl/devices/latmus.h | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/evl/latmus.c b/drivers/evl/latmus.c
+index 2c27bb767da4..cc2a79d5f94e 100644
+--- a/drivers/evl/latmus.c
++++ b/drivers/evl/latmus.c
+@@ -49,7 +49,7 @@ struct runner_state {
+ 	int prev_mean;
+ 	int prev_sqs;
+ 	int cur_sqs;
+-	unsigned int sum;
++	int sum;
+ 	unsigned int overruns;
+ 	unsigned int cur_samples;
+ 	unsigned int max_samples;
+@@ -608,7 +608,7 @@ static void dump_scores(struct latmus_runner *runner)
+ 
+ 	for (n = 0; n < runner->nscores; n++)
+ 		printk(EVL_INFO
+-		       ".. S%.2d pmean=%d stddev=%u minlat=%u gravity=%u\n",
++		       ".. S%.2d pmean=%d stddev=%d minlat=%d gravity=%u\n",
+ 		       runner->scores[n].step,
+ 		       runner->scores[n].pmean,
+ 		       runner->scores[n].stddev,
+diff --git a/include/uapi/evl/devices/latmus.h b/include/uapi/evl/devices/latmus.h
+index de47ffd0429a..3c5bd201a7d1 100644
+--- a/include/uapi/evl/devices/latmus.h
++++ b/include/uapi/evl/devices/latmus.h
+@@ -39,7 +39,7 @@ struct latmus_result {
+  * second through an xbuf channel.
+  */
+ struct latmus_measurement {
+-	__u64 sum_lat;
++	__s64 sum_lat;
+ 	__s32 min_lat;
+ 	__s32 max_lat;
+ 	__u32 overruns;
+-- 
+2.16.4
+

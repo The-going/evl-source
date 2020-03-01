@@ -1,4 +1,4 @@
-From e0ac94eac689e080c91a749148571820bb17a857 Mon Sep 17 00:00:00 2001
+From bb3d3d5c9bf648331f9d2947a4b267e0041ff634 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 4 Mar 2017 14:59:48 +0100
 Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
@@ -12,10 +12,10 @@ Subject: [PATCH] tracing/irq: irq_pipeline: add pipeline awareness
  5 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index ca1ee656d6d8..4636d06bd185 100644
+index 2c92b3d9ea30..4257d1f11a78 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -2316,12 +2316,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
+@@ -2322,12 +2322,14 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
  	entry->flags =
  #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
  		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
@@ -32,7 +32,7 @@ index ca1ee656d6d8..4636d06bd185 100644
  		(test_preempt_need_resched() ? TRACE_FLAG_PREEMPT_RESCHED : 0);
  }
 diff --git a/kernel/trace/trace.h b/kernel/trace/trace.h
-index d80cee49e0eb..1f99aa32ce31 100644
+index 1974ce818ddb..24de204c7e0c 100644
 --- a/kernel/trace/trace.h
 +++ b/kernel/trace/trace.h
 @@ -122,11 +122,14 @@ struct kretprobe_trace_entry_head {

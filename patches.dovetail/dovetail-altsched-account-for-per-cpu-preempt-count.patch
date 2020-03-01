@@ -1,0 +1,212 @@
+From eeb25eb495643cc79223950b177e10ee661466b1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 9 May 2019 10:54:49 +0200
+Subject: [PATCH] dovetail: altsched: account for per-cpu preempt count
+
+When the preemption is maintained in a per-cpu variable instead of a
+per-task one (e.g. x86), the current stage level (STAGE_OFFSET) needs
+no fix up upon moving a task between the inband and oob stages, as
+such tracking does not depend on the current task context anymore.
+
+Instead, we can fully rely on the tracking already done by the
+pipeline core via calls to switch_inband() / switch_oob().
+
+At this chance, dovetail_context_switch() is extended in order to deal
+with the outgoing context and stage level tracking (only for
+architectures with per-task preempt count), which the out-of-band
+scheduler does not need to do anymore.
+---
+ Documentation/dovetail.rst | 28 +++++++++-------------------
+ arch/Kconfig               |  3 +++
+ include/linux/dovetail.h   | 21 +++------------------
+ kernel/dovetail.c          | 12 +++++++-----
+ kernel/sched/core.c        | 38 ++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 58 insertions(+), 44 deletions(-)
+
+diff --git a/Documentation/dovetail.rst b/Documentation/dovetail.rst
+index 34ed15c2a88c..fd8af6ce28d3 100644
+--- a/Documentation/dovetail.rst
++++ b/Documentation/dovetail.rst
+@@ -104,25 +104,15 @@ high-priority, out-of-band context is as follows:
+ .. _`in-band sleep operation`:
+ 2. the caller is put to interruptible sleep state (S).
+ 
+-3. before resuming in-band operations, the next task picked by the
+-   (regular kernel) scheduler on the same CPU for replacing the
+-   migrating task fires :c:func:`resume_oob_task` which the
+-   real-time core should override (*__weak* binding). Before the call,
+-   the oob stage is stalled, interrupts are disabled in the CPU. The
+-   in-band execution stage is still current though.
+-
+-4. the real-time core's implementation of
+-   :c:func:`resume_oob_task` is passed a pointer to the
+-   task_struct descriptor of the migrating task. This routine is expected
+-   to perform the necessary steps for taking control over the task on
+-   behalf of the real-time core, re-scheduling its code appropriately
+-   over the oob stage. This typically involves resuming it from the
+-   `out-of-band suspended state`_ applied during the converse migration
+-   path. The real-time core is expected to call :c:func:`dovetail_resume_oob`
+-   before transitioning from the inband task context its preempts to any
+-   out-of-band thread.
+-
+-5. at some point later, when the migrated task is picked by the
++3. the real-time core's implementation of :c:func:`resume_oob_task` is
++   passed a pointer to the task_struct descriptor of the migrating
++   task. This routine is expected to perform the necessary steps for
++   taking control over the task on behalf of the real-time core,
++   re-scheduling its code appropriately over the oob stage. This
++   typically involves resuming it from the `out-of-band suspended
++   state`_ applied during the converse migration path.
++
++4. at some point later, when the migrated task is picked by the
+    real-time scheduler, it resumes execution on the oob stage with the
+    register file previously saved by the kernel scheduler in
+    :c:func:`switch_to` at step 1.
+diff --git a/arch/Kconfig b/arch/Kconfig
+index c47b328eada0..fe87b49af796 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -214,6 +214,9 @@ config HAVE_FUNCTION_ERROR_INJECTION
+ config HAVE_NMI
+ 	bool
+ 
++config HAVE_PERCPU_PREEMPT_COUNT
++	bool
++
+ #
+ # An arch should select this if it provides all these things:
+ #
+diff --git a/include/linux/dovetail.h b/include/linux/dovetail.h
+index 92bd35349225..5540d779655a 100644
+--- a/include/linux/dovetail.h
++++ b/include/linux/dovetail.h
+@@ -156,22 +156,6 @@ void dovetail_stop_altsched(void);
+ 
+ __must_check int dovetail_leave_inband(void);
+ 
+-static inline			/* hard IRQs off */
+-void dovetail_resume_oob(struct dovetail_altsched_context *outgoing)
+-{
+-	struct task_struct *tsk = current;
+-	/*
+-	 * We are about to leave the current inband context for
+-	 * switching to an out-of-band task, save the preempted
+-	 * context information.
+-	 */
+-	outgoing->task = tsk;
+-	outgoing->active_mm = tsk->active_mm;
+-
+-	if (IS_ENABLED(CONFIG_KVM))
+-		oob_notify_kvm();
+-}
+-
+ static inline void dovetail_leave_oob(void)
+ {
+ 	clear_thread_local_flags(_TLF_OOB|_TLF_OFFSTAGE);
+@@ -180,8 +164,9 @@ static inline void dovetail_leave_oob(void)
+ 
+ void dovetail_resume_inband(void);
+ 
+-void dovetail_context_switch(struct dovetail_altsched_context *out,
+-			     struct dovetail_altsched_context *in);
++bool dovetail_context_switch(struct dovetail_altsched_context *out,
++			struct dovetail_altsched_context *in,
++			bool leave_inband);
+ 
+ static inline
+ struct oob_thread_state *dovetail_current_state(void)
+diff --git a/kernel/dovetail.c b/kernel/dovetail.c
+index 61556b95cb70..fe952794b4d4 100644
+--- a/kernel/dovetail.c
++++ b/kernel/dovetail.c
+@@ -315,10 +315,10 @@ int inband_switch_tail(void)
+ 	 * We may run this code either over the inband or oob
+ 	 * contexts. If inband, we may have a thread blocked in
+ 	 * dovetail_leave_inband(), waiting for the co-kernel to
+-	 * schedule it back in over the oob context:
++	 * schedule it back in over the oob context, in which case
+ 	 * finalize_oob_transition() should take care of it. If oob,
+ 	 * the co-kernel just switched us back, and we may update the
+-	 * context markers.
++	 * context markers before returning to context_switch().
+ 	 *
+ 	 * CAUTION: The preemption count may not reflect the active
+ 	 * stage yet, so use the current stage pointer to determine
+@@ -329,9 +329,11 @@ int inband_switch_tail(void)
+ 		finalize_oob_transition();
+ 	else {
+ 		set_thread_local_flags(_TLF_OOB);
+-		WARN_ON_ONCE(dovetail_debug() &&
+-			     (preempt_count() & STAGE_MASK));
+-		preempt_count_add(STAGE_OFFSET);
++		if (!IS_ENABLED(CONFIG_HAVE_PERCPU_PREEMPT_COUNT)) {
++			WARN_ON_ONCE(dovetail_debug() &&
++				(preempt_count() & STAGE_MASK));
++			preempt_count_add(STAGE_OFFSET);
++		}
+ 	}
+ 
+ 	if (inband)
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 6bd97eff031a..18f328587946 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -7155,12 +7155,27 @@ void dovetail_resume_inband(void)
+ }
+ EXPORT_SYMBOL_GPL(dovetail_resume_inband);
+ 
+-void dovetail_context_switch(struct dovetail_altsched_context *out,
+-			     struct dovetail_altsched_context *in)
++bool dovetail_context_switch(struct dovetail_altsched_context *out,
++			struct dovetail_altsched_context *in,
++			bool leave_inband)
+ {
+ 	struct task_struct *next, *prev, *last;
+ 	struct mm_struct *prev_mm, *next_mm;
+ 
++	if (leave_inband) {
++		struct task_struct *tsk = current;
++		/*
++		 * We are about to leave the current inband context
++		 * for switching to an out-of-band task, save the
++		 * preempted context information.
++		 */
++		out->task = tsk;
++		out->active_mm = tsk->active_mm;
++
++		if (IS_ENABLED(CONFIG_KVM))
++			oob_notify_kvm();
++	}
++
+ 	next = in->task;
+ 	prev = out->task;
+ 	prev_mm = out->active_mm;
+@@ -7194,6 +7209,25 @@ void dovetail_context_switch(struct dovetail_altsched_context *out,
+ 		hard_irqs_disabled();
+ 
+ 	arch_dovetail_context_resume();
++
++	/*
++	 * If we entered this routine for switching to an out-of-band
++	 * task but don't have _TLF_OOB set for the current context
++	 * when resuming, this portion of code is the switch tail of
++	 * the inband schedule() routine, finalizing a transition to
++	 * the inband stage for the current task. Update the stage
++	 * level as/if required.
++	 */
++	if (unlikely(!leave_inband && !test_thread_local_flags(_TLF_OOB))) {
++		if (!IS_ENABLED(CONFIG_HAVE_PERCPU_PREEMPT_COUNT)) {
++			WARN_ON_ONCE(dovetail_debug() &&
++				!(preempt_count() & STAGE_MASK));
++			preempt_count_sub(STAGE_OFFSET);
++		}
++		return true;
++	}
++
++	return false;
+ }
+ EXPORT_SYMBOL_GPL(dovetail_context_switch);
+ 
+-- 
+2.16.4
+

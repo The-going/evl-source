@@ -1,0 +1,273 @@
+From 14d4d6fd18222252c3c10fd773167671ba3cdfc1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 24 May 2019 19:48:11 +0200
+Subject: [PATCH] genirq: irq_pipeline: fix naming conflict w/ iSCSI
+
+---
+ include/linux/irqstage.h | 24 ++++++++++++------------
+ kernel/irq/pipeline.c    | 40 ++++++++++++++++++++--------------------
+ lib/dump_stack.c         |  2 +-
+ 3 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/include/linux/irqstage.h b/include/linux/irqstage.h
+index b7fb0a64a6f4..db93a0b31009 100644
+--- a/include/linux/irqstage.h
++++ b/include/linux/irqstage.h
+@@ -116,19 +116,19 @@ static inline struct irq_stage_data *this_oob_staged(void)
+ }
+ 
+ /**
+- * __current_staged() - return the address of the pipeline
++ * __current_irq_staged() - return the address of the pipeline
+  * context data of the stage running on the current CPU. CPU migration
+  * must be disabled.
+  */
+-static inline struct irq_stage_data *__current_staged(void)
++static inline struct irq_stage_data *__current_irq_staged(void)
+ {
+ 	return &raw_cpu_ptr(irq_pipeline.stages)[raw_cpu_read(irq_pipeline.__curr)];
+ }
+ 
+-#define current_staged __current_staged()
++#define current_irq_staged __current_irq_staged()
+ 
+ static inline
+-void __set_current_staged(struct irq_stage_data *pd)
++void __set_current_irq_staged(struct irq_stage_data *pd)
+ {
+ 	struct irq_pipeline_data *p = raw_cpu_ptr(&irq_pipeline);
+ #ifdef CONFIG_DEBUG_IRQ_PIPELINE
+@@ -155,7 +155,7 @@ void __set_current_staged(struct irq_stage_data *pd)
+ static inline
+ void switch_oob(struct irq_stage_data *pd)
+ {
+-	__set_current_staged(pd);
++	__set_current_irq_staged(pd);
+ 	if (!(preempt_count() & STAGE_MASK))
+ 		preempt_count_add(STAGE_OFFSET);
+ }
+@@ -163,13 +163,13 @@ void switch_oob(struct irq_stage_data *pd)
+ static inline
+ void switch_inband(struct irq_stage_data *pd)
+ {
+-	__set_current_staged(pd);
++	__set_current_irq_staged(pd);
+ 	if (preempt_count() & STAGE_MASK)
+ 		preempt_count_sub(STAGE_OFFSET);
+ }
+ 
+ static inline
+-void set_current_staged(struct irq_stage_data *pd)
++void set_current_irq_staged(struct irq_stage_data *pd)
+ {
+ 	if (pd->stage == &inband_stage)
+ 		switch_inband(pd);
+@@ -177,17 +177,17 @@ void set_current_staged(struct irq_stage_data *pd)
+ 		switch_oob(pd);
+ }
+ 
+-static inline struct irq_stage *__current_stage(void)
++static inline struct irq_stage *__current_irq_stage(void)
+ {
+ 	/*
+ 	 * We don't have to hard disable irqs while accessing the
+ 	 * per-CPU stage data here, because there is no way we could
+ 	 * change stages while migrating CPUs.
+ 	 */
+-	return __current_staged()->stage;
++	return __current_irq_staged()->stage;
+ }
+ 
+-#define current_stage	__current_stage()
++#define current_irq_stage	__current_irq_stage()
+ 
+ static inline bool oob_stage_present(void)
+ {
+@@ -204,9 +204,9 @@ static inline int stage_irqs_pending(struct irq_stage_data *pd)
+ 	return pd->log.himap != 0;
+ }
+ 
+-void sync_current_stage(void);
++void sync_current_irq_stage(void);
+ 
+-void sync_stage(struct irq_stage *top);
++void sync_irq_stage(struct irq_stage *top);
+ 
+ void irq_post_stage(struct irq_stage *stage,
+ 		    unsigned int irq);
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index cc0e2ea7a06f..f969b1b9db05 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -168,7 +168,7 @@ void handle_synthetic_irq(struct irq_desc *desc)
+ 	trace_irq_handler_exit(irq, action, ret);
+ }
+ 
+-void sync_stage(struct irq_stage *top)
++void sync_irq_stage(struct irq_stage *top)
+ {
+ 	struct irq_stage_data *p;
+ 	struct irq_stage *stage;
+@@ -176,7 +176,7 @@ void sync_stage(struct irq_stage *top)
+ 	/* We must enter over the inband stage with hardirqs off. */
+ 	if (irq_pipeline_debug()) {
+ 		WARN_ON_ONCE(!hard_irqs_disabled());
+-		WARN_ON_ONCE(current_stage != &inband_stage);
++		WARN_ON_ONCE(current_irq_stage != &inband_stage);
+ 	}
+ 
+ 	stage = top;
+@@ -188,11 +188,11 @@ void sync_stage(struct irq_stage *top)
+ 
+ 		if (stage_irqs_pending(p)) {
+ 			if (stage == &inband_stage)
+-				sync_current_stage();
++				sync_current_irq_stage();
+ 			else {
+ 				/* Switch to oob before synchronizing. */
+ 				switch_oob(p);
+-				sync_current_stage();
++				sync_current_irq_stage();
+ 				/* Then back to the inband stage. */
+ 				switch_inband(this_inband_staged());
+ 			}
+@@ -212,10 +212,10 @@ static void synchronize_pipeline(void) /* hardirqs off */
+ 	if (unlikely(!oob_stage_present()))
+ 		top = &inband_stage;
+ 
+-	if (current_stage != top)
+-		sync_stage(top);
++	if (current_irq_stage != top)
++		sync_irq_stage(top);
+ 	else if (!test_stage_bit(STAGE_STALL_BIT, this_staged(top)))
+-		sync_current_stage();
++		sync_current_irq_stage();
+ }
+ 
+ trace_on_debug void __inband_irq_enable(void)
+@@ -232,7 +232,7 @@ trace_on_debug void __inband_irq_enable(void)
+ 	trace_hardirqs_on();
+ 	clear_stage_bit(STAGE_STALL_BIT, p);
+ 	if (unlikely(stage_irqs_pending(p))) {
+-		sync_current_stage();
++		sync_current_irq_stage();
+ 		hard_local_irq_restore(flags);
+ 		preempt_check_resched();
+ 	} else
+@@ -895,7 +895,7 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 	}
+ 
+ 	/* Switch to the oob stage if not current. */
+-	old = current_staged;
++	old = current_irq_staged;
+ 	if (old != p)
+ 		switch_oob(p);
+ 
+@@ -907,7 +907,7 @@ static void dispatch_oob_irq(struct irq_desc *desc) /* hardirqs off */
+ 		/* No CPU migration allowed. */
+ 		WARN_ON_ONCE(this_oob_staged() != p);
+ 		/* No stage migration allowed. */
+-		WARN_ON_ONCE(current_staged->stage != oob);
++		WARN_ON_ONCE(current_irq_staged->stage != oob);
+ 	}
+ 
+ 	if (old->stage != oob)
+@@ -1086,7 +1086,7 @@ int irq_inject_pipeline(unsigned int irq)
+ EXPORT_SYMBOL_GPL(irq_inject_pipeline);
+ 
+ /*
+- * sync_current_stage() -- Flush the pending IRQs for the current
++ * sync_current_irq_stage() -- Flush the pending IRQs for the current
+  * stage (and processor). This routine flushes the interrupt log (see
+  * "Optimistic interrupt protection" from D. Stodolsky et al. for more
+  * on the deferred interrupt scheme). Every interrupt that occurred
+@@ -1095,7 +1095,7 @@ EXPORT_SYMBOL_GPL(irq_inject_pipeline);
+  * CAUTION: CPU migration may occur over this routine if running over
+  * the inband stage.
+  */
+-void sync_current_stage(void) /* hw IRQs off */
++void sync_current_irq_stage(void) /* hw IRQs off */
+ {
+ 	struct irq_stage_data *p;
+ 	struct irq_stage *stage;
+@@ -1105,7 +1105,7 @@ void sync_current_stage(void) /* hw IRQs off */
+ 	WARN_ON_ONCE(irq_pipeline_debug() && on_pipeline_entry());
+ 	check_hard_irqs_disabled();
+ 
+-	p = current_staged;
++	p = current_irq_staged;
+ respin:
+ 	stage = p->stage;
+ 	set_stage_bit(STAGE_STALL_BIT, p);
+@@ -1153,7 +1153,7 @@ void sync_current_stage(void) /* hw IRQs off */
+ 		 * case is basically reflecting what may happen in
+ 		 * dispatch_oob_irq() for the fast path.
+ 		 */
+-		p = current_staged;
++		p = current_irq_staged;
+ 		if (p->stage != stage) {
+ 			WARN_ON_ONCE(irq_pipeline_debug() &&
+ 				     stage == &inband_stage);
+@@ -1190,7 +1190,7 @@ int notrace run_oob_call(int (*fn)(void *arg), void *arg)
+ 	/* Switch to the oob stage if not current. */
+ 	p = this_oob_staged();
+ 	oob = p->stage;
+-	old = current_staged;
++	old = current_irq_staged;
+ 	if (old != p)
+ 		switch_oob(p);
+ 
+@@ -1219,16 +1219,16 @@ int notrace run_oob_call(int (*fn)(void *arg), void *arg)
+ 	 * to the current stage when the whole process runs on the oob
+ 	 * stage.
+ 	 */
+-	if (likely(current_staged == p)) {
++	if (likely(current_irq_staged == p)) {
+ 		if (old->stage == oob) {
+ 			if (!s && stage_irqs_pending(p))
+-				sync_current_stage();
++				sync_current_irq_stage();
+ 			goto out;
+ 		}
+ 		switch_inband(this_inband_staged());
+ 	}
+ 
+-	sync_stage(oob);
++	sync_irq_stage(oob);
+ out:
+ 	hard_local_irq_restore(flags);
+ 
+@@ -1388,7 +1388,7 @@ void irq_local_work_raise(void)
+ 	irq_post_inband(inband_work_sirq);
+ 	if (running_inband() &&
+ 	    !hard_irqs_disabled_flags(flags) && !irqs_disabled())
+-		sync_current_stage();
++		sync_current_irq_stage();
+ 	hard_local_irq_restore(flags);
+ }
+ 
+@@ -1401,7 +1401,7 @@ notrace void check_inband_stage(void)
+ 
+ 	flags = hard_smp_local_irq_save();
+ 
+-	this_stage = current_stage;
++	this_stage = current_irq_stage;
+ 	if (likely(this_stage == &inband_stage &&
+ 		   !test_stage_bit(STAGE_STALL_BIT, this_oob_staged()))) {
+ 		hard_smp_local_irq_restore(flags);
+diff --git a/lib/dump_stack.c b/lib/dump_stack.c
+index 3472d4b5224f..9031ab75746a 100644
+--- a/lib/dump_stack.c
++++ b/lib/dump_stack.c
+@@ -59,7 +59,7 @@ void dump_stack_print_info(const char *log_lvl)
+ 
+ #ifdef CONFIG_IRQ_PIPELINE
+ 	printk("%sIRQ stage: %s\n",
+-	       log_lvl, current_stage->name);
++	       log_lvl, current_irq_stage->name);
+ #endif
+ 
+ 	print_worker_info(log_lvl, current);
+-- 
+2.16.4
+

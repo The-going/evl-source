@@ -1,4 +1,4 @@
-From b4fe36dcc7d7745f8fac5b6700844ccd0655ac40 Mon Sep 17 00:00:00 2001
+From bd01dcdc02cc85869f109f8a8d21ecc42dc97f89 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 24 Oct 2016 12:48:34 +0200
 Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
@@ -6,8 +6,7 @@ Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
 ---
  arch/arm/Kconfig                    |   1 +
  arch/arm/include/asm/assembler.h    |  12 ++++
- arch/arm/include/asm/hardirq.h      |   2 +-
- arch/arm/include/asm/irq_pipeline.h | 126 ++++++++++++++++++++++++++++++++++++
+ arch/arm/include/asm/irq_pipeline.h | 127 ++++++++++++++++++++++++++++++++++++
  arch/arm/include/asm/irqflags.h     |  44 ++++++++-----
  arch/arm/include/asm/smp.h          |  12 +++-
  arch/arm/include/asm/thread_info.h  |   5 ++
@@ -22,13 +21,13 @@ Subject: [PATCH] ARM: irq_pipeline: add IRQ pipeline core
  arch/arm/kernel/smp.c               |  93 ++++++++++++++++++++++++--
  arch/arm/kernel/traps.c             |   2 +-
  arch/arm/mm/alignment.c             |   4 +-
- arch/arm/mm/fault.c                 | 112 ++++++++++++++++++++++++++++++--
- 19 files changed, 553 insertions(+), 45 deletions(-)
+ arch/arm/mm/fault.c                 | 112 +++++++++++++++++++++++++++++--
+ 18 files changed, 553 insertions(+), 44 deletions(-)
  create mode 100644 arch/arm/include/asm/irq_pipeline.h
  create mode 100644 arch/arm/kernel/irq_pipeline.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 850b4805e2d1..145156ca5554 100644
+index 8869742a85df..d93f7f94bc53 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
 @@ -670,6 +670,7 @@ config ARCH_MULTI_V7
@@ -62,25 +61,12 @@ index b59921a560da..6394c83802d8 100644
  	.macro asm_trace_hardirqs_off, save=1
  #if defined(CONFIG_TRACE_IRQFLAGS)
  	.if \save
-diff --git a/arch/arm/include/asm/hardirq.h b/arch/arm/include/asm/hardirq.h
-index cba23eaa6072..c7e3a71d696a 100644
---- a/arch/arm/include/asm/hardirq.h
-+++ b/arch/arm/include/asm/hardirq.h
-@@ -6,7 +6,7 @@
- #include <linux/threads.h>
- #include <asm/irq.h>
- 
--#define NR_IPI	7
-+#define NR_IPI	8
- 
- typedef struct {
- 	unsigned int __softirq_pending;
 diff --git a/arch/arm/include/asm/irq_pipeline.h b/arch/arm/include/asm/irq_pipeline.h
 new file mode 100644
-index 000000000000..abea466df90e
+index 000000000000..e30026d162a6
 --- /dev/null
 +++ b/arch/arm/include/asm/irq_pipeline.h
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,127 @@
 +/*
 + * SPDX-License-Identifier: GPL-2.0
 + *
@@ -97,10 +83,11 @@ index 000000000000..abea466df90e
 + * Out-of-band IPIs are directly mapped to SGI1-2, instead of
 + * multiplexed over SGI0 like regular in-band messages.
 + */
++#define INBAND_NR_IPI		(NR_IPI + 1) /* +IPI_CPU_BACKTRACE */
 +#define OOB_IPI_BASE		2048
 +#define OOB_NR_IPI		2
-+#define TIMER_OOB_IPI		(OOB_IPI_BASE + NR_IPI)
-+#define RESCHEDULE_OOB_IPI	(OOB_IPI_BASE + NR_IPI + 1)
++#define TIMER_OOB_IPI		(OOB_IPI_BASE + INBAND_NR_IPI)
++#define RESCHEDULE_OOB_IPI	(OOB_IPI_BASE + INBAND_NR_IPI + 1)
 +
 +static inline notrace
 +unsigned long arch_irqs_virtual_to_native_flags(int stalled)
@@ -570,7 +557,7 @@ index 844861368cd5..11571b8f8990 100644
  {
 diff --git a/arch/arm/kernel/irq_pipeline.c b/arch/arm/kernel/irq_pipeline.c
 new file mode 100644
-index 000000000000..e8742c6c83f0
+index 000000000000..d27402b739ea
 --- /dev/null
 +++ b/arch/arm/kernel/irq_pipeline.c
 @@ -0,0 +1,96 @@
@@ -629,7 +616,7 @@ index 000000000000..e8742c6c83f0
 +	 * OOB_IPI_BASE. The sirqs obtained can be injected into the
 +	 * pipeline upon IPI receipt like other interrupts.
 +	 */
-+	sipic_domain = irq_domain_add_simple(NULL, NR_IPI + OOB_NR_IPI,
++	sipic_domain = irq_domain_add_simple(NULL, INBAND_NR_IPI + OOB_NR_IPI,
 +					     OOB_IPI_BASE,
 +					     &sipic_domain_ops, NULL);
 +}
@@ -655,7 +642,7 @@ index 000000000000..e8742c6c83f0
 +	 * code.
 +	 */
 +	if (irq >= OOB_IPI_BASE &&
-+	    irq < OOB_IPI_BASE + NR_IPI + OOB_NR_IPI) {
++	    irq < OOB_IPI_BASE + INBAND_NR_IPI + OOB_NR_IPI) {
 +		__handle_IPI(irq - OOB_IPI_BASE, regs);
 +		return;
 +	}
@@ -684,10 +671,10 @@ index 72cc0862a30e..d02dd4b57662 100644
  
  void arch_cpu_idle_prepare(void)
 diff --git a/arch/arm/kernel/signal.c b/arch/arm/kernel/signal.c
-index 76bb8de6bf6b..30110b53210a 100644
+index be5edfdde558..673050b228d5 100644
 --- a/arch/arm/kernel/signal.c
 +++ b/arch/arm/kernel/signal.c
-@@ -645,6 +645,11 @@ static int do_signal(struct pt_regs *regs, int syscall)
+@@ -644,6 +644,11 @@ static int do_signal(struct pt_regs *regs, int syscall)
  asmlinkage int
  do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  {
@@ -699,7 +686,7 @@ index 76bb8de6bf6b..30110b53210a 100644
  	/*
  	 * The assembly code enters us with IRQs off, but it hasn't
  	 * informed the tracing code of that for efficiency reasons.
-@@ -653,11 +658,12 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+@@ -652,11 +657,12 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  	trace_hardirqs_off();
  	do {
  		if (likely(thread_flags & _TIF_NEED_RESCHED)) {
@@ -714,7 +701,7 @@ index 76bb8de6bf6b..30110b53210a 100644
  			if (thread_flags & _TIF_SIGPENDING) {
  				int restart = do_signal(regs, syscall);
  				if (unlikely(restart)) {
-@@ -666,7 +672,8 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+@@ -665,7 +671,8 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  					 * Deal with it without leaving
  					 * the kernel space.
  					 */
@@ -724,7 +711,7 @@ index 76bb8de6bf6b..30110b53210a 100644
  				}
  				syscall = 0;
  			} else if (thread_flags & _TIF_UPROBE) {
-@@ -677,10 +684,23 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
+@@ -676,10 +683,23 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
  				rseq_handle_notify_resume(NULL, regs);
  			}
  		}
@@ -751,10 +738,10 @@ index 76bb8de6bf6b..30110b53210a 100644
  
  struct page *get_signal_page(void)
 diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
-index facd4240ca02..a7533fcb70ec 100644
+index ebc53804d57b..619f3971515e 100644
 --- a/arch/arm/kernel/smp.c
 +++ b/arch/arm/kernel/smp.c
-@@ -393,6 +393,13 @@ asmlinkage void secondary_start_kernel(void)
+@@ -397,6 +397,13 @@ asmlinkage void secondary_start_kernel(void)
  	enter_lazy_tlb(mm, current);
  	local_flush_tlb_all();
  
@@ -768,7 +755,7 @@ index facd4240ca02..a7533fcb70ec 100644
  	/*
  	 * All kernel threads share the same mm context; grab a
  	 * reference and switch to it.
-@@ -435,7 +442,7 @@ asmlinkage void secondary_start_kernel(void)
+@@ -439,7 +446,7 @@ asmlinkage void secondary_start_kernel(void)
  
  	complete(&cpu_running);
  
@@ -777,7 +764,7 @@ index facd4240ca02..a7533fcb70ec 100644
  	local_fiq_enable();
  	local_abt_enable();
  
-@@ -517,12 +524,68 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
+@@ -521,12 +528,68 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
  	S(IPI_COMPLETION, "completion interrupts"),
  };
  
@@ -791,7 +778,7 @@ index facd4240ca02..a7533fcb70ec 100644
 +{
 +	unsigned int cpu, sgi;
 +
-+	if (ipinr < NR_IPI) {
++	if (ipinr < INBAND_NR_IPI) {
 +		/* regular in-band IPI (multiplexed over SGI0). */
 +		trace_ipi_raise_rcuidle(target, ipi_types[ipinr]);
 +		for_each_cpu(cpu, target)
@@ -799,7 +786,7 @@ index facd4240ca02..a7533fcb70ec 100644
 +		smp_mb();
 +		sgi = 0;
 +	} else	/* out-of-band IPI (SGI1-3). */
-+		sgi = ipinr - NR_IPI + 1;
++		sgi = ipinr - INBAND_NR_IPI + 1;
 +
 +	__smp_cross_call(target, sgi);
 +}
@@ -811,12 +798,12 @@ index facd4240ca02..a7533fcb70ec 100644
 +	unsigned long *pmsg;
 +
 +	if (sgi) {		/* SGI1-3 */
-+		irq = sgi + NR_IPI - 1 + OOB_IPI_BASE;
++		irq = sgi + INBAND_NR_IPI - 1 + OOB_IPI_BASE;
 +		generic_pipeline_irq(irq, regs);
 +		return;
 +	}
 +
-+	/* In-band IPI (0..NR_IPI - 1) multiplexed over SGI0. */
++	/* In-band IPI (0..INBAND_NR_IPI - 1) multiplexed over SGI0. */
 +	pmsg = raw_cpu_ptr(&ipi_messages);
 +	while (*pmsg) {
 +		ipinr = ffs(*pmsg) - 1;
@@ -848,7 +835,7 @@ index facd4240ca02..a7533fcb70ec 100644
  void show_ipi_list(struct seq_file *p, int prec)
  {
  	unsigned int cpu, i;
-@@ -596,7 +659,7 @@ static void ipi_cpu_stop(unsigned int cpu)
+@@ -600,7 +663,7 @@ static void ipi_cpu_stop(unsigned int cpu)
  	set_cpu_online(cpu, false);
  
  	local_fiq_disable();
@@ -857,7 +844,7 @@ index facd4240ca02..a7533fcb70ec 100644
  
  	while (1) {
  		cpu_relax();
-@@ -625,7 +688,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
+@@ -629,7 +692,7 @@ asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
  	handle_IPI(ipinr, regs);
  }
  
@@ -866,7 +853,7 @@ index facd4240ca02..a7533fcb70ec 100644
  {
  	unsigned int cpu = smp_processor_id();
  	struct pt_regs *old_regs = set_irq_regs(regs);
-@@ -685,6 +748,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
+@@ -689,6 +752,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
  		printk_nmi_exit();
  		break;
  
@@ -875,7 +862,7 @@ index facd4240ca02..a7533fcb70ec 100644
 +	 * In the unlikely event out-of-band IPIs have a in-band stage
 +	 * handler.
 +	 */
-+	case NR_IPI ... NR_IPI + OOB_NR_IPI - 1:
++	case INBAND_NR_IPI ... INBAND_NR_IPI + OOB_NR_IPI - 1:
 +		irq_enter();
 +		generic_handle_irq(OOB_IPI_BASE + ipinr);
 +		irq_exit();
@@ -885,7 +872,7 @@ index facd4240ca02..a7533fcb70ec 100644
  	default:
  		pr_crit("CPU%u: Unknown IPI message 0x%x\n",
  		        cpu, ipinr);
-@@ -696,6 +771,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
+@@ -700,6 +775,14 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
  	set_irq_regs(old_regs);
  }
  
@@ -914,7 +901,7 @@ index 33af097c454b..8380c8c94894 100644
  void register_undef_hook(struct undef_hook *hook)
  {
 diff --git a/arch/arm/mm/alignment.c b/arch/arm/mm/alignment.c
-index b54f8f8def36..faf05a32971d 100644
+index e376883ab35b..631bd300991d 100644
 --- a/arch/arm/mm/alignment.c
 +++ b/arch/arm/mm/alignment.c
 @@ -781,7 +781,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)

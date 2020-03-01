@@ -1,0 +1,70 @@
+From 0af932411f8c1e5d5add15531beed1efbd173ad1 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 24 May 2019 12:28:09 +0200
+Subject: [PATCH] evl/file: provide basic placeholders for building w/o EVL
+
+It is important to have the kernel build properly when EVL is disabled
+in Kconfig, and we want to reduce the noise in the mainline code
+involved in setting up the out-of-band file context without
+systematically resorting to inlined #ifdefery.
+
+Provide a couple of placeholders to enable this for CONFIG_EVL is off.
+---
+ include/evl/file.h | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/include/evl/file.h b/include/evl/file.h
+index affd014ca6c6..67adafb56a01 100644
+--- a/include/evl/file.h
++++ b/include/evl/file.h
+@@ -19,6 +19,8 @@ struct files_struct;
+ struct evl_element;
+ struct evl_poll_node;
+ 
++#ifdef CONFIG_EVL
++
+ struct evl_file {
+ 	struct file *filp;
+ 	atomic_t oob_refs;
+@@ -39,21 +41,11 @@ struct evl_file_binding {
+ 	struct evl_element *element;
+ };
+ 
+-#ifdef CONFIG_EVL
+-
+ int evl_open_file(struct evl_file *efilp,
+ 		struct file *filp);
+ 
+ void evl_release_file(struct evl_file *efilp);
+ 
+-#else
+-
+-#define evl_open_file(__efilp, __filp)	   ({ (void)__efilp; 0; })
+-
+-#define evl_release_file(__efilp, __filp)  do { (void)__efilp; } while (0)
+-
+-#endif	/* !CONFIG_EVL */
+-
+ static inline
+ void evl_get_fileref(struct evl_file *efilp)
+ {
+@@ -71,6 +63,16 @@ void evl_put_file(struct evl_file *efilp) /* OOB */
+ 		__evl_put_file(efilp);
+ }
+ 
++#else
++
++struct evl_file { };
++
++#define evl_open_file(__efilp, __filp)	({ 0; })
++
++#define evl_release_file(__efilp)	do { } while (0)
++
++#endif	/* !CONFIG_EVL */
++
+ struct evl_file *evl_watch_fd(unsigned int fd,
+ 			struct evl_poll_node *node);
+ 
+-- 
+2.16.4
+

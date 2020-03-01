@@ -145,3 +145,27 @@
 	patches.evl-only/evl-sched-quota-limit-max.-prio-to-EVL_CORE_MAX_PRIO.patch
 	patches.evl-only/evl-sched-add-temporal-partitioning-policy.patch
 	patches.evl-only/evl-sched-enable-SCHED_TP-when-built-in.patch
+	patches.evl-only/evl-control-export-number-of-SCHED_TP-partitions-via.patch
+	patches.evl-only/evl-clock-silence-false-positive-UMR-warning.patch
+	patches.evl-only/evl-thread-detect-recursive-faults-in-out-of-band-co.patch
+	patches.evl-only/evl-thread-handle-EVL_THRIOC_SWITCH_OOB-from-OOB-con.patch
+	patches.evl-only/evl-sched-convert-to-the-new-dovetail_context_switch.patch
+	patches.evl-only/evl-trace-fix-evl_wakeup_thread-event-trace.patch
+	patches.evl-only/evl-tick-advertise-the-real-device-min-max-delta-val.patch
+	patches.evl-only/evl-clock-decrease-default-u-gravity-value.patch
+	patches.evl-only/drivers-evl-fix-signedness-when-summing-latency-valu.patch
+	patches.evl-only/evl-add-x86-support.patch
+	patches.evl-only/evl-clarify-the-EVL-help-string.patch
+	patches.evl-only/uapi-evl-include-linux-types.h-as-recommended.patch
+	patches.evl-only/evl-thread-simplify-and-sanitize-synchronization-on-.patch
+	patches.evl-only/evl-thread-fix-potential-UMR-in-disposal-handler.patch
+	patches.evl-only/evl-SIGDEBUG_UNDEFINED-SIGDEBUG_NONE.patch
+	patches.evl-only/evl-file-export-dummy-evl_file_open-evl_file_release.patch
+	patches.evl-only/evl-wait-include-scheduler-bits-from-evl-wait.h.patch
+	patches.evl-only/gpiolib-evl-enable-out-of-band-GPIO-handling.patch
+	patches.evl-only/evl-file-provide-basic-placeholders-for-building-w-o.patch
+	patches.evl-only/gpiolib-evl-reduce-ifdefery-required-for-building-w-.patch
+	patches.evl-only/evl-trace-drop-useless-broken-include-directives.patch
+	patches.evl-only/gpiolib-evl-silence-spurious-compiler-warning.patch
+	patches.evl-only/evl-tick-trace-cycles-used-in-programming-next-event.patch
+	patches.evl-only/evl-timer-always-display-timer-name-when-tracing.patch

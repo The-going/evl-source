@@ -1,0 +1,41 @@
+From 073b1c015974a43b7dcee26bbb3bb63b6f64a982 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 9 May 2019 14:33:30 +0200
+Subject: [PATCH] cpuidle: enable hard irqs in polling idle state
+
+---
+ drivers/cpuidle/cpuidle.c    | 4 +++-
+ drivers/cpuidle/poll_state.c | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/cpuidle/cpuidle.c b/drivers/cpuidle/cpuidle.c
+index 3e2319f5b06c..fd7059f84597 100644
+--- a/drivers/cpuidle/cpuidle.c
++++ b/drivers/cpuidle/cpuidle.c
+@@ -210,7 +210,9 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
+ 	 * default idle routine instead. If the co-kernel cannot bear
+ 	 * with the latency induced by the default idling operation,
+ 	 * then CPUIDLE is not usable and should be disabled at build
+-	 * time.
++	 * time. The inband stage is stalled on entry,
++	 * irq_cpuidle_enter() additionally returns with hard irqs
++	 * off.
+ 	 */
+ 	if (!irq_cpuidle_enter(dev, target_state)) {
+ 		default_idle_call();
+diff --git a/drivers/cpuidle/poll_state.c b/drivers/cpuidle/poll_state.c
+index 23a1b27579a5..582469c97606 100644
+--- a/drivers/cpuidle/poll_state.c
++++ b/drivers/cpuidle/poll_state.c
+@@ -18,7 +18,7 @@ static int __cpuidle poll_idle(struct cpuidle_device *dev,
+ 
+ 	dev->poll_time_limit = false;
+ 
+-	local_irq_enable();
++	local_irq_enable_full();
+ 	if (!current_set_polling_and_test()) {
+ 		unsigned int loop_count = 0;
+ 		u64 limit = TICK_NSEC;
+-- 
+2.16.4
+

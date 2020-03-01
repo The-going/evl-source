@@ -1,0 +1,31 @@
+From 49667e928d7f0a7d1694774ed0656e3520ac57a0 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 18 May 2019 18:02:02 +0200
+Subject: [PATCH] genirq: irq_pipeline: disable ftracing for run_oob_call()
+
+This routine may switch the current stage while running in a
+preemptible inband context, which confuses our inband rescheduling
+avoidance logic big time when tracing functions.
+
+Since this call can be traced at the call site instead to work around
+this issue, let's annotate this with 'notrace'.
+---
+ kernel/irq/pipeline.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/irq/pipeline.c b/kernel/irq/pipeline.c
+index b63f16dc6b32..cc0e2ea7a06f 100644
+--- a/kernel/irq/pipeline.c
++++ b/kernel/irq/pipeline.c
+@@ -1178,7 +1178,7 @@ void sync_current_stage(void) /* hw IRQs off */
+  *      the current stage accordingly if needed. The escalated call is
+  *      allowed to perform a stage migration in the process.
+  */
+-int run_oob_call(int (*fn)(void *arg), void *arg)
++int notrace run_oob_call(int (*fn)(void *arg), void *arg)
+ {
+ 	struct irq_stage_data *p, *old;
+ 	struct irq_stage *oob;
+-- 
+2.16.4
+

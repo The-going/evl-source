@@ -1,4 +1,4 @@
-From 30e9d6cc6c7d665bbecadd6b4a6b00667d0fb51b Mon Sep 17 00:00:00 2001
+From 340c5b66a1a38074b9c6cdca8e0c71487a696cd6 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 18 Feb 2017 14:54:52 +0100
 Subject: [PATCH] ARM: dovetail: add core support
@@ -17,7 +17,7 @@ extracted, appear as a standalone commit.
  create mode 100644 arch/arm/include/asm/dovetail.h
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 145156ca5554..2566606801b8 100644
+index d93f7f94bc53..982d61cc4331 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
 @@ -671,6 +671,7 @@ config ARCH_MULTI_V6_V7
@@ -28,7 +28,7 @@ index 145156ca5554..2566606801b8 100644
  
  config ARCH_MULTI_CPU_AUTO
  	def_bool !(ARCH_MULTI_V4 || ARCH_MULTI_V4T || ARCH_MULTI_V6_V7)
-@@ -1309,6 +1310,8 @@ config SCHED_SMT
+@@ -1307,6 +1308,8 @@ config SCHED_SMT
  	  MultiThreading at a cost of slightly increased overhead in some
  	  places. If unsure say N here.
  

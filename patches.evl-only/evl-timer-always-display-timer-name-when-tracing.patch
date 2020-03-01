@@ -1,0 +1,161 @@
+From 176c7da648193f6f89a1a21781e553a9b7f44240 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 26 May 2019 11:02:00 +0200
+Subject: [PATCH] evl/timer: always display timer name when tracing
+
+---
+ include/evl/timer.h        | 12 ++++++++++++
+ include/trace/events/evl.h | 35 +++++++++++++++--------------------
+ kernel/evl/tick.c          | 10 ++++++----
+ 3 files changed, 33 insertions(+), 24 deletions(-)
+
+diff --git a/include/evl/timer.h b/include/evl/timer.h
+index 83910b6688cd..3f1e9d845d57 100644
+--- a/include/evl/timer.h
++++ b/include/evl/timer.h
+@@ -297,6 +297,12 @@ void evl_set_timer_name(struct evl_timer *timer, const char *name)
+ 	timer->name = name;
+ }
+ 
++static inline
++const char *evl_get_timer_name(struct evl_timer *timer)
++{
++	return timer->name;
++}
++
+ #else /* !CONFIG_EVL_RUNSTATS */
+ 
+ #define evl_init_timer	__evl_init_timer
+@@ -313,6 +319,12 @@ void evl_account_timer_fired(struct evl_timer *timer) { }
+ static inline
+ void evl_set_timer_name(struct evl_timer *timer, const char *name) { }
+ 
++static inline
++const char *evl_get_timer_name(struct evl_timer *timer)
++{
++	return "<timer>";
++}
++
+ #endif /* !CONFIG_EVL_RUNSTATS */
+ 
+ #define evl_init_core_timer(__timer, __handler)				\
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 5668667accb6..9d245c6f7415 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -109,7 +109,7 @@ DECLARE_EVENT_CLASS(timer_event,
+ 		__entry->timer = timer;
+ 	),
+ 
+-	TP_printk("timer=%p", __entry->timer)
++	TP_printk("timer=%s", evl_get_timer_name(__entry->timer))
+ );
+ 
+ #define evl_print_syscall(__nr)			\
+@@ -616,29 +616,20 @@ TRACE_EVENT(evl_timer_start,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct evl_timer *, timer)
+-#ifdef CONFIG_EVL_RUNSTATS
+-		__string(name, timer->name)
+-#endif
+ 		__field(ktime_t, value)
+ 		__field(ktime_t, interval)
+ 	),
+ 
+ 	TP_fast_assign(
+-#ifdef CONFIG_EVL_RUNSTATS
+-		__assign_str(name, timer->name);
+-#endif
++		__entry->timer = timer;
+ 		__entry->value = value;
+ 		__entry->interval = interval;
+ 	),
+ 
+ 	TP_printk("timer=%s value=%Lu interval=%Lu",
+-#ifdef CONFIG_EVL_RUNSTATS
+-		  __get_str(name),
+-#else
+-		  "?",
+-#endif
+-		  ktime_to_ns(__entry->value),
+-		  ktime_to_ns(__entry->interval))
++		evl_get_timer_name(__entry->timer),
++		ktime_to_ns(__entry->value),
++		ktime_to_ns(__entry->interval))
+ );
+ 
+ TRACE_EVENT(evl_timer_bolt,
+@@ -659,30 +650,34 @@ TRACE_EVENT(evl_timer_bolt,
+ 		__entry->cpu = cpu;
+ 	),
+ 
+-	TP_printk("timer=%p clock=%s, cpu=%u",
+-		  __entry->timer, __entry->clock->name, __entry->cpu)
++	TP_printk("timer=%s clock=%s, cpu=%u",
++		evl_get_timer_name(__entry->timer),
++		__entry->clock->name, __entry->cpu)
+ );
+ 
+ TRACE_EVENT(evl_timer_shot,
+-	TP_PROTO(s64 delta, u64 cycles),
+-	TP_ARGS(delta, cycles),
++	TP_PROTO(struct evl_timer *timer, s64 delta, u64 cycles),
++	TP_ARGS(timer, delta, cycles),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(u64, secs)
+ 		__field(u32, nsecs)
+ 		__field(s64, delta)
+ 		__field(u64, cycles)
++		__field(struct evl_timer *, timer)
+ 	),
+ 
+ 	TP_fast_assign(
++		__entry->timer = timer;
+ 		__entry->cycles = cycles;
+ 		__entry->delta = delta;
+ 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
+ 					    NSEC_PER_SEC, &__entry->nsecs);
+ 	),
+ 
+-	TP_printk("tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
+-		  (unsigned long long)__entry->secs,
++	TP_printk("%s tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
++		evl_get_timer_name(__entry->timer),
++		(unsigned long long)__entry->secs,
+ 		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
+ 		__entry->cycles)
+ );
+diff --git a/kernel/evl/tick.c b/kernel/evl/tick.c
+index 6d1c35eb2cd3..a80fc924fe7f 100644
+--- a/kernel/evl/tick.c
++++ b/kernel/evl/tick.c
+@@ -271,7 +271,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 
+ 	if (real_dev->features & CLOCK_EVT_FEAT_KTIME) {
+ 		real_dev->set_next_ktime(t, real_dev);
+-		trace_evl_timer_shot(delta, t);
++		trace_evl_timer_shot(timer, delta, t);
+ 	} else {
+ 		if (delta <= 0)
+ 			delta = real_dev->min_delta_ns;
+@@ -281,10 +281,12 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 		}
+ 		cycles = ((u64)delta * real_dev->mult) >> real_dev->shift;
+ 		ret = real_dev->set_next_event(cycles, real_dev);
+-		trace_evl_timer_shot(delta, cycles);
++		trace_evl_timer_shot(timer, delta, cycles);
+ 		if (ret) {
+-			real_dev->set_next_event(real_dev->min_delta_ticks, real_dev);
+-			trace_evl_timer_shot(real_dev->min_delta_ns, real_dev->min_delta_ticks);
++			real_dev->set_next_event(real_dev->min_delta_ticks,
++						real_dev);
++			trace_evl_timer_shot(timer, real_dev->min_delta_ns,
++					real_dev->min_delta_ticks);
+ 		}
+ 	}
+ }
+-- 
+2.16.4
+

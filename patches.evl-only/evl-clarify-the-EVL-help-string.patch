@@ -1,0 +1,36 @@
+From 1aa5df3173d5e1ec81ca7f9ba9d053568a240775 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 14 May 2019 19:53:42 +0200
+Subject: [PATCH] evl: clarify the EVL help string
+
+---
+ kernel/Kconfig.evl | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/Kconfig.evl b/kernel/Kconfig.evl
+index 9d8256629839..b9ab8aeb5403 100644
+--- a/kernel/Kconfig.evl
++++ b/kernel/Kconfig.evl
+@@ -4,14 +4,16 @@ config HAVE_ARCH_EVL
+ 	bool
+ 
+ menuconfig EVL
+-	bool "Enable the EVL core"
++	bool "EVL real-time core"
+ 	depends on HAVE_ARCH_EVL
+ 	select DOVETAIL
+ 	help
+ 
+ 	  The EVL core is a real-time component of the Linux kernel,
+-	  which exhibits very short interrupt and scheduling latency,
+-	  without affecting the regular kernel services.
++	  which delivers very short and bounded response time to
++	  interrupt and task events.  EVL runs asynchronously to the
++	  common kernel services, on the high-priority, out-of-band
++	  stage managed by the Dovetail layer.
+ 
+ if EVL
+ 
+-- 
+2.16.4
+

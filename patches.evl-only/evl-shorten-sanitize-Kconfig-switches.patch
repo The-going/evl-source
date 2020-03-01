@@ -1,4 +1,4 @@
-From 4ff0f684a986bb4d20390c154f73c024b4aeb082 Mon Sep 17 00:00:00 2001
+From efccd06455fbb8bf8d1a5cd6279bd737a9a1bb1b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 13:07:07 +0100
 Subject: [PATCH] evl: shorten, sanitize Kconfig switches
@@ -42,10 +42,10 @@ Subject: [PATCH] evl: shorten, sanitize Kconfig switches
  35 files changed, 146 insertions(+), 164 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index ea9052d11115..c45ef35e9afd 100644
+index 4d723715cad1..2c156304a137 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
-@@ -282,7 +282,7 @@ config PGTABLE_LEVELS
+@@ -279,7 +279,7 @@ config PGTABLE_LEVELS
  	default 3 if ARM_LPAE
  	default 2
  
@@ -64,10 +64,10 @@ index ea9052d11115..c45ef35e9afd 100644
  	       !(CPU_FREQ_DEFAULT_GOV_PERFORMANCE || \
  	        CPU_FREQ_DEFAULT_GOV_POWERSAVE)
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 6a4bd6e0bfdb..2d68d8b57242 100644
+index eb0f10b85933..2fadd924aeef 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -270,7 +270,7 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
+@@ -269,7 +269,7 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
  endif
  endif
  
@@ -77,10 +77,10 @@ index 6a4bd6e0bfdb..2d68d8b57242 100644
  endif
  
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index fdeecf5b25fd..039598491ba7 100644
+index eb0e98459bb9..ec43a044896d 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -124,7 +124,7 @@ config ARM64
+@@ -128,7 +128,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
@@ -89,7 +89,7 @@ index fdeecf5b25fd..039598491ba7 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_EBPF_JIT
  	select HAVE_C_RECORDMCOUNT
-@@ -1418,7 +1418,7 @@ config STACKPROTECTOR_PER_TASK
+@@ -1476,7 +1476,7 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -112,7 +112,7 @@ index ada574d901ca..27d8fe4b4015 100644
  endif
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index d2970496b201..d63a33a2f0d5 100644
+index 6922d10219da..f337a917c32a 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -467,10 +467,10 @@ index 968b5efccd90..6730247e8da3 100644
  source "kernel/evenless/Kconfig"
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 8b8e395512ee..9fbb0c958b9a 100644
+index d23ebdb6656b..322c1c3ddef7 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -99,7 +99,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

@@ -1,4 +1,4 @@
-From 14c387bd7ecd2d9e86fa142805c2feb35a5112c6 Mon Sep 17 00:00:00 2001
+From 4d61e6d5755760df9461bd23342cf88507bfba55 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 26 Apr 2019 17:55:32 +0200
 Subject: [PATCH] lockdep: irq_pipeline: reword configuration warning
@@ -8,10 +8,10 @@ Subject: [PATCH] lockdep: irq_pipeline: reword configuration warning
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 20c322be3bd8..15c202c33e8d 100644
+index a7ef0333750d..b433b66559b0 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1225,7 +1225,7 @@ config DEBUG_LOCK_ALLOC
+@@ -1252,7 +1252,7 @@ config DEBUG_LOCK_ALLOC
  
  if IRQ_PIPELINE && PROVE_LOCKING
  comment "WARNING! PROVE_LOCKING induces **massive** latency"

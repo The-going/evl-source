@@ -1,0 +1,75 @@
+From e3e694df549e169ef6aea8b020577764c26e9081 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 26 May 2019 10:09:40 +0200
+Subject: [PATCH] evl/tick: trace cycles used in programming next event
+
+---
+ include/trace/events/evl.h | 11 +++++++----
+ kernel/evl/tick.c          |  6 +++---
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 153002f74039..5668667accb6 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -664,24 +664,27 @@ TRACE_EVENT(evl_timer_bolt,
+ );
+ 
+ TRACE_EVENT(evl_timer_shot,
+-	TP_PROTO(s64 delta),
+-	TP_ARGS(delta),
++	TP_PROTO(s64 delta, u64 cycles),
++	TP_ARGS(delta, cycles),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(u64, secs)
+ 		__field(u32, nsecs)
+ 		__field(s64, delta)
++		__field(u64, cycles)
+ 	),
+ 
+ 	TP_fast_assign(
++		__entry->cycles = cycles;
+ 		__entry->delta = delta;
+ 		__entry->secs = div_u64_rem(trace_clock_local() + delta,
+ 					    NSEC_PER_SEC, &__entry->nsecs);
+ 	),
+ 
+-	TP_printk("tick at %Lu.%06u (delay: %Ld us)",
++	TP_printk("tick at %Lu.%06u (delay: %Ld us, %Lu cycles)",
+ 		  (unsigned long long)__entry->secs,
+-		  __entry->nsecs / 1000, div_s64(__entry->delta, 1000))
++		__entry->nsecs / 1000, div_s64(__entry->delta, 1000),
++		__entry->cycles)
+ );
+ 
+ DEFINE_EVENT(wq_event, evl_wait,
+diff --git a/kernel/evl/tick.c b/kernel/evl/tick.c
+index 3a285e614688..6d1c35eb2cd3 100644
+--- a/kernel/evl/tick.c
++++ b/kernel/evl/tick.c
+@@ -271,7 +271,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 
+ 	if (real_dev->features & CLOCK_EVT_FEAT_KTIME) {
+ 		real_dev->set_next_ktime(t, real_dev);
+-		trace_evl_timer_shot(delta);
++		trace_evl_timer_shot(delta, t);
+ 	} else {
+ 		if (delta <= 0)
+ 			delta = real_dev->min_delta_ns;
+@@ -281,10 +281,10 @@ void evl_program_proxy_tick(struct evl_clock *clock)
+ 		}
+ 		cycles = ((u64)delta * real_dev->mult) >> real_dev->shift;
+ 		ret = real_dev->set_next_event(cycles, real_dev);
+-		trace_evl_timer_shot(delta);
++		trace_evl_timer_shot(delta, cycles);
+ 		if (ret) {
+ 			real_dev->set_next_event(real_dev->min_delta_ticks, real_dev);
+-			trace_evl_timer_shot(real_dev->min_delta_ns);
++			trace_evl_timer_shot(real_dev->min_delta_ns, real_dev->min_delta_ticks);
+ 		}
+ 	}
+ }
+-- 
+2.16.4
+

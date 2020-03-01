@@ -1,0 +1,49 @@
+From c50fa03e98af51a401d6ee925c3db5bd09f8dabf Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 21 May 2019 16:42:25 +0200
+Subject: [PATCH] evl/file: export dummy evl_file_open(), evl_file_release() in
+ disable case
+
+We can reduce the noise due to adding EVL bits to upstream drivers by
+allowing them to be associated with in-line Kconfig conditional, e.g.
+
+	 if (IS_ENABLED(CONFIG_EVL))
+	       evl_open_file(...);
+
+will still build if CONFIG_EVL is off as the dummy call is resolved in
+the statement.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ include/evl/file.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/include/evl/file.h b/include/evl/file.h
+index 15f6cd5184cf..affd014ca6c6 100644
+--- a/include/evl/file.h
++++ b/include/evl/file.h
+@@ -39,11 +39,21 @@ struct evl_file_binding {
+ 	struct evl_element *element;
+ };
+ 
++#ifdef CONFIG_EVL
++
+ int evl_open_file(struct evl_file *efilp,
+ 		struct file *filp);
+ 
+ void evl_release_file(struct evl_file *efilp);
+ 
++#else
++
++#define evl_open_file(__efilp, __filp)	   ({ (void)__efilp; 0; })
++
++#define evl_release_file(__efilp, __filp)  do { (void)__efilp; } while (0)
++
++#endif	/* !CONFIG_EVL */
++
+ static inline
+ void evl_get_fileref(struct evl_file *efilp)
+ {
+-- 
+2.16.4
+

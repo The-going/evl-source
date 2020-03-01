@@ -1,4 +1,4 @@
-From fbc3e9fd19f165c5eafa07c2974435ec43e7d085 Mon Sep 17 00:00:00 2001
+From 838140b4b842c9c09217a55affca0fff42381978 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 22 Jul 2016 17:15:36 +0200
 Subject: [PATCH] sched: irq_pipeline: handle preemption on IRQ
@@ -8,10 +8,10 @@ Subject: [PATCH] sched: irq_pipeline: handle preemption on IRQ
  1 file changed, 39 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 4778c48a7fda..f0246ae02f48 100644
+index 102dfcf0a29a..f74ddf5bc911 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -3662,7 +3662,7 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
+@@ -3609,7 +3609,7 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
  	 * If there is a non-zero preempt_count or interrupts are disabled,
  	 * we do not want to preempt the current task. Just return..
  	 */
@@ -20,7 +20,7 @@ index 4778c48a7fda..f0246ae02f48 100644
  		return;
  
  	preempt_schedule_common();
-@@ -3688,7 +3688,7 @@ asmlinkage __visible void __sched notrace preempt_schedule_notrace(void)
+@@ -3635,7 +3635,7 @@ asmlinkage __visible void __sched notrace preempt_schedule_notrace(void)
  {
  	enum ctx_state prev_ctx;
  
@@ -29,7 +29,7 @@ index 4778c48a7fda..f0246ae02f48 100644
  		return;
  
  	do {
-@@ -3724,6 +3724,27 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
+@@ -3671,6 +3671,27 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
  
  #endif /* CONFIG_PREEMPT */
  
@@ -57,7 +57,7 @@ index 4778c48a7fda..f0246ae02f48 100644
  /*
   * this is the entry point to schedule() from kernel preemption
   * off of irq context.
-@@ -3733,6 +3754,13 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
+@@ -3680,6 +3701,13 @@ EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
  asmlinkage __visible void __sched preempt_schedule_irq(void)
  {
  	enum ctx_state prev_state;
@@ -71,7 +71,7 @@ index 4778c48a7fda..f0246ae02f48 100644
  
  	/* Catch callers which need to be fixed */
  	BUG_ON(preempt_count() || !irqs_disabled());
-@@ -3747,6 +3775,15 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
+@@ -3694,6 +3722,15 @@ asmlinkage __visible void __sched preempt_schedule_irq(void)
  		sched_preempt_enable_no_resched();
  	} while (need_resched());
  

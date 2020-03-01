@@ -1,4 +1,4 @@
-From 277cc35076af64cee6b514c07d683313e30c2b57 Mon Sep 17 00:00:00 2001
+From 202ea231c3fccf32128946538c08849d82b34806 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 24 Jul 2016 15:40:43 +0200
 Subject: [PATCH] fork: dovetail: announce task init, process cleanup
@@ -8,10 +8,10 @@ Subject: [PATCH] fork: dovetail: announce task init, process cleanup
  1 file changed, 3 insertions(+)
 
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 9dcd18aa210b..fe0d0dbacf18 100644
+index b4cba953040a..41cef84ca930 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -46,6 +46,7 @@
+@@ -48,6 +48,7 @@
  #include <linux/cpu.h>
  #include <linux/cgroup.h>
  #include <linux/security.h>
@@ -19,7 +19,7 @@ index 9dcd18aa210b..fe0d0dbacf18 100644
  #include <linux/hugetlb.h>
  #include <linux/seccomp.h>
  #include <linux/swap.h>
-@@ -883,6 +884,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+@@ -886,6 +887,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
  #endif
  
  	setup_thread_stack(tsk, orig);
@@ -27,7 +27,7 @@ index 9dcd18aa210b..fe0d0dbacf18 100644
  	clear_user_return_notifier(tsk);
  	clear_tsk_need_resched(tsk);
  	set_task_stack_end_magic(tsk);
-@@ -1043,6 +1045,7 @@ static inline void __mmput(struct mm_struct *mm)
+@@ -1055,6 +1057,7 @@ static inline void __mmput(struct mm_struct *mm)
  	exit_aio(mm);
  	ksm_exit(mm);
  	khugepaged_exit(mm); /* must run before exit_mmap */

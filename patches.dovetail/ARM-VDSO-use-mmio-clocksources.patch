@@ -1,4 +1,4 @@
-From b9bd90e39e702d137ef331e8a0fc7951dc92879d Mon Sep 17 00:00:00 2001
+From 24bfcb3a24269ae11be8b073edfb39a7c28b8131 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Sat, 23 Jul 2016 14:36:14 +0200
 Subject: [PATCH] ARM: VDSO: use mmio clocksources
@@ -8,13 +8,13 @@ Subject: [PATCH] ARM: VDSO: use mmio clocksources
  arch/arm/include/asm/vdso_datapage.h |   3 +-
  arch/arm/kernel/vdso.c               | 177 ++++-------------
  arch/arm/mm/Kconfig                  |   2 +-
- arch/arm/vdso/vgettimeofday.c        | 369 +++++++++++++++++++++++++++++------
+ arch/arm/vdso/vgettimeofday.c        | 371 +++++++++++++++++++++++++++++------
  drivers/clocksource/Kconfig          |   5 +
  drivers/clocksource/mmio.c           |   4 +
- 7 files changed, 380 insertions(+), 200 deletions(-)
+ 7 files changed, 381 insertions(+), 201 deletions(-)
 
 diff --git a/arch/arm/include/asm/clocksource.h b/arch/arm/include/asm/clocksource.h
-index 0b350a7e26f..58bcd93e673 100644
+index 0b350a7e26f3..58bcd93e6730 100644
 --- a/arch/arm/include/asm/clocksource.h
 +++ b/arch/arm/include/asm/clocksource.h
 @@ -1,8 +1,28 @@
@@ -47,7 +47,7 @@ index 0b350a7e26f..58bcd93e673 100644
 +
  #endif
 diff --git a/arch/arm/include/asm/vdso_datapage.h b/arch/arm/include/asm/vdso_datapage.h
-index 9be259442fc..90b016969b4 100644
+index 9be259442fca..90b016969b49 100644
 --- a/arch/arm/include/asm/vdso_datapage.h
 +++ b/arch/arm/include/asm/vdso_datapage.h
 @@ -30,7 +30,7 @@
@@ -68,7 +68,7 @@ index 9be259442fc..90b016969b4 100644
  
  union vdso_data_store {
 diff --git a/arch/arm/kernel/vdso.c b/arch/arm/kernel/vdso.c
-index 064661a38c9..fa66f687a7b 100644
+index 064661a38c99..fa66f687a7b2 100644
 --- a/arch/arm/kernel/vdso.c
 +++ b/arch/arm/kernel/vdso.c
 @@ -35,8 +35,6 @@
@@ -306,7 +306,7 @@ index 064661a38c9..fa66f687a7b 100644
 +	d->clock_type = ARM_CLOCK_ARCH_TIMER;
 +}
 diff --git a/arch/arm/mm/Kconfig b/arch/arm/mm/Kconfig
-index b169e580bf8..22612ca5a73 100644
+index b169e580bf82..22612ca5a738 100644
 --- a/arch/arm/mm/Kconfig
 +++ b/arch/arm/mm/Kconfig
 @@ -885,7 +885,7 @@ config KUSER_HELPERS
@@ -319,7 +319,7 @@ index b169e580bf8..22612ca5a73 100644
  	select GENERIC_TIME_VSYSCALL
  	help
 diff --git a/arch/arm/vdso/vgettimeofday.c b/arch/arm/vdso/vgettimeofday.c
-index a9dd619c6c2..6f254d04f6d 100644
+index 7bdbf5d5c47d..bc9416317a52 100644
 --- a/arch/arm/vdso/vgettimeofday.c
 +++ b/arch/arm/vdso/vgettimeofday.c
 @@ -18,6 +18,13 @@
@@ -333,10 +333,10 @@ index a9dd619c6c2..6f254d04f6d 100644
 +#include <linux/compiler.h>
 +#include <linux/ioctl.h>
 +#include <linux/clocksource.h>
- #include <asm/arch_timer.h>
  #include <asm/barrier.h>
  #include <asm/bug.h>
-@@ -31,6 +38,181 @@
+ #include <asm/cp15.h>
+@@ -31,6 +38,182 @@
  
  extern struct vdso_data *__get_datapage(void);
  
@@ -387,7 +387,8 @@ index a9dd619c6c2..6f254d04f6d 100644
 +static notrace u64 read_arch_timer(const struct clksrc_info *info)
 +{
 +#ifdef CONFIG_ARM_ARCH_TIMER
-+	return arch_counter_get_cntvct();
++	isb();
++	return read_sysreg(CNTVCT);
 +#else
 +	return 0;
 +#endif
@@ -518,7 +519,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
  {
  	u32 seq;
-@@ -43,7 +225,7 @@ static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
+@@ -43,7 +226,7 @@ static notrace u32 __vdso_read_begin(const struct vdso_data *vdata)
  	return seq;
  }
  
@@ -527,35 +528,19 @@ index a9dd619c6c2..6f254d04f6d 100644
  {
  	u32 seq;
  
-@@ -59,30 +241,119 @@ static notrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
+@@ -59,30 +242,119 @@ static notrace int vdso_read_retry(const struct vdso_data *vdata, u32 start)
  	return vdata->seq_count != start;
  }
  
 -static notrace long clock_gettime_fallback(clockid_t _clkid,
 -					   struct timespec *_ts)
 +static notrace long _syscall3(u32 a0, u32 a1, u32 a2, u32 nr)
-+{
-+	register u32 r0 asm("r0") = a0;
-+	register u32 r1 asm("r1") = a1;
-+	register u32 r2 asm("r2") = a2;
-+	register long ret asm ("r0");
-+	register long _nr asm("r7") = nr;
-+
-+	asm volatile(
-+	"	swi #0\n"
-+	: "=r" (ret)
-+	: "r"(r0), "r"(r1), "r"(r2), "r"(_nr)
-+	: "memory");
-+
-+	return ret;
-+}
-+
-+static notrace long _syscall2(u32 a0, u32 a1, u32 nr)
  {
 -	register struct timespec *ts asm("r1") = _ts;
 -	register clockid_t clkid asm("r0") = _clkid;
 +	register u32 r0 asm("r0") = a0;
 +	register u32 r1 asm("r1") = a1;
++	register u32 r2 asm("r2") = a2;
  	register long ret asm ("r0");
 -	register long nr asm("r7") = __NR_clock_gettime;
 +	register long _nr asm("r7") = nr;
@@ -564,12 +549,28 @@ index a9dd619c6c2..6f254d04f6d 100644
  	"	swi #0\n"
  	: "=r" (ret)
 -	: "r" (clkid), "r" (ts), "r" (nr)
-+	: "r"(r0), "r"(r1), "r"(_nr)
++	: "r"(r0), "r"(r1), "r"(r2), "r"(_nr)
  	: "memory");
  
  	return ret;
  }
  
++static notrace long _syscall2(u32 a0, u32 a1, u32 nr)
++{
++	register u32 r0 asm("r0") = a0;
++	register u32 r1 asm("r1") = a1;
++	register long ret asm ("r0");
++	register long _nr asm("r7") = nr;
++
++	asm volatile(
++	"	swi #0\n"
++	: "=r" (ret)
++	: "r"(r0), "r"(r1), "r"(_nr)
++	: "memory");
++
++	return ret;
++}
++
 +static notrace noinline __cold
 +void vdso_map_clock(const struct vdso_data *vdata, struct vdso_priv *vpriv,
 +		    u32 seq, u32 new_type_and_seq)
@@ -655,7 +656,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  
  		ts->tv_sec = vdata->xtime_coarse_sec;
  		ts->tv_nsec = vdata->xtime_coarse_nsec;
-@@ -93,13 +364,14 @@ static notrace int do_realtime_coarse(struct timespec *ts,
+@@ -93,13 +365,14 @@ static notrace int do_realtime_coarse(struct timespec *ts,
  }
  
  static notrace int do_monotonic_coarse(struct timespec *ts,
@@ -672,7 +673,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  
  		ts->tv_sec = vdata->xtime_coarse_sec;
  		ts->tv_nsec = vdata->xtime_coarse_nsec;
-@@ -115,15 +387,13 @@ static notrace int do_monotonic_coarse(struct timespec *ts,
+@@ -115,16 +388,13 @@ static notrace int do_monotonic_coarse(struct timespec *ts,
  	return 0;
  }
  
@@ -685,12 +686,13 @@ index a9dd619c6c2..6f254d04f6d 100644
  	u64 cycle_now;
  	u64 nsec;
  
--	cycle_now = arch_counter_get_cntvct();
+-	isb();
+-	cycle_now = read_sysreg(CNTVCT);
 +	cycle_now = read_cycles(vpriv);
  
  	cycle_delta = (cycle_now - vdata->cs_cycle_last) & vdata->cs_mask;
  
-@@ -133,19 +403,21 @@ static notrace u64 get_ns(struct vdso_data *vdata)
+@@ -134,19 +404,21 @@ static notrace u64 get_ns(struct vdso_data *vdata)
  	return nsec;
  }
  
@@ -716,7 +718,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  
  	} while (vdso_read_retry(vdata, seq));
  
-@@ -155,20 +427,22 @@ static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
+@@ -156,20 +428,22 @@ static notrace int do_realtime(struct timespec *ts, struct vdso_data *vdata)
  	return 0;
  }
  
@@ -743,7 +745,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  
  		tomono.tv_sec = vdata->wtm_clock_sec;
  		tomono.tv_nsec = vdata->wtm_clock_nsec;
-@@ -182,63 +456,34 @@ static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
+@@ -183,63 +457,34 @@ static notrace int do_monotonic(struct timespec *ts, struct vdso_data *vdata)
  	return 0;
  }
  
@@ -814,7 +816,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  
  	return ret;
  }
-@@ -247,13 +492,15 @@ notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
+@@ -248,13 +493,15 @@ notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
  {
  	struct timespec ts;
  	struct vdso_data *vdata;
@@ -833,7 +835,7 @@ index a9dd619c6c2..6f254d04f6d 100644
  	if (tv) {
  		tv->tv_sec = ts.tv_sec;
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index a9e26f6a81a..24899d57aab 100644
+index 6bcaa4e2e72c..8fff34282a87 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
 @@ -30,6 +30,11 @@ config CLKBLD_I8253
@@ -849,7 +851,7 @@ index a9e26f6a81a..24899d57aab 100644
  	bool "BCM2835 timer driver" if COMPILE_TEST
  	select CLKSRC_MMIO
 diff --git a/drivers/clocksource/mmio.c b/drivers/clocksource/mmio.c
-index c1b0aa58b05..b0e88641f00 100644
+index c1b0aa58b05e..b0e88641f007 100644
 --- a/drivers/clocksource/mmio.c
 +++ b/drivers/clocksource/mmio.c
 @@ -468,6 +468,10 @@ int __init clocksource_user_dual_mmio_init(

@@ -1,4 +1,4 @@
-From 109d88b78c308588daa58a98d9f40694db27bfbf Mon Sep 17 00:00:00 2001
+From 2b3ee47a12c432a2f6fa26912a493fc48de5aa3b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 5 Dec 2015 18:36:25 +0100
 Subject: [PATCH] printk: introduce raw console channel
@@ -23,7 +23,7 @@ console devices.
  4 files changed, 89 insertions(+)
 
 diff --git a/include/linux/console.h b/include/linux/console.h
-index ec9bdb3d7bab..30a19920e15c 100644
+index d09951d5a94e..f45d24f0e1ce 100644
 --- a/include/linux/console.h
 +++ b/include/linux/console.h
 @@ -145,6 +145,7 @@ static inline int con_debug_leave(void)
@@ -35,10 +35,10 @@ index ec9bdb3d7bab..30a19920e15c 100644
  	struct tty_driver *(*device)(struct console *, int *);
  	void	(*unblank)(void);
 diff --git a/include/linux/printk.h b/include/linux/printk.h
-index d7c77ed1a4cb..f15ea4d1f078 100644
+index cefd374c47b1..b36738cd5ea3 100644
 --- a/include/linux/printk.h
 +++ b/include/linux/printk.h
-@@ -156,6 +156,17 @@ static inline void printk_nmi_direct_enter(void) { }
+@@ -158,6 +158,17 @@ static inline void printk_nmi_direct_enter(void) { }
  static inline void printk_nmi_direct_exit(void) { }
  #endif /* PRINTK_NMI */
  
@@ -57,10 +57,10 @@ index d7c77ed1a4cb..f15ea4d1f078 100644
  asmlinkage __printf(5, 0)
  int vprintk_emit(int facility, int level,
 diff --git a/init/Kconfig b/init/Kconfig
-index 4592bf7997c0..2fa4c92008ed 100644
+index 8b9ffe236e4f..603d12891d86 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1318,6 +1318,18 @@ config PRINTK_NMI
+@@ -1324,6 +1324,18 @@ config PRINTK_NMI
  	depends on PRINTK
  	depends on HAVE_NMI
  
@@ -80,10 +80,10 @@ index 4592bf7997c0..2fa4c92008ed 100644
  	bool "BUG() support" if EXPERT
  	default y
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 02ca827b8fac..993654683059 100644
+index a6e06fe38e41..1e5bbdcc26ed 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
-@@ -2093,6 +2093,66 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
+@@ -2103,6 +2103,66 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
  }
  #endif
  
@@ -150,7 +150,7 @@ index 02ca827b8fac..993654683059 100644
  static int __add_preferred_console(char *name, int idx, char *options,
  				   char *brl_options)
  {
-@@ -2706,6 +2766,9 @@ void register_console(struct console *newcon)
+@@ -2726,6 +2786,9 @@ void register_console(struct console *newcon)
  	if (!(newcon->flags & CON_ENABLED))
  		return;
  
@@ -160,7 +160,7 @@ index 02ca827b8fac..993654683059 100644
  	/*
  	 * If we have a bootconsole, and are switching to a real console,
  	 * don't print everything out again, since when the boot console, and
-@@ -2789,6 +2852,8 @@ int unregister_console(struct console *console)
+@@ -2809,6 +2872,8 @@ int unregister_console(struct console *console)
  		(console->flags & CON_BOOT) ? "boot" : "" ,
  		console->name, console->index);
  

@@ -1,4 +1,4 @@
-From 174fe7a16a8e9068944a3175e0a7f2ae8316ff96 Mon Sep 17 00:00:00 2001
+From 1137f1e0e2823dd434baf1524aa691266b1e773e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Mon, 8 Aug 2016 11:38:29 +0200
 Subject: [PATCH] locking: irq_pipeline: add mutable locking API
@@ -23,7 +23,7 @@ We typically use this with the irqdesc lock.
  create mode 100644 kernel/locking/pipeline.c
 
 diff --git a/include/linux/spinlock_pipeline.h b/include/linux/spinlock_pipeline.h
-index de31c97e508..79dabdb7a87 100644
+index de31c97e5083..79dabdb7a87a 100644
 --- a/include/linux/spinlock_pipeline.h
 +++ b/include/linux/spinlock_pipeline.h
 @@ -17,7 +17,7 @@
@@ -181,7 +181,7 @@ index de31c97e508..79dabdb7a87 100644
 +
  #endif /* __LINUX_SPINLOCK_PIPELINE_H */
 diff --git a/include/linux/spinlock_types.h b/include/linux/spinlock_types.h
-index 7eb1b2aa827..1efe90aa4c1 100644
+index 7eb1b2aa8276..1efe90aa4c16 100644
 --- a/include/linux/spinlock_types.h
 +++ b/include/linux/spinlock_types.h
 @@ -94,6 +94,9 @@ void __bad_spinlock_type(void);
@@ -238,20 +238,20 @@ index 7eb1b2aa827..1efe90aa4c1 100644
  
  #define __HARD_SPIN_LOCK_UNLOCKED(__lock)	__RAW_SPIN_LOCK_UNLOCKED(__lock)
 diff --git a/kernel/locking/Makefile b/kernel/locking/Makefile
-index 392c7f23af7..4f191e751f2 100644
+index 6fe2f333aecb..3cdcae79731c 100644
 --- a/kernel/locking/Makefile
 +++ b/kernel/locking/Makefile
-@@ -27,6 +27,7 @@ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
+@@ -25,6 +25,7 @@ obj-$(CONFIG_RT_MUTEXES) += rtmutex.o
+ obj-$(CONFIG_DEBUG_RT_MUTEXES) += rtmutex-debug.o
+ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
  obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock_debug.o
- obj-$(CONFIG_RWSEM_GENERIC_SPINLOCK) += rwsem-spinlock.o
- obj-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem-xadd.o
 +obj-$(CONFIG_IRQ_PIPELINE) += pipeline.o
  obj-$(CONFIG_QUEUED_RWLOCKS) += qrwlock.o
  obj-$(CONFIG_LOCK_TORTURE_TEST) += locktorture.o
  obj-$(CONFIG_WW_MUTEX_SELFTEST) += test-ww_mutex.o
 diff --git a/kernel/locking/pipeline.c b/kernel/locking/pipeline.c
 new file mode 100644
-index 00000000000..8cada5d0ca2
+index 000000000000..8cada5d0ca2b
 --- /dev/null
 +++ b/kernel/locking/pipeline.c
 @@ -0,0 +1,223 @@

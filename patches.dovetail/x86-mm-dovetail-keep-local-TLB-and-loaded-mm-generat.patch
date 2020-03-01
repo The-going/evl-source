@@ -1,0 +1,82 @@
+From 0b9e089e46fad933ba63756a0ef2016cef41576c Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 24 May 2019 10:06:51 +0200
+Subject: [PATCH] x86/mm: dovetail: keep local TLB and loaded mm generation in
+ sync
+
+The per-CPU local TLB generation might progress as out-of-band task(s)
+preempt the inband kernel when it flushes the TLB.
+
+We need to keep that count in sync with the per-mm generation value
+for the loaded context until we are done checking whether a flush
+should actually occur (i.e. not lazy, and differing generation values
+between the CPU and the current context). This can be done by running
+this section with hard IRQs disabled.
+
+Actual flush operations can still take place later in a non-protected
+section, the inband TLB flush management should be able to catch up
+later if need be.
+---
+ arch/x86/mm/tlb.c | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 25c4bf7c418e..f9f00d649afb 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -534,16 +534,23 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 	 *                   wants us to catch up to.
+ 	 */
+ 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+-	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+-	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
+-	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
++	u64 mm_tlb_gen, local_tlb_gen;
++	u32 loaded_mm_asid;
+ 	unsigned long flags;
+ 
+ 	/* This code cannot presently handle being reentered. */
+ 	VM_WARN_ON(!irqs_disabled());
+ 
+-	if (unlikely(loaded_mm == &init_mm))
++	protect_inband_mm(flags);
++
++	loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
++	mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
++	local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
++
++	if (unlikely(loaded_mm == &init_mm)) {
++		unprotect_inband_mm(flags);
+ 		return;
++	}
+ 
+ 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
+ 		   loaded_mm->context.ctx_id);
+@@ -558,7 +565,6 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 		 * This should be rare, with native_flush_tlb_others skipping
+ 		 * IPIs to lazy TLB mode CPUs.
+ 		 */
+-		protect_inband_mm(flags);
+ 		switch_mm_irqs_off(NULL, &init_mm, NULL);
+ 		unprotect_inband_mm(flags);
+ 		return;
+@@ -571,6 +577,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 		 * be handled can catch us all the way up, leaving no work for
+ 		 * the second flush.
+ 		 */
++		unprotect_inband_mm(flags);
+ 		trace_tlb_flush(reason, 0);
+ 		return;
+ 	}
+@@ -578,6 +585,8 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 	WARN_ON_ONCE(local_tlb_gen > mm_tlb_gen);
+ 	WARN_ON_ONCE(f->new_tlb_gen > mm_tlb_gen);
+ 
++	unprotect_inband_mm(flags);
++
+ 	/*
+ 	 * If we get to this point, we know that our TLB is out of date.
+ 	 * This does not strictly imply that we need to flush (it's
+-- 
+2.16.4
+

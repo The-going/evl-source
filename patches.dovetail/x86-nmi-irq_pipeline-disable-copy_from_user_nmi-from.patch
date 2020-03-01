@@ -1,0 +1,25 @@
+From 835db2ad90a700a678cab636cf03241e9140dd19 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 28 Apr 2019 16:39:20 +0200
+Subject: [PATCH] x86/nmi: irq_pipeline: disable copy_from_user_nmi() from oob
+
+---
+ arch/x86/lib/usercopy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/lib/usercopy.c b/arch/x86/lib/usercopy.c
+index 3f435d7fca5e..1cdb806bd689 100644
+--- a/arch/x86/lib/usercopy.c
++++ b/arch/x86/lib/usercopy.c
+@@ -18,7 +18,7 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
+ {
+ 	unsigned long ret;
+ 
+-	if (__range_not_ok(from, n, TASK_SIZE))
++	if (running_oob() || __range_not_ok(from, n, TASK_SIZE))
+ 		return n;
+ 
+ 	if (!nmi_uaccess_okay())
+-- 
+2.16.4
+

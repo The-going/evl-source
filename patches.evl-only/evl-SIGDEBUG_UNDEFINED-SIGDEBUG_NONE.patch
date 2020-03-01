@@ -1,0 +1,142 @@
+From 5955d8cfe04fc583085eddf5e7152833b7fd1044 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 21 May 2019 07:58:27 +0200
+Subject: [PATCH] evl: SIGDEBUG_UNDEFINED -> SIGDEBUG_NONE
+
+---
+ include/trace/events/evl.h |  4 ++--
+ include/uapi/evl/signal.h  |  2 +-
+ kernel/evl/syscall.c       |  6 +++---
+ kernel/evl/thread.c        | 14 +++++++-------
+ 4 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index 8c781ab4e8ca..153002f74039 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -500,9 +500,9 @@ DEFINE_EVENT(curr_thread_event, evl_switched_oob,
+ 	TP_ARGS(curr)
+ );
+ 
+-#define evl_print_switch_cause(cause)				\
++#define evl_print_switch_cause(cause)					\
+ 	__print_symbolic(cause,						\
+-			 { SIGDEBUG_UNDEFINED,		"undefined" },	\
++			 { SIGDEBUG_NONE,		"undefined" },	\
+ 			 { SIGDEBUG_MIGRATE_SIGNAL,	"signal" },	\
+ 			 { SIGDEBUG_MIGRATE_SYSCALL,	"syscall" },	\
+ 			 { SIGDEBUG_MIGRATE_FAULT,	"fault" })
+diff --git a/include/uapi/evl/signal.h b/include/uapi/evl/signal.h
+index e98759c80590..e422ab80d5f3 100644
+--- a/include/uapi/evl/signal.h
++++ b/include/uapi/evl/signal.h
+@@ -25,7 +25,7 @@
+ 	((sigdebug_code(si) & 0xffff0000) == sigdebug_marker)
+ 
+ /* Possible values of sigdebug_cause() */
+-#define SIGDEBUG_UNDEFINED		0
++#define SIGDEBUG_NONE			0
+ #define SIGDEBUG_MIGRATE_SIGNAL		1
+ #define SIGDEBUG_MIGRATE_SYSCALL	2
+ #define SIGDEBUG_MIGRATE_FAULT		3
+diff --git a/kernel/evl/syscall.c b/kernel/evl/syscall.c
+index 59da6c6cd757..d22604dd5dee 100644
+--- a/kernel/evl/syscall.c
++++ b/kernel/evl/syscall.c
+@@ -60,7 +60,7 @@ static void prepare_for_signal(struct task_struct *p,
+ 			struct evl_thread *curr,
+ 			struct pt_regs *regs)
+ {
+-	int cause = SIGDEBUG_UNDEFINED;
++	int cause = SIGDEBUG_NONE;
+ 	unsigned long flags;
+ 
+ 	/*
+@@ -131,7 +131,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
+ 			prepare_for_signal(p, curr, regs);
+ 		else if ((curr->state & T_WEAK) &&
+ 			!atomic_read(&curr->inband_disable_count))
+-			evl_switch_inband(SIGDEBUG_UNDEFINED);
++			evl_switch_inband(SIGDEBUG_NONE);
+ 	}
+ 
+ 	/* Update the stats and user visible info. */
+@@ -208,7 +208,7 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
+ 			prepare_for_signal(p, curr, regs);
+ 		else if ((curr->state & T_WEAK) &&
+ 			!atomic_read(&curr->inband_disable_count))
+-			evl_switch_inband(SIGDEBUG_UNDEFINED);
++			evl_switch_inband(SIGDEBUG_NONE);
+ 	}
+ done:
+ 	curr->local_info &= ~T_HICCUP;
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index e929524b2454..a3ae619d1f9e 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -709,7 +709,7 @@ void evl_switch_inband(int cause)
+ 	}
+ #endif
+ 
+-	if ((curr->state & T_USER) && cause != SIGDEBUG_UNDEFINED) {
++	if ((curr->state & T_USER) && cause != SIGDEBUG_NONE) {
+ 		if (curr->state & T_WARN) {
+ 			/* Help debugging spurious mode switches. */
+ 			memset(&si, 0, sizeof(si));
+@@ -777,7 +777,7 @@ int evl_switch_oob(void)
+ 	if (signal_pending(p)) {
+ 		evl_switch_inband(!(curr->state & T_SSTEP) ?
+ 				SIGDEBUG_MIGRATE_SIGNAL:
+-				SIGDEBUG_UNDEFINED);
++				SIGDEBUG_NONE);
+ 		return -ERESTARTSYS;
+ 	}
+ 
+@@ -1052,7 +1052,7 @@ int evl_join_thread(struct evl_thread *thread, bool uninterruptible)
+ 
+ 	if (curr && !(curr->state & T_INBAND)) {
+ 		xnlock_put_irqrestore(&nklock, flags);
+-		evl_switch_inband(SIGDEBUG_UNDEFINED);
++		evl_switch_inband(SIGDEBUG_NONE);
+ 		switched = true;
+ 	} else
+ 		xnlock_put_irqrestore(&nklock, flags);
+@@ -1188,7 +1188,7 @@ void __evl_test_cancel(struct evl_thread *curr)
+ 		return;
+ 
+ 	if (!(curr->state & T_INBAND))
+-		evl_switch_inband(SIGDEBUG_UNDEFINED);
++		evl_switch_inband(SIGDEBUG_NONE);
+ 
+ 	do_exit(0);
+ 	/* ... won't return ... */
+@@ -1616,7 +1616,7 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+ 	 */
+ 	evl_switch_inband(xnarch_fault_notify(trapnr) ?
+ 			SIGDEBUG_MIGRATE_FAULT :
+-			SIGDEBUG_UNDEFINED);
++			SIGDEBUG_NONE);
+ 
+ 	curr->local_info &= ~T_INFAULT;
+ }
+@@ -1634,7 +1634,7 @@ void handle_oob_mayday(struct pt_regs *regs)
+ 	 * syscall. Filter this case out.
+ 	 */
+ 	if (!(curr->state & T_INBAND))
+-		evl_switch_inband(SIGDEBUG_UNDEFINED);
++		evl_switch_inband(SIGDEBUG_NONE);
+ }
+ 
+ #ifdef CONFIG_SMP
+@@ -2072,7 +2072,7 @@ static long thread_oob_ioctl(struct file *filp, unsigned int cmd,
+ 		break;
+ 	case EVL_THRIOC_SWITCH_INBAND:
+ 		if (thread == curr) {
+-			evl_switch_inband(SIGDEBUG_UNDEFINED);
++			evl_switch_inband(SIGDEBUG_NONE);
+ 			ret = 0;
+ 		}
+ 		break;
+-- 
+2.16.4
+

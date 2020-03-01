@@ -1,4 +1,4 @@
-From 96eb99e8e32a052bd395cf0577998cab4c9e1ead Mon Sep 17 00:00:00 2001
+From ca05ca4b0b6f5925e17126ea16e342350ebc6420 Mon Sep 17 00:00:00 2001
 From: Gilles Chanteperdrix <gilles.chanteperdrix@xenomai.org>
 Date: Thu, 21 Jul 2016 01:09:11 +0200
 Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
@@ -9,10 +9,10 @@ Subject: [PATCH] clocksource/timer-imx-gpt: convert to user mmio clocksource
  2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/clocksource/Kconfig b/drivers/clocksource/Kconfig
-index f4dd49321391..196e1fe41799 100644
+index 8fff34282a87..e73a212054be 100644
 --- a/drivers/clocksource/Kconfig
 +++ b/drivers/clocksource/Kconfig
-@@ -594,7 +594,7 @@ config H8300_TPU
+@@ -611,7 +611,7 @@ config H8300_TPU
  config CLKSRC_IMX_GPT
  	bool "Clocksource using i.MX GPT" if COMPILE_TEST
  	depends on (ARM || ARM64) && CLKDEV_LOOKUP

@@ -1,4 +1,4 @@
-From 293bc9f08ba144c1fafb71876ceea03cfb7394e4 Mon Sep 17 00:00:00 2001
+From 36b6ada9576a0acd15c7a8a99c629c4cfc3e1455 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -196,10 +196,10 @@ Subject: [PATCH] evl: rename evenless/ paths to evl/
  rename kernel/{evenless => evl}/xbuf.c (98%)
 
 diff --git a/arch/arm/Makefile b/arch/arm/Makefile
-index 2d68d8b57242..abe657b99302 100644
+index 2fadd924aeef..16d4d0b2ef31 100644
 --- a/arch/arm/Makefile
 +++ b/arch/arm/Makefile
-@@ -271,7 +271,7 @@ endif
+@@ -270,7 +270,7 @@ endif
  endif
  
  ifeq ($(CONFIG_EVL),y)
@@ -484,7 +484,7 @@ index 000000000000..212ff2528aac
 +
 +#endif /* !_EVL_ARM64_ASM_UAPI_SYSCALL_H */
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 186d73c16561..db132065cf49 100644
+index 35c8d596043c..273c3f2a6494 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -30,7 +30,7 @@ source "drivers/block/Kconfig"
@@ -497,7 +497,7 @@ index 186d73c16561..db132065cf49 100644
  # misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index d63a33a2f0d5..58de5bd6d972 100644
+index f337a917c32a..f0df2e534bc6 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -157,7 +157,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -1933,10 +1933,10 @@ index 6730247e8da3..9d8256629839 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 9fbb0c958b9a..a795a5ced447 100644
+index 322c1c3ddef7..14f8019939d4 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -99,7 +99,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -101,7 +101,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

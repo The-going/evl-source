@@ -1,0 +1,61 @@
+From 670689819be8e6bf6af4df7ae5c354c2808a553e Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Mon, 20 May 2019 09:06:31 +0200
+Subject: [PATCH] evl/thread: fix potential UMR in disposal handler
+
+Once the completion is signaled, a joiner might free the (k)thread
+descriptor memory. Make sure we don't refer to this descriptor after
+this point.
+---
+ kernel/evl/thread.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 34f0dd5f1ada..e929524b2454 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -2260,19 +2260,21 @@ thread_factory_build(struct evl_factory *fac, const char *name,
+ static void thread_factory_dispose(struct evl_element *e)
+ {
+ 	struct evl_thread *thread;
++	int state;
+ 
+ 	thread = container_of(e, struct evl_thread, element);
++	state = thread->state;
+ 
+ 	/*
+ 	 * Two ways to get into the disposal handler: either
+ 	 * open_factory_node() failed creating a device for @thread
+-	 * which is current, or when the last file reference to
+-	 * @thread is dropped after it has exited. T_ZOMBIE cleared
+-	 * denotes the first case, otherwise @thread has existed and
+-	 * is now dead and no more reachable, so we can wakeup any
+-	 * joiners.
++	 * which is current, or after the last file reference to
++	 * @thread was dropped after exit. T_ZOMBIE cleared denotes
++	 * the first case, otherwise @thread has existed, is now dead
++	 * and no more reachable, so we can wakeup joiners if any.
+ 	 */
+-	if (thread->state & T_ZOMBIE) {
++	if (likely(state & T_ZOMBIE)) {
++		evl_destroy_element(&thread->element);
+ 		complete_all(&thread->exited);	 /* evl_join_thread() */
+ 		if (waitqueue_active(&join_all)) /* evl_killall() */
+ 			wake_up(&join_all);
+@@ -2280,11 +2282,10 @@ static void thread_factory_dispose(struct evl_element *e)
+ 		if (EVL_WARN_ON(CORE, evl_current() != thread))
+ 			return;
+ 		cleanup_current_thread();
++		evl_destroy_element(&thread->element);
+ 	}
+ 
+-	evl_destroy_element(&thread->element);
+-
+-	if (thread->state & T_USER)
++	if (state & T_USER)
+ 		kfree_rcu(thread, element.rcu);
+ }
+ 
+-- 
+2.16.4
+
