@@ -1,4 +1,4 @@
-From 0b130a42eca05e284b4fe72fe88e17b2f18ee1e3 Mon Sep 17 00:00:00 2001
+From 6b36e833d1a57568d31914889ca4773e2bbcc6e7 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 28 Jan 2020 11:10:57 +0100
 Subject: [PATCH] evl: introduce synchronous breakpoint support
@@ -21,20 +21,21 @@ Signed-off-by: Philippe Gerum <rpm@xenomai.org>
  arch/arm/include/dovetail/mm_info.h   |   7 +
  arch/arm64/include/dovetail/mm_info.h |   7 +
  arch/x86/include/dovetail/mm_info.h   |   7 +
- include/asm-generic/evl/mm_info.h     |  27 +++
+ include/asm-generic/evl/mm_info.h     |  27 ++
  include/evl/lock.h                    |   2 +-
  include/evl/sched.h                   |   3 +
  include/evl/thread.h                  |  37 ++-
  include/trace/events/evl.h            |  20 +-
+ include/uapi/evl/control.h            |   2 +-
  include/uapi/evl/signal.h             |   1 -
  include/uapi/evl/thread.h             |  80 +++---
  kernel/evl/control.c                  |  30 +++
- kernel/evl/factory.c                  |  11 +-
- kernel/evl/sched/core.c               | 126 +++++++---
+ kernel/evl/factory.c                  |   7 +-
+ kernel/evl/sched/core.c               | 158 +++++++++---
  kernel/evl/syscall.c                  |  30 ++-
- kernel/evl/thread.c                   | 444 ++++++++++++++++++++++++----------
+ kernel/evl/thread.c                   | 458 ++++++++++++++++++++++++----------
  kernel/evl/timer.c                    |   2 +-
- 16 files changed, 615 insertions(+), 219 deletions(-)
+ 17 files changed, 656 insertions(+), 222 deletions(-)
  create mode 100644 arch/arm/include/dovetail/mm_info.h
  create mode 100644 arch/arm64/include/dovetail/mm_info.h
  create mode 100644 arch/x86/include/dovetail/mm_info.h
@@ -276,6 +277,19 @@ index 7d654ea8f374..c502e0b0af4e 100644
  	TP_PROTO(int cause),
  	TP_ARGS(cause),
  
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 71630cbfe0b8..d9b3bf27bd5e 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  15
++#define EVL_ABI_LEVEL  16
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
 diff --git a/include/uapi/evl/signal.h b/include/uapi/evl/signal.h
 index cbdf68b7b90a..95f5185d1d53 100644
 --- a/include/uapi/evl/signal.h
@@ -451,7 +465,7 @@ index 0c0642716a6d..0f607d90bf02 100644
  	.unlocked_ioctl	=	control_ioctl,
  	.mmap		=	control_mmap,
 diff --git a/kernel/evl/factory.c b/kernel/evl/factory.c
-index 632cfb3370ac..c5c56e20c3bc 100644
+index 632cfb3370ac..1d8f1c7cf041 100644
 --- a/kernel/evl/factory.c
 +++ b/kernel/evl/factory.c
 @@ -19,6 +19,7 @@
@@ -485,19 +499,8 @@ index 632cfb3370ac..c5c56e20c3bc 100644
  	ret = dev_set_name(dev, "%s", name);
  	if (ret)
  		goto fail;
-@@ -384,6 +387,10 @@ static long ioctl_clone_device(struct file *filp, unsigned int cmd,
- 	if (e)
- 		return -EBUSY;
- 
-+	/* @current must open the control device first. */
-+	if (!test_bit(EVL_MM_ACTIVE_BIT, &dovetail_mm_state()->flags))
-+		return -EPERM;
-+
- 	u_req = (typeof(u_req))arg;
- 	ret = copy_from_user(&req, u_req, sizeof(req));
- 	if (ret)
 diff --git a/kernel/evl/sched/core.c b/kernel/evl/sched/core.c
-index 519e7988a071..80987f0bceac 100644
+index 28fbba0aea70..80987f0bceac 100644
 --- a/kernel/evl/sched/core.c
 +++ b/kernel/evl/sched/core.c
 @@ -23,6 +23,7 @@
@@ -674,7 +677,7 @@ index 519e7988a071..80987f0bceac 100644
  	}
  
  	return 0;
-@@ -994,33 +1066,31 @@ void evl_switch_inband(int cause)
+@@ -994,39 +1066,65 @@ void evl_switch_inband(int cause)
  	struct evl_thread *curr = evl_current();
  	struct task_struct *p = current;
  	struct kernel_siginfo si;
@@ -716,8 +719,44 @@ index 519e7988a071..80987f0bceac 100644
 +
  	curr->state |= T_INBAND;
  	curr->local_info &= ~T_SYSRST;
- 	notify = curr->state & T_USER && cause > SIGDEBUG_NONE;
-@@ -1090,7 +1160,7 @@ void evl_switch_inband(int cause)
+-	evl_set_resched(rq);
+-	evl_spin_unlock(&rq->lock);
++	notify = curr->state & T_USER && cause > SIGDEBUG_NONE;
++
++	/*
++	 * If we are initiating the ptsync sequence on breakpoint or
++	 * SIGSTOP/SIGINT is pending, do not send SIGDEBUG since
++	 * switching in-band is ok.
++	 */
++	if (cause == SIGDEBUG_TRAP) {
++		curr->info |= T_PTSTOP;
++		curr->info &= ~T_PTJOIN;
++		start_ptsync_locked(curr, this_rq);
++	} else if (curr->info & T_PTSIG) {
++		curr->info &= ~T_PTSIG;
++		notify = false;
++	}
++
++	curr->info &= ~EVL_THREAD_INFO_MASK;
++
++	evl_set_resched(this_rq);
++
++	evl_spin_unlock(&this_rq->lock);
+ 	evl_spin_unlock(&curr->lock);
++
++	/*
++	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
++	 * kernel is allowed to take interrupts again, so that
++	 * try_to_wake_up() does not block the wake up request for the
++	 * switching thread as a result of testing
++	 * task_is_off_stage().
++	 */
+ 	dovetail_leave_oob();
++
+ 	__evl_schedule();
+ 	/*
+ 	 * this_rq()->lock was released when the root thread resumed
+@@ -1062,7 +1160,7 @@ void evl_switch_inband(int cause)
  	 */
  	evl_propagate_schedparam_change(curr);
  
@@ -808,7 +847,7 @@ index 8448a6984b54..4bfc461726dc 100644
  	evl_sync_uwindow(curr);
  
 diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
-index 77a98fca8c9d..d6e880900739 100644
+index 3c1bbe187e46..4faa44f747eb 100644
 --- a/kernel/evl/thread.c
 +++ b/kernel/evl/thread.c
 @@ -38,6 +38,7 @@
@@ -992,7 +1031,7 @@ index 77a98fca8c9d..d6e880900739 100644
  }
  EXPORT_SYMBOL_GPL(evl_demote_thread);
  
-@@ -1397,6 +1438,34 @@ pid_t evl_get_inband_pid(struct evl_thread *thread)
+@@ -1397,6 +1438,40 @@ pid_t evl_get_inband_pid(struct evl_thread *thread)
  	return task_pid_nr(thread->altsched.task);
  }
  
@@ -1017,6 +1056,12 @@ index 77a98fca8c9d..d6e880900739 100644
 +
 +static void flush_oob_mm_state(struct oob_mm_state *p)
 +{
++	/*
++	 * We are called for every mm dropped. Since every oob state
++	 * is zeroed before use by the in-band kernel, processes with
++	 * no active out-of-band state will escape this cleanup work
++	 * on test_and_clear_bit().
++	 */
 +	if (test_and_clear_bit(EVL_MM_ACTIVE_BIT, &p->flags)) {
 +		EVL_WARN_ON(CORE, !list_empty(&p->ptrace_sync));
 +		evl_destroy_wait(p->ptsync_barrier);
@@ -1027,7 +1072,7 @@ index 77a98fca8c9d..d6e880900739 100644
  void arch_inband_task_init(struct task_struct *tsk)
  {
  	struct oob_thread_state *p = dovetail_task_state(tsk);
-@@ -1430,14 +1499,14 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+@@ -1430,14 +1505,14 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
  	struct evl_thread *curr;
  	bool is_bp = false;
  
@@ -1044,7 +1089,7 @@ index 77a98fca8c9d..d6e880900739 100644
  	curr->local_info |= T_INFAULT;
  
  	trace_evl_thread_fault(trapnr, regs);
-@@ -1450,10 +1519,9 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
+@@ -1450,10 +1525,9 @@ void handle_oob_trap(unsigned int trapnr, struct pt_regs *regs)
  
  	/*
  	 * We received a trap on the oob stage, switch to in-band
@@ -1057,7 +1102,7 @@ index 77a98fca8c9d..d6e880900739 100644
  
  	curr->local_info &= ~T_INFAULT;
  }
-@@ -1474,10 +1542,9 @@ void handle_oob_mayday(struct pt_regs *regs)
+@@ -1474,10 +1548,9 @@ void handle_oob_mayday(struct pt_regs *regs)
  		evl_switch_inband(SIGDEBUG_NONE);
  }
  
@@ -1069,7 +1114,7 @@ index 77a98fca8c9d..d6e880900739 100644
  	struct task_struct *p = d->task;
  	struct evl_thread *thread;
  
-@@ -1503,127 +1570,241 @@ static void handle_migration_event(struct dovetail_migration_data *d)
+@@ -1503,127 +1576,241 @@ static void handle_migration_event(struct dovetail_migration_data *d)
  	 */
  	if (thread->state & (EVL_THREAD_BLOCK_BITS & ~T_INBAND))
  		evl_signal_thread(thread, SIGEVL, SIGEVL_ACTION_HOME);
@@ -1401,32 +1446,37 @@ index 77a98fca8c9d..d6e880900739 100644
  }
  
  static void handle_cleanup_event(struct mm_struct *mm)
-@@ -1632,27 +1813,25 @@ static void handle_cleanup_event(struct mm_struct *mm)
+@@ -1631,28 +1818,30 @@ static void handle_cleanup_event(struct mm_struct *mm)
+ 	struct evl_thread *curr = evl_current();
  
  	/*
++	 * This event is fired whenever a user task is dropping its
++	 * mm.
++	 *
  	 * Detect an EVL thread running exec(), i.e. still attached to
 -	 * the current Linux task (PF_EXITING is cleared for a task
-+	 * the current in-band task (PF_EXITING is cleared for a task
- 	 * which did not explicitly run do_exit()). In this case, we
+-	 * which did not explicitly run do_exit()). In this case, we
++	 * the current in-band task but not bearing PF_EXITING, which
++	 * indicates that it did not call do_exit(). In this case, we
  	 * emulate a task exit, since the EVL binding shall not
 -	 * survive the exec() syscall.
--	 *
++	 * survive the exec() syscall.  We may get there after
++	 * cleanup_current_thread() already ran, so check @curr for
++	 * NULL.
+ 	 *
 -	 * NOTE: We are called for every userland task exiting from
 -	 * in-band context. We are NOT called for exiting kernel
 -	 * threads since they have no mm proper. We may get there
 -	 * after cleanup_current_thread() already ran though, so check
 -	 * @curr.
-+	 * survive the exec() syscall.  We may get there after
-+	 * cleanup_current_thread() already ran, so check @curr.
++	 * Otherwise, release the oob state for the dropped mm if
++	 * any. We may or may not have one, EVL_MM_ACTIVE_BIT tells us
++	 * so.
  	 */
  	if (curr && !(current->flags & PF_EXITING))
  		put_current_thread();
-+
-+	/*
-+	 * Finally, release the oob state for the dropped mm. We may
-+	 * or may not have one, EVL_MM_ACTIVE_BIT tells us so.
-+	 */
-+	flush_oob_mm_state(&mm->oob_state);
++	else
++		flush_oob_mm_state(&mm->oob_state);
  }
  
  void handle_inband_event(enum inband_event_type event, void *data)
@@ -1438,7 +1488,7 @@ index 77a98fca8c9d..d6e880900739 100644
  	case INBAND_TASK_SIGNAL:
  		handle_sigwake_event(data);
  		break;
-@@ -1662,6 +1841,18 @@ void handle_inband_event(enum inband_event_type event, void *data)
+@@ -1662,6 +1851,18 @@ void handle_inband_event(enum inband_event_type event, void *data)
  	case INBAND_TASK_MIGRATION:
  		handle_migration_event(data);
  		break;
@@ -1457,7 +1507,7 @@ index 77a98fca8c9d..d6e880900739 100644
  	case INBAND_PROCESS_CLEANUP:
  		handle_cleanup_event(data);
  		break;
-@@ -1960,6 +2151,7 @@ static int map_uthread_self(struct evl_thread *thread)
+@@ -1960,6 +2161,7 @@ static int map_uthread_self(struct evl_thread *thread)
  
  	dovetail_init_altsched(&thread->altsched);
  	set_oob_threadinfo(thread);
@@ -1465,6 +1515,17 @@ index 77a98fca8c9d..d6e880900739 100644
  
  	/*
  	 * CAUTION: we enable dovetailing only when *thread is
+@@ -2008,6 +2210,10 @@ thread_factory_build(struct evl_factory *fac, const char *name,
+ 	if (evl_current())
+ 		return ERR_PTR(-EBUSY);
+ 
++	/* @current must open the control device first. */
++	if (!test_bit(EVL_MM_ACTIVE_BIT, &dovetail_mm_state()->flags))
++		return ERR_PTR(-EPERM);
++
+ 	curr = kzalloc(sizeof(*curr), GFP_KERNEL);
+ 	if (curr == NULL)
+ 		return ERR_PTR(-ENOMEM);
 diff --git a/kernel/evl/timer.c b/kernel/evl/timer.c
 index 640dccb67e30..2353bec4a1c0 100644
 --- a/kernel/evl/timer.c

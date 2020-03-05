@@ -1,0 +1,32 @@
+From 5c19a774cad05357f3cd19c460ddf41b21ce4fef Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 21 Feb 2020 14:23:18 +0100
+Subject: [PATCH] evl/stax: force the caller to in-band mode on WOSX
+
+We have to make sure that an oob thread attempting to lock a busy stax
+receives the STAGE_LOCKED notification asap, once it has obtained the
+lock. Forcibly kick such thread out of the oob stage if a WOSX
+notification is due, so that it will receive SIGDEBUG asap.
+---
+ kernel/evl/stax.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/evl/stax.c b/kernel/evl/stax.c
+index 5b6d534683d5..17da6dac5da5 100644
+--- a/kernel/evl/stax.c
++++ b/kernel/evl/stax.c
+@@ -93,8 +93,10 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
+ out:
+ 	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+ 
+-	if (notify)
++	if (notify) {
+ 		evl_signal_thread(curr, SIGDEBUG, SIGDEBUG_STAGE_LOCKED);
++		evl_kick_thread(curr, 0);
++	}
+ 
+ 	return ret;
+ }
+-- 
+2.16.4
+

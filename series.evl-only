@@ -362,6 +362,12 @@
 	patches.evl-only/evl-thread-drop-useless-thread_info-initializer.patch
 	patches.evl-only/evl-flag-clarify-the-pulse-interface.patch
 	patches.evl-only/evl-flag-add-clear-operation.patch
+	patches.evl-only/evl-deny-accessing-attributes-of-clone-devices.patch
 	patches.evl-only/evl-sched-move-dovetail_leave_oob-out-of-lock.patch
 	patches.evl-only/evl-introduce-synchronous-breakpoint-support.patch
-	patches.evl-only/evl-deny-accessing-attributes-of-clone-devices.patch
+	patches.evl-only/evl-sched-caller-of-evl_force_thread-should-raise-T_.patch
+	patches.evl-only/evl-init-fix-left-over-hiding-ulat-preset-value.patch
+	patches.evl-only/evl-thread-honor-SCHED_WEAK-on-return-from-RETUSER.patch
+	patches.evl-only/evl-thread-replace-SIGEVL_ACTION_HOME-with-a-RETUSER.patch
+	patches.evl-only/evl-thread-fix-rescheduling-leak.patch
+	patches.evl-only/evl-stax-force-the-caller-to-in-band-mode-on-WOSX.patch

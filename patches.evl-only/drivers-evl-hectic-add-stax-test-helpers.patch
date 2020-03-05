@@ -1,4 +1,4 @@
-From 6e534a6723a2fbf72255b56d9e7f61b4a7ba6657 Mon Sep 17 00:00:00 2001
+From 17b56dfefca595ee7f96ed4e294f856a135df61b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Tue, 21 Jan 2020 15:54:23 +0100
 Subject: [PATCH] drivers/evl: hectic: add stax test helpers
@@ -7,8 +7,9 @@ This allows writing user-space tests exercising the stax
 serialization.
 ---
  drivers/evl/hectic.c              | 19 +++++++++++++++++++
+ include/uapi/evl/control.h        |  2 +-
  include/uapi/evl/devices/hectic.h |  2 ++
- 2 files changed, 21 insertions(+)
+ 3 files changed, 22 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/evl/hectic.c b/drivers/evl/hectic.c
 index f7449faac495..01cf64686ab4 100644
@@ -75,6 +76,19 @@ index f7449faac495..01cf64686ab4 100644
  	evl_destroy_timer(&ctx->wake_up_delay);
  
  	if (ctx->tasks) {
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 25b15107e9ce..65485f92ccd4 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  13
++#define EVL_ABI_LEVEL  14
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
 diff --git a/include/uapi/evl/devices/hectic.h b/include/uapi/evl/devices/hectic.h
 index 4ef3366ae8c9..6426901d0abf 100644
 --- a/include/uapi/evl/devices/hectic.h

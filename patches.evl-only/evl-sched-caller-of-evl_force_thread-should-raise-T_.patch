@@ -1,0 +1,58 @@
+From c686681923be345d790d011f2e7cbf78c8036c67 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sun, 16 Feb 2020 11:18:13 +0100
+Subject: [PATCH] evl/sched: caller of evl_force_thread() should raise T_KICKED
+
+Not a bug fix so far but a clarification of the interface.
+---
+ include/evl/sched.h |  4 ----
+ kernel/evl/thread.c | 14 ++++++++------
+ 2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/include/evl/sched.h b/include/evl/sched.h
+index 1ab40711965d..fe1909511beb 100644
+--- a/include/evl/sched.h
++++ b/include/evl/sched.h
+@@ -599,12 +599,8 @@ static inline void evl_force_thread(struct evl_thread *thread)
+ 
+ 	assert_thread_pinned(thread);
+ 
+-	thread->info |= T_KICKED;
+-
+ 	if (sched_class->sched_kick)
+ 		sched_class->sched_kick(thread);
+-
+-	evl_set_resched(thread->rq);
+ }
+ 
+ struct evl_sched_group {
+diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
+index 4faa44f747eb..e0913291d4b8 100644
+--- a/kernel/evl/thread.c
++++ b/kernel/evl/thread.c
+@@ -1228,14 +1228,16 @@ void evl_kick_thread(struct evl_thread *thread, int info)
+ 	 * context, whatever this entails internally for the
+ 	 * implementation.
+ 	 *
+-	 * - if the thread was merely running on the CPU, it won't
+-	 * bear the T_READY bit at this point: force a mayday trap by
+-	 * raising T_KICKED manually in this case.
++	 * - if the thread is running on the CPU, raising T_KICKED is
++	 * enough to force a switch to in-band context on the next
++	 * return to user.
+ 	 */
+-	if (thread->state & T_READY)
++	thread->info |= T_KICKED;
++
++	if (thread->state & T_READY) {
+ 		evl_force_thread(thread);
+-	else
+-		thread->info |= T_KICKED;
++		evl_set_resched(thread->rq);
++	}
+ 
+ 	if (info)
+ 		thread->info |= info;
+-- 
+2.16.4
+

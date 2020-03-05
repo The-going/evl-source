@@ -287,3 +287,7 @@
 	patches.dovetail/ptrace-dovetail-trigger-PTSTEP-PTSTOP-and-PTCONT-eve.patch
 	patches.dovetail/sched-dovetail-drop-INBAND_TASK_SCHEDULE-event.patch
 	patches.dovetail/dovetail-pull-mayday-related-declarations.patch
+	patches.dovetail/fork-dovetail-ensure-oob-state-is-cleared-on-dup.patch
+	patches.dovetail/Revert-ARM-dovetail-notify-co-kernel-about-und_usr.patch
+	patches.dovetail/arm64-irq_pipeline-skip-n-a-lockdep-check-in-kernel-.patch
+	patches.dovetail/ARM-dovetail-fix-constant-overflow-in-branch-test.patch

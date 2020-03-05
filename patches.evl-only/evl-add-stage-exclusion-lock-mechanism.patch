@@ -1,4 +1,4 @@
-From 17f4370553b66c64485c5c1b07f824d71b198930 Mon Sep 17 00:00:00 2001
+From 33391c10a821b6b40d48f0fc91a45da2fea037b8 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 16 Jan 2020 19:13:02 +0100
 Subject: [PATCH] evl: add stage exclusion lock mechanism
@@ -27,10 +27,11 @@ or EVL) should be used to enforce mutual exclusion among threads
 running on the same stage which may still concurrently run through a
 staxed section.
 ---
- include/evl/stax.h  |  32 +++++
- kernel/evl/Makefile |   1 +
- kernel/evl/stax.c   | 365 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 398 insertions(+)
+ include/evl/stax.h         |  32 ++++
+ include/uapi/evl/control.h |   2 +-
+ kernel/evl/Makefile        |   1 +
+ kernel/evl/stax.c          | 365 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 399 insertions(+), 1 deletion(-)
  create mode 100644 include/evl/stax.h
  create mode 100644 kernel/evl/stax.c
 
@@ -72,6 +73,19 @@ index 000000000000..c8695a87a546
 +void evl_unlock_stax(struct evl_stax *stax);
 +
 +#endif /* !_EVL_STAX_H */
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 9c59f62b0e17..25b15107e9ce 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  12
++#define EVL_ABI_LEVEL  13
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
 diff --git a/kernel/evl/Makefile b/kernel/evl/Makefile
 index 27d2f4f11d67..dbd29b21f2e0 100644
 --- a/kernel/evl/Makefile

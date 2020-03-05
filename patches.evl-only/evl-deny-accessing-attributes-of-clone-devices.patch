@@ -1,4 +1,4 @@
-From 9961204f9d4add2c915fce8258b12efe5bbe6e48 Mon Sep 17 00:00:00 2001
+From a10aa7b10c37b4f311a49f4d0335fe8c7e86a80e Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 13 Feb 2020 15:42:43 +0100
 Subject: [PATCH] evl: deny accessing attributes of clone devices
@@ -47,10 +47,10 @@ index f36a9e4c1175..5fc9772336fb 100644
  
  	if (mon->type == EVL_MONITOR_EVENT) {
 diff --git a/kernel/evl/thread.c b/kernel/evl/thread.c
-index d6e880900739..ef386f1e9115 100644
+index 77a98fca8c9d..3c1bbe187e46 100644
 --- a/kernel/evl/thread.c
 +++ b/kernel/evl/thread.c
-@@ -2287,7 +2287,11 @@ static ssize_t state_show(struct device *dev,
+@@ -2095,7 +2095,11 @@ static ssize_t state_show(struct device *dev,
  	ssize_t ret;
  
  	thread = evl_get_element_by_dev(dev, struct evl_thread);
@@ -62,7 +62,7 @@ index d6e880900739..ef386f1e9115 100644
  	evl_put_element(&thread->element);
  
  	return ret;
-@@ -2305,6 +2309,8 @@ static ssize_t sched_show(struct device *dev,
+@@ -2113,6 +2117,8 @@ static ssize_t sched_show(struct device *dev,
  	ssize_t ret, _ret;
  
  	thread = evl_get_element_by_dev(dev, struct evl_thread);
@@ -71,7 +71,7 @@ index d6e880900739..ef386f1e9115 100644
  
  	evl_spin_lock_irqsave(&thread->lock, flags);
  
-@@ -2349,6 +2355,8 @@ static ssize_t stats_show(struct device *dev,
+@@ -2157,6 +2163,8 @@ static ssize_t stats_show(struct device *dev,
  	int usage;
  
  	thread = evl_get_element_by_dev(dev, struct evl_thread);
@@ -80,7 +80,7 @@ index d6e880900739..ef386f1e9115 100644
  
  	evl_spin_lock_irqsave(&thread->lock, flags);
  
-@@ -2416,8 +2424,12 @@ static ssize_t timeout_show(struct device *dev,
+@@ -2224,8 +2232,12 @@ static ssize_t timeout_show(struct device *dev,
  	ssize_t ret;
  
  	thread = evl_get_element_by_dev(dev, struct evl_thread);
@@ -93,7 +93,7 @@ index d6e880900739..ef386f1e9115 100644
  	evl_put_element(&thread->element);
  
  	return ret;
-@@ -2432,7 +2444,11 @@ static ssize_t pid_show(struct device *dev,
+@@ -2240,7 +2252,11 @@ static ssize_t pid_show(struct device *dev,
  	ssize_t ret;
  
  	thread = evl_get_element_by_dev(dev, struct evl_thread);

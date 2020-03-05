@@ -1,0 +1,30 @@
+From 215cd5ea7123ef65d6ae22ca5df5a96cccfc0f2f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Fri, 14 Feb 2020 17:54:08 +0100
+Subject: [PATCH] fork: dovetail: ensure oob state is cleared on dup
+
+The out-of-band state is assumed to be zeroed for every new
+process. Make sure this is always the case, including after a fork
+which involves a duplication of the parent mm which might have used
+its out-of-band state.
+---
+ kernel/fork.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 5c9acf767707..d16b2a735eba 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1033,6 +1033,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm->pmd_huge_pte = NULL;
+ #endif
+ 	mm_init_uprobes_state(mm);
++#ifdef CONFIG_DOVETAIL
++	memset(&mm->oob_state, 0, sizeof(mm->oob_state));
++#endif
+ 
+ 	if (current->mm) {
+ 		mm->flags = current->mm->flags & MMF_INIT_MASK;
+-- 
+2.16.4
+

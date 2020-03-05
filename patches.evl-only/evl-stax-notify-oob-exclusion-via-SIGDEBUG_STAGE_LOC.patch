@@ -1,4 +1,4 @@
-From b14d68ac1f239346865303da96f38c750c4e4e0e Mon Sep 17 00:00:00 2001
+From 3b01f909694cfab342c155df422349cb9c6d6b34 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 25 Jan 2020 12:03:53 +0100
 Subject: [PATCH] evl/stax: notify oob exclusion via SIGDEBUG_STAGE_LOCKED
@@ -12,12 +12,26 @@ This is a debug mechanism aimed at detecting unwanted serialization of
 oob threads with in-band activity on accessing a resource protected by
 a stax.
 ---
- include/uapi/evl/signal.h | 1 +
- include/uapi/evl/thread.h | 2 ++
- kernel/evl/stax.c         | 8 ++++++++
- kernel/evl/thread.c       | 2 +-
- 4 files changed, 12 insertions(+), 1 deletion(-)
+ include/uapi/evl/control.h | 2 +-
+ include/uapi/evl/signal.h  | 1 +
+ include/uapi/evl/thread.h  | 2 ++
+ kernel/evl/stax.c          | 8 ++++++++
+ kernel/evl/thread.c        | 2 +-
+ 5 files changed, 13 insertions(+), 2 deletions(-)
 
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 65485f92ccd4..71630cbfe0b8 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,7 +10,7 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  14
++#define EVL_ABI_LEVEL  15
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
 diff --git a/include/uapi/evl/signal.h b/include/uapi/evl/signal.h
 index e422ab80d5f3..cbdf68b7b90a 100644
 --- a/include/uapi/evl/signal.h

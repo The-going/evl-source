@@ -1,0 +1,31 @@
+From 265d982a301e393a505b7ad79fb04443770d14b3 Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Sat, 15 Feb 2020 19:04:05 +0100
+Subject: [PATCH] ARM: dovetail: fix constant overflow in branch test
+
+This overflow was caused by the addition of _TIF_RETUSER to
+_TIF_WORK_MASK. Enabling PROVE_LOCKING would trigger the asm fixup
+issue.
+
+Signed-off-by: Philippe Gerum <rpm@xenomai.org>
+---
+ arch/arm/kernel/entry-common.S | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/kernel/entry-common.S b/arch/arm/kernel/entry-common.S
+index 8494558c9448..ad06273cf139 100644
+--- a/arch/arm/kernel/entry-common.S
++++ b/arch/arm/kernel/entry-common.S
+@@ -93,7 +93,8 @@ __ret_fast_syscall:
+ 	cmp	r2, #TASK_SIZE
+ 	blne	addr_limit_check_failed
+ 	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
+-	tst	r1, #_TIF_SYSCALL_WORK | _TIF_WORK_MASK
++	ldr	r2, =#_TIF_SYSCALL_WORK | _TIF_WORK_MASK
++	ands	r2, r1, r2
+ 	beq	no_work_pending
+  UNWIND(.fnend		)
+ ENDPROC(ret_fast_syscall)
+-- 
+2.16.4
+
