@@ -1,4 +1,4 @@
-From b936487e2c9c9968bc08d61f29e4493eab99b98b Mon Sep 17 00:00:00 2001
+From 2bdd1f528a60c34f3264e8ebc3e9319c6d3860f9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sat, 25 May 2019 12:04:59 +0200
 Subject: [PATCH] gpiolib: evl: silence spurious compiler warning
@@ -8,10 +8,10 @@ Subject: [PATCH] gpiolib: evl: silence spurious compiler warning
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index 62c056274473..3f00dfc0b519 100644
+index 3efbaee9a6dc..61bc1d21cb08 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -1137,9 +1137,15 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1127,9 +1127,15 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		raw_spin_lock_irqsave(&le->oob_state.lock, flags);
  
  		ret = kfifo_get(&le->events, &ge);

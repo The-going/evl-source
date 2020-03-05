@@ -1,4 +1,4 @@
-From 61db65c0b184ac37954a49cb81e3bb5ad433469a Mon Sep 17 00:00:00 2001
+From 8d8810b7af7273922c5cd64911e71b50f99645a9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Wed, 23 Oct 2019 12:05:12 +0200
 Subject: [PATCH] gpiolib: evl: convert to per-waitqueue lock
@@ -8,10 +8,10 @@ Subject: [PATCH] gpiolib: evl: convert to per-waitqueue lock
  1 file changed, 7 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index 9ba3b4a51227..e6fd950dd42a 100644
+index 6111fc521a4a..e21d2bc592a3 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -1073,28 +1073,19 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1063,28 +1063,19 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  {
  	struct lineevent_state *le = p;
  	struct gpioevent_data ge;
@@ -43,7 +43,7 @@ index 9ba3b4a51227..e6fd950dd42a 100644
  
  	return IRQ_HANDLED;
  }
-@@ -1108,12 +1099,12 @@ static __poll_t lineevent_oob_poll(struct file *filep,
+@@ -1098,12 +1089,12 @@ static __poll_t lineevent_oob_poll(struct file *filep,
  
  	evl_poll_watch(&le->oob_state.poll_head, wait, NULL);
  
@@ -58,7 +58,7 @@ index 9ba3b4a51227..e6fd950dd42a 100644
  
  	return ready;
  }
-@@ -1134,7 +1125,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1124,7 +1115,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		return -EPERM;
  
  	do {
@@ -67,7 +67,7 @@ index 9ba3b4a51227..e6fd950dd42a 100644
  
  		ret = kfifo_get(&le->events, &ge);
  		/*
-@@ -1144,7 +1135,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1134,7 +1125,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		if (!ret)
  			ret = 0;
  
@@ -76,7 +76,7 @@ index 9ba3b4a51227..e6fd950dd42a 100644
  
  		if (ret) {
  			ret = raw_copy_to_user(buf, &ge, sizeof(ge));
-@@ -1166,7 +1157,6 @@ static int lineevent_init_oob_state(struct lineevent_state *le,
+@@ -1156,7 +1147,6 @@ static int lineevent_init_oob_state(struct lineevent_state *le,
  {
  	evl_init_wait(&le->oob_state.wait, &evl_mono_clock, EVL_WAIT_PRIO);
  	evl_init_poll_head(&le->oob_state.poll_head);

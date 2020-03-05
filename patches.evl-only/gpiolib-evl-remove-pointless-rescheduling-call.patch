@@ -1,4 +1,4 @@
-From c5a9cca2079ce09033f7e0d78000242178027681 Mon Sep 17 00:00:00 2001
+From 14e0360da8eb60fa2f9b984481169c40e10e292b Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Thu, 31 Oct 2019 17:53:39 +0100
 Subject: [PATCH] gpiolib: evl: remove pointless rescheduling call
@@ -12,10 +12,10 @@ line event handler.
  1 file changed, 2 deletions(-)
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index e6fd950dd42a..938fc84dde2d 100644
+index e21d2bc592a3..bce706c3a1eb 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -1085,8 +1085,6 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1075,8 +1075,6 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  	evl_signal_poll_events(&le->oob_state.poll_head, POLLIN|POLLRDNORM);
  	evl_spin_unlock(&le->oob_state.wait.lock);
  

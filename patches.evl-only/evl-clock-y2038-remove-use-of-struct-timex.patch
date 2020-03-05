@@ -1,0 +1,126 @@
+From 01abd786e29447f4d11bf0e96f6c37ce2c4ba3cd Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Tue, 18 Feb 2020 18:37:58 +0100
+Subject: [PATCH] evl/clock: y2038: remove use of struct timex
+
+Conforming to upstream changes, struct __kernel_timex should be used
+instead. struct timex remains defined on the user-space side of the
+ABI exclusively.
+---
+ include/evl/clock.h        | 6 ++++--
+ include/trace/events/evl.h | 4 ++--
+ include/uapi/evl/clock.h   | 8 +++++++-
+ kernel/evl/clock.c         | 7 ++++---
+ 4 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/include/evl/clock.h b/include/evl/clock.h
+index 8c55b371bea2..742d571b0cda 100644
+--- a/include/evl/clock.h
++++ b/include/evl/clock.h
+@@ -21,6 +21,7 @@
+ struct evl_rq;
+ struct evl_timerbase;
+ struct clock_event_device;
++struct __kernel_timex;
+ 
+ struct evl_clock_gravity {
+ 	ktime_t irq;
+@@ -48,7 +49,7 @@ struct evl_clock {
+ 		void (*reset_gravity)(struct evl_clock *clock);
+ 		void (*adjust)(struct evl_clock *clock);
+ 		int (*adjust_time)(struct evl_clock *clock,
+-				struct timex *tx);
++				struct __kernel_timex *tx);
+ 	} ops;
+ 	struct evl_timerbase *timerdata;
+ 	struct evl_clock *master;
+@@ -148,7 +149,8 @@ static inline void evl_reset_clock_gravity(struct evl_clock *clock)
+ #define evl_get_clock_gravity(__clock, __type)  ((__clock)->gravity.__type)
+ 
+ static inline
+-int evl_clock_adjust_time(struct evl_clock *clock, struct timex *tx)
++int evl_clock_adjust_time(struct evl_clock *clock,
++			  struct __kernel_timex *tx)
+ {
+ 	if (clock->ops.adjust_time)
+ 		return clock->ops.adjust_time(clock, tx);
+diff --git a/include/trace/events/evl.h b/include/trace/events/evl.h
+index c502e0b0af4e..3ce0f2102fe0 100644
+--- a/include/trace/events/evl.h
++++ b/include/trace/events/evl.h
+@@ -808,11 +808,11 @@ DEFINE_EVENT(evl_clock_timespec, evl_clock_settime,
+ );
+ 
+ TRACE_EVENT(evl_clock_adjtime,
+-	TP_PROTO(struct evl_clock *clock, struct timex *tx),
++	TP_PROTO(struct evl_clock *clock, struct __kernel_timex *tx),
+ 	TP_ARGS(clock, tx),
+ 
+ 	TP_STRUCT__entry(
+-		__field(struct timex *, tx)
++		__field(struct __kernel_timex *, tx)
+ 		__string(name, clock->name)
+ 	),
+ 
+diff --git a/include/uapi/evl/clock.h b/include/uapi/evl/clock.h
+index fa5caa35395b..5ee3218f5451 100644
+--- a/include/uapi/evl/clock.h
++++ b/include/uapi/evl/clock.h
+@@ -16,6 +16,12 @@
+ 
+ #define EVL_CLOCK_IOCBASE	'c'
+ 
++#ifndef __KERNEL__		/* Eeek. */
++#define __user_timex  timex
++#else
++#define __user_timex  __kernel_timex
++#endif
++
+ struct evl_clock_sleepreq {
+ 	struct timespec timeout;
+ };
+@@ -24,7 +30,7 @@ struct evl_clock_sleepreq {
+ #define EVL_CLKIOC_GET_RES	_IOR(EVL_CLOCK_IOCBASE, 1, struct timespec)
+ #define EVL_CLKIOC_GET_TIME	_IOR(EVL_CLOCK_IOCBASE, 2, struct timespec)
+ #define EVL_CLKIOC_SET_TIME	_IOR(EVL_CLOCK_IOCBASE, 3, struct timespec)
+-#define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct timex)
++#define EVL_CLKIOC_ADJ_TIME	_IOR(EVL_CLOCK_IOCBASE, 4, struct __user_timex)
+ #define EVL_CLKIOC_NEW_TIMER	_IO(EVL_CLOCK_IOCBASE, 5)
+ 
+ /* Set operation flag for timers. */
+diff --git a/kernel/evl/clock.c b/kernel/evl/clock.c
+index e6b88439c158..f8f50e1bf5b7 100644
+--- a/kernel/evl/clock.c
++++ b/kernel/evl/clock.c
+@@ -12,6 +12,7 @@
+ #include <linux/clockchips.h>
+ #include <linux/interrupt.h>
+ #include <linux/tick.h>
++#include <linux/timex.h>
+ #include <linux/kconfig.h>
+ #include <linux/clocksource.h>
+ #include <linux/bitmap.h>
+@@ -562,9 +563,9 @@ static int set_clock_time(struct evl_clock *clock,
+ }
+ 
+ static int adjust_clock_time(struct evl_clock *clock,
+-			struct timex __user *u_tx)
++			struct __kernel_timex __user *u_tx)
+ {
+-	struct timex tx;
++	struct __kernel_timex tx;
+ 	int ret;
+ 
+ 	ret = raw_copy_from_user(&tx, u_tx, sizeof(tx));
+@@ -841,7 +842,7 @@ static long clock_common_ioctl(struct evl_clock *clock,
+ 		break;
+ 	case EVL_CLKIOC_ADJ_TIME:
+ 		ret = adjust_clock_time(clock,
+-					(struct timex __user *)arg);
++					(struct __kernel_timex __user *)arg);
+ 		break;
+ 	default:
+ 		ret = -ENOTTY;
+-- 
+2.16.4
+

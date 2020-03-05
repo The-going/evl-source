@@ -1,0 +1,59 @@
+From 85751ac39929fcbb29f9c86ae937fce80bcae99f Mon Sep 17 00:00:00 2001
+From: Philippe Gerum <rpm@xenomai.org>
+Date: Thu, 27 Feb 2020 17:37:22 +0100
+Subject: [PATCH] evl/control: plan for supporting a range of ABI revisions
+
+Plan for future support of backward compatibily features, which would
+allow the core to honor multiple ABI revisions. To this end, the core
+identification structure now advertises a range of supported ABI
+revisions to user-space, i.e. [EVL_ABI_BASE..EVL_ABI_LEVEL] inclusive.
+---
+ include/uapi/evl/control.h | 13 +++++++++++--
+ kernel/evl/control.c       |  3 ++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/include/uapi/evl/control.h b/include/uapi/evl/control.h
+index 4df291cc96d1..1bc76f45e34a 100644
+--- a/include/uapi/evl/control.h
++++ b/include/uapi/evl/control.h
+@@ -10,12 +10,21 @@
+ #include <linux/types.h>
+ #include <uapi/evl/sched.h>
+ 
+-#define EVL_ABI_LEVEL  17
++/* Earliest ABI level we support. */
++#define EVL_ABI_BASE   18
++/*
++ * Current/latest ABI level we support. We may decouple the base and
++ * current ABI levels by providing backward compatibility from the
++ * latter to the former. CAUTION: a litteral value is required for the
++ * current ABI definition (scripts reading this may be naive).
++ */
++#define EVL_ABI_LEVEL  18
+ 
+ #define EVL_CONTROL_DEV  "/dev/evl/control"
+ 
+ struct evl_core_info {
+-	__u32 abi_level;
++	__u32 abi_base;
++	__u32 abi_current;
+ 	__u32 fpu_features;
+ 	__u64 shm_size;
+ };
+diff --git a/kernel/evl/control.c b/kernel/evl/control.c
+index 0f607d90bf02..10ba184be3d4 100644
+--- a/kernel/evl/control.c
++++ b/kernel/evl/control.c
+@@ -294,7 +294,8 @@ static long control_ioctl(struct file *filp, unsigned int cmd,
+ 
+ 	switch (cmd) {
+ 	case EVL_CTLIOC_GET_COREINFO:
+-		info.abi_level = EVL_ABI_LEVEL;
++		info.abi_base = EVL_ABI_BASE;
++		info.abi_current = EVL_ABI_LEVEL;
+ 		info.fpu_features = evl_detect_fpu();
+ 		info.shm_size = evl_shm_size;
+ 		ret = raw_copy_to_user((struct evl_core_info __user *)arg,
+-- 
+2.16.4
+

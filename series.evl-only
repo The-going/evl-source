@@ -370,4 +370,10 @@
 	patches.evl-only/evl-thread-honor-SCHED_WEAK-on-return-from-RETUSER.patch
 	patches.evl-only/evl-thread-replace-SIGEVL_ACTION_HOME-with-a-RETUSER.patch
 	patches.evl-only/evl-thread-fix-rescheduling-leak.patch
+	patches.evl-only/evl-clock-y2038-remove-use-of-struct-timex.patch
 	patches.evl-only/evl-stax-force-the-caller-to-in-band-mode-on-WOSX.patch
+	patches.evl-only/evl-stax-export-interface-to-modules.patch
+	patches.evl-only/evl-work-export-interface-to-modules.patch
+	patches.evl-only/evl-control-plan-for-supporting-a-range-of-ABI-revis.patch
+	patches.evl-only/scripts-evl-add-ABI-info-resolver.patch
+	patches.evl-only/evl-y2038-sanitize-timespec-handling-at-kernel-bound.patch

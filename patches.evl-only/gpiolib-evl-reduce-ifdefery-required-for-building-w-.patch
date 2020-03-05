@@ -1,4 +1,4 @@
-From 57c015fc1d2b416b30a9b3d78f269d8e32aa0987 Mon Sep 17 00:00:00 2001
+From 710b6e6fad85ce0b9b024dc7cfc7c914f1766ab9 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Fri, 24 May 2019 12:41:25 +0200
 Subject: [PATCH] gpiolib: evl: reduce #ifdefery required for building w/o EVL
@@ -10,7 +10,7 @@ Subject: [PATCH] gpiolib: evl: reduce #ifdefery required for building w/o EVL
  create mode 100644 include/evl/devices/gpio.h
 
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index bb117338c0e6..62c056274473 100644
+index 45f3649494b8..3efbaee9a6dc 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
 @@ -26,11 +26,8 @@
@@ -37,7 +37,7 @@ index bb117338c0e6..62c056274473 100644
  };
  
  #define GPIOHANDLE_REQUEST_VALID_FLAGS \
-@@ -759,7 +754,7 @@ static int linehandle_release(struct inode *inode, struct file *filep)
+@@ -750,7 +745,7 @@ static int linehandle_release(struct inode *inode, struct file *filep)
  	int i;
  
  	if (oob_handling_requested(lh->lflags))
@@ -46,7 +46,7 @@ index bb117338c0e6..62c056274473 100644
  
  	for (i = 0; i < lh->numdescs; i++)
  		gpiod_free(lh->descs[i]);
-@@ -903,7 +898,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -893,7 +888,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  	}
  
  	if (oob_handling_requested(lflags)) {
@@ -55,7 +55,7 @@ index bb117338c0e6..62c056274473 100644
  		if (ret) {
  			fput(file);
  			put_unused_fd(fd);
-@@ -971,12 +966,7 @@ struct lineevent_state {
+@@ -961,12 +956,7 @@ struct lineevent_state {
  	DECLARE_KFIFO(events, struct gpioevent_data, 16);
  	struct mutex read_lock;
  	u64 timestamp;
@@ -69,7 +69,7 @@ index bb117338c0e6..62c056274473 100644
  };
  
  #define GPIOEVENT_REQUEST_VALID_FLAGS \
-@@ -1090,7 +1080,7 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1080,7 +1070,7 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
  		return IRQ_NONE;
  
@@ -78,7 +78,7 @@ index bb117338c0e6..62c056274473 100644
  
  	/*
  	 * XXX: evl_wait_queue services still serialize on the ugly
-@@ -1099,12 +1089,12 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
+@@ -1089,12 +1079,12 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
  	 */
  	xnlock_get(&nklock);
  	kfifo_put(&le->events, ge);
@@ -94,7 +94,7 @@ index bb117338c0e6..62c056274473 100644
  
  	return IRQ_HANDLED;
  }
-@@ -1116,7 +1106,7 @@ static __poll_t lineevent_oob_poll(struct file *filep,
+@@ -1106,7 +1096,7 @@ static __poll_t lineevent_oob_poll(struct file *filep,
  	unsigned long flags;
  	__poll_t ready = 0;
  
@@ -103,7 +103,7 @@ index bb117338c0e6..62c056274473 100644
  
  	xnlock_get_irqsave(&nklock, flags);
  
-@@ -1144,13 +1134,14 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1134,13 +1124,14 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		return -EPERM;
  
  	do {
@@ -121,7 +121,7 @@ index bb117338c0e6..62c056274473 100644
  
  		if (ret) {
  			ret = raw_copy_to_user(buf, &ge, sizeof(ge));
-@@ -1160,7 +1151,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1150,7 +1141,7 @@ static ssize_t lineevent_oob_read(struct file *filep,
  		if (filep->f_flags & O_NONBLOCK)
  			return -EAGAIN;
  
@@ -130,7 +130,7 @@ index bb117338c0e6..62c056274473 100644
  				!kfifo_is_empty(&le->events));
  	} while (!ret);
  
-@@ -1170,9 +1161,9 @@ static ssize_t lineevent_oob_read(struct file *filep,
+@@ -1160,9 +1151,9 @@ static ssize_t lineevent_oob_read(struct file *filep,
  static int lineevent_init_oob_state(struct lineevent_state *le,
  				int irqflags)
  {
@@ -143,7 +143,7 @@ index bb117338c0e6..62c056274473 100644
  
  	return request_irq(le->irq,
  			lineevent_oob_irq_handler,
-@@ -1197,7 +1188,7 @@ static int lineevent_release(struct inode *inode, struct file *filep)
+@@ -1187,7 +1178,7 @@ static int lineevent_release(struct inode *inode, struct file *filep)
  	struct gpio_device *gdev = le->gdev;
  
  	if (oob_handling_requested(le->lflags))
@@ -152,7 +152,7 @@ index bb117338c0e6..62c056274473 100644
  
  	free_irq(le->irq, le);
  	gpiod_free(le->desc);
-@@ -1436,7 +1427,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -1426,7 +1417,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  	}
  
  	if (oob_handling_requested(lflags)) {
@@ -161,7 +161,7 @@ index bb117338c0e6..62c056274473 100644
  		if (ret) {
  			fput(file);
  			put_unused_fd(fd);
-@@ -1451,7 +1442,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
+@@ -1441,7 +1432,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
  		 * the regular error cleanup path here.
  		 */
  		if (oob_handling_requested(lflags))

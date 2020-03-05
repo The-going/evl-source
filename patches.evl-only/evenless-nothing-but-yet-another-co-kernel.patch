@@ -1,4 +1,4 @@
-From 938ba984e966644c04213f778be1005a3d929f7a Mon Sep 17 00:00:00 2001
+From f9868645c8065874d3c6efbbf91a009940107b66 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 23 Apr 2017 11:48:58 +0200
 Subject: [PATCH] evenless: nothing but yet another co-kernel
@@ -194,7 +194,7 @@ Subject: [PATCH] evenless: nothing but yet another co-kernel
  create mode 100644 kernel/evenless/xbuf.c
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 734b0e732f60..af1f9b84b6e6 100644
+index 5cf989872dbf..1a8415d0d257 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
 @@ -284,6 +284,8 @@ config PGTABLE_LEVELS
@@ -416,10 +416,10 @@ index 000000000000..c1d7f37642fd
 +
 +#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 6e13e7b2af3d..1b20ed2c66dc 100644
+index 524397e8216c..c1622798bd2e 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -131,6 +131,7 @@ config ARM64
+@@ -133,6 +133,7 @@ config ARM64
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
  	select HAVE_ARCH_VMAP_STACK
@@ -427,7 +427,7 @@ index 6e13e7b2af3d..1b20ed2c66dc 100644
  	select HAVE_ARM_SMCCC
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
-@@ -1627,6 +1628,8 @@ config STACKPROTECTOR_PER_TASK
+@@ -1683,6 +1684,8 @@ config STACKPROTECTOR_PER_TASK
  
  endmenu
  
@@ -437,10 +437,10 @@ index 6e13e7b2af3d..1b20ed2c66dc 100644
  
  config ARM64_ACPI_PARKING_PROTOCOL
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 1fbe24d4fdb6..fb988e5b25b7 100644
+index dca1a97751ab..da22f01a5bfb 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -91,6 +91,10 @@ endif
+@@ -84,6 +84,10 @@ endif
  
  CHECKFLAGS	+= -D__aarch64__
  
@@ -691,7 +691,7 @@ index 8befa53f43be..55d68293bd99 100644
  
  source "drivers/ide/Kconfig"
 diff --git a/drivers/Makefile b/drivers/Makefile
-index aaef17cc6512..3f82f6ca82fb 100644
+index 31cf17dee252..6514af035cbf 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -156,6 +156,8 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -7656,10 +7656,10 @@ index 000000000000..968b5efccd90
 +config WARN_CPUFREQ_GOVERNOR
 +       def_bool n
 diff --git a/kernel/Makefile b/kernel/Makefile
-index e0ada4e055ff..52a4d74bcaea 100644
+index 2c9f3ac1e66e..1c871d9be552 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -103,6 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -104,6 +104,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/

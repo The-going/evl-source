@@ -1,4 +1,4 @@
-From a93497efe143784b31c32d3abbb16a193651801c Mon Sep 17 00:00:00 2001
+From 61f14e8bc609e5519153eefcd81daa1dba949dc2 Mon Sep 17 00:00:00 2001
 From: Philippe Gerum <rpm@xenomai.org>
 Date: Sun, 10 Mar 2019 16:29:48 +0100
 Subject: [PATCH] evl: rename evenless/ paths to evl/
@@ -321,10 +321,10 @@ index df9f454d7b7e..d9771dda64f2 100644
 -#endif /* !_EVENLESS_ARM_ASM_UAPI_FPTEST_H */
 +#endif /* !_EVL_ARM_ASM_UAPI_FPTEST_H */
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 268fc92aa61e..20ead2d1f0bc 100644
+index 935dde47738e..8ad5937808b3 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -92,7 +92,7 @@ endif
+@@ -85,7 +85,7 @@ endif
  CHECKFLAGS	+= -D__aarch64__
  
  ifeq ($(CONFIG_EVL),y)
@@ -497,7 +497,7 @@ index 55d68293bd99..21faa643e7d2 100644
  source "drivers/misc/Kconfig"
  
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 4b6b5edb5720..64ccf511ccce 100644
+index 3ae8e04ff276..616520cf32d4 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -156,7 +156,7 @@ obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
@@ -1933,10 +1933,10 @@ index 6730247e8da3..9d8256629839 100644
  if WARN_CPUFREQ_GOVERNOR
  comment "WARNING! CPU_FREQ governors other than 'performance'"
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 7979bc07ac25..caac3b755a2d 100644
+index 512ccdf7e1a6..4e57b19d9baf 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -103,7 +103,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
+@@ -104,7 +104,7 @@ obj-$(CONFIG_IRQ_WORK) += irq_work.o
  obj-$(CONFIG_DOVETAIL) += dovetail.o
  obj-$(CONFIG_CPU_PM) += cpu_pm.o
  obj-$(CONFIG_BPF) += bpf/
